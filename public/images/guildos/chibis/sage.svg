@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" role="img" aria-label="Sage chibi">
+  <ellipse cx="60" cy="118" rx="38" ry="10" fill="#1e3a5f" opacity="0.2"/>
+  <circle cx="60" cy="68" r="44" fill="#e0e7ff" stroke="#4338ca" stroke-width="3"/>
+  <path d="M12 42 L60 8 L108 42 L96 48 L60 22 L24 48 Z" fill="#6366f1" stroke="#312e81" stroke-width="2"/>
+  <circle cx="44" cy="64" r="7" fill="#1e1b4b"/>
+  <circle cx="76" cy="64" r="7" fill="#1e1b4b"/>
+  <circle cx="46" cy="62" r="2.5" fill="#fff"/>
+  <circle cx="78" cy="62" r="2.5" fill="#fff"/>
+  <path d="M54 80 L60 86 L66 80" fill="none" stroke="#1e1b4b" stroke-width="2" stroke-linecap="round"/>
+  <rect x="28" y="98" width="64" height="28" rx="8" fill="#4f46e5" stroke="#312e81" stroke-width="2"/>
+</svg>
