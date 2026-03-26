@@ -1,19 +1,44 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/libs/supabase/server";
+import { cookies } from "next/headers";
+import { createClient } from "@libs-db/server";
 import config from "@/config";
+
+const NEXT_COOKIE = "guildos_auth_next";
 
 export const dynamic = "force-dynamic";
 
-// This route is called after a successful login. It exchanges the code for a session and redirects to the callback URL (see config.js).
+// Called after hosted auth; exchanges code for session then redirects.
 export async function GET(req) {
   const requestUrl = new URL(req.url);
   const code = requestUrl.searchParams.get("code");
+  const nextParam = requestUrl.searchParams.get("next");
 
   if (code) {
-    const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const sb = await createClient();
+    await sb.auth.exchangeCodeForSession(code);
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(requestUrl.origin + config.auth.callbackUrl);
+  const cookieStore = await cookies();
+  const fromCookie = cookieStore.get(NEXT_COOKIE)?.value;
+
+  const rawNext =
+    nextParam || (fromCookie ? decodeURIComponent(fromCookie) : null);
+
+  const safeNext =
+    rawNext &&
+    rawNext.startsWith("/") &&
+    !rawNext.startsWith("//") &&
+    !rawNext.includes("://")
+      ? rawNext
+      : null;
+
+  const destination =
+    requestUrl.origin + (safeNext || config.auth.callbackUrl);
+
+  const res = NextResponse.redirect(destination);
+  if (fromCookie) {
+    res.cookies.set(NEXT_COOKIE, "", { path: "/", maxAge: 0 });
+  }
+
+  return res;
 }

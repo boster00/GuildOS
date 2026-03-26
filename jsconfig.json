@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@libs-db/client": ["./libs/sb/client.js"],
+      "@libs-db/server": ["./libs/sb/server.js"]
     }
   }
 }

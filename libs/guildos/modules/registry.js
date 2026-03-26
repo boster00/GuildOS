@@ -1,0 +1,111 @@
+/**
+ * GuildOS product modules — boundaries for future services.
+ * Each entry maps the fantasy metaphor to planned technical responsibility.
+ */
+export const GUILDOS_MODULES = [
+  {
+    key: "auth",
+    name: "Auth",
+    metaphor: "Town gate",
+    purpose: "User login, hosted auth session, guildos.users profile row.",
+    entities: ["users", "sessions"],
+  },
+  {
+    key: "characters",
+    name: "Character / Mascot",
+    metaphor: "Guild heralds",
+    purpose: "Brand mascots, portraits, future in-world roles.",
+    entities: ["characters", "character_assets"],
+  },
+  {
+    key: "town",
+    name: "Town Navigation",
+    metaphor: "Map & roads",
+    purpose: "Routable locations, future graph expansion.",
+    entities: ["locations", "location_routes"],
+  },
+  {
+    key: "quest_intake",
+    name: "Quest Intake",
+    metaphor: "Request Desk",
+    purpose: "Natural-language requests into planning pipeline.",
+    entities: ["requests", "quests"],
+  },
+  {
+    key: "planning",
+    name: "War Room",
+    metaphor: "Strategy table",
+    purpose: "Plans, steps, success criteria before execution.",
+    entities: ["quest_plans", "quest_steps", "success_criteria"],
+  },
+  {
+    key: "adventurers",
+    name: "Adventurers",
+    metaphor: "Walker pool",
+    purpose: "Execution units; assignments to quests.",
+    entities: ["adventurers", "adventurer_assignments"],
+  },
+  {
+    key: "hats",
+    name: "Armory (Hats)",
+    metaphor: "Roles & kits",
+    purpose: "Job types, capability bundles, specializations.",
+    entities: ["hats", "hat_capabilities"],
+  },
+  {
+    key: "smith",
+    name: "Smith (Weapons)",
+    metaphor: "Forge",
+    purpose: "Tools, APIs, MCP integrations, permissions.",
+    entities: ["weapons", "tool_integrations", "tool_permissions"],
+  },
+  {
+    key: "apothecary",
+    name: "Apothecary (Potions)",
+    metaphor: "Alchemy shelf",
+    purpose: "Temporary credentials; scoped, expiring tokens.",
+    entities: ["potions", "credential_tokens"],
+  },
+  {
+    key: "shields",
+    name: "Shields",
+    metaphor: "Ward hall",
+    purpose: "Policies, rate limits, approvals, execution guards.",
+    entities: ["shields", "safeguard_rules"],
+  },
+  {
+    key: "quest_board",
+    name: "Tavern & Quest Board",
+    metaphor: "Notice board",
+    purpose: "Open / active / completed quests; future claiming.",
+    entities: ["quest_board_entries", "quest_status_history"],
+  },
+  {
+    key: "scribe",
+    name: "Scribe",
+    metaphor: "Desk & scrolls",
+    purpose: "Logs, run artifacts, quest summaries.",
+    entities: ["scribe_logs", "run_artifacts", "quest_reports"],
+  },
+  {
+    key: "messenger",
+    name: "Messenger",
+    metaphor: "Carrier pigeons",
+    purpose: "Outbound notifications, channel integrations.",
+    entities: ["messages", "notification_channels", "delivery_attempts"],
+  },
+  {
+    key: "consul",
+    name: "Consul",
+    metaphor: "Council chamber",
+    purpose: "Human escalation and approval flows.",
+    entities: ["escalations", "approval_requests"],
+  },
+  {
+    key: "dev_tasks",
+    name: "Dev Task Sidebar",
+    metaphor: "Builder's ledger",
+    purpose: "Internal roadmap tasks in the town UI.",
+    entities: ["dev_tasks"],
+  },
+];
