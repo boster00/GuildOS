@@ -1,0 +1,350 @@
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 466ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/route.js] GET
+[libs/supabase/server.js] createClient
+ GET /api/credits 200 in 523ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ○ Compiling /offers/[[...slug]] ...
+ ✓ Compiled /offers/[[...slug]] in 2.2s
+[libs/seo.js] getSEOTags
+ GET /offers 200 in 3058ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 543ms
+ POST /api/database 200 in 484ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 655ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /offers/93a8c6ec-d3c9-4db0-958e-a508c933d628/edit 200 in 581ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[libs/seo.js] getSEOTags
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 755ms
+ POST /api/database 200 in 746ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 555ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 419ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /offers 200 in 165ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[libs/seo.js] getSEOTags
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 568ms
+ POST /api/database 200 in 505ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /offers/new 200 in 312ms
+[libs/seo.js] getSEOTags
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 540ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /offers/471665a4-1ad9-498f-adf7-26cbc51140ef/edit 200 in 237ms
+[libs/seo.js] getSEOTags
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 574ms
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 610ms
+ POST /api/database 200 in 616ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ○ Compiling /icps/[[...slug]] ...
+ ✓ Compiled /icps/[[...slug]] in 3.4s
+[libs/seo.js] getSEOTags
+ GET /icps 200 in 4248ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 846ms
+ POST /api/database 200 in 851ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 461ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /icps/3f14f956-c287-49fb-942e-90226c165bf3/edit 200 in 210ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[libs/seo.js] getSEOTags
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 589ms
+ POST /api/database 200 in 562ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 491ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[middleware.js] middleware
+[middleware.js] updateSession
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 622ms
+ GET /icps 200 in 187ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[libs/seo.js] getSEOTags
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 499ms
+ POST /api/database 200 in 543ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 582ms
+ POST /api/database 200 in 554ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /settings 200 in 153ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /settings/custom-css 200 in 185ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 585ms
+ POST /api/database 200 in 591ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 641ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 607ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 518ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ○ Compiling /api/settings/extract-css ...
+ ✓ Compiled /api/settings/extract-css in 2.8s
+[app/api/settings/extract-css/route.js] POST
+[libs/supabase/server.js] createClient
+[app/api/settings/extract-css/route.js] removeHtmlComments
+[app/api/settings/extract-css/route.js] extractCssLinks
+[app/api/settings/extract-css/route.js] extractInlineStyles
+ POST /api/settings/extract-css 200 in 3416ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /settings 200 in 256ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ○ Compiling /settings/page-templates ...
+[middleware.js] middleware
+[middleware.js] updateSession
+ ✓ Compiled /settings/page-templates in 1741ms
+ GET /settings/page-templates 200 in 2018ms
+ GET /settings/custom-css 200 in 325ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 1065ms
+ POST /api/database 200 in 997ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/settings/custom-css/route.js] POST
+[libs/supabase/server.js] createClient
+ POST /api/settings/custom-css 200 in 1169ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /settings 200 in 232ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /settings/page-templates 200 in 230ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 725ms
+ POST /api/database 200 in 585ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/layout.js] RootLayout
+[app/not-found.js] NotFound
+[app/(private)/layout.js] LayoutPrivate
+[libs/supabase/server.js] createClient
+[components/LayoutClient.js] ClientLayout
+[components/LayoutClient.js] CrispChat
+[app/not-found.js] NotFound
+[components/ui/Layout/DashboardContainer.js] DashboardContainer
+[components/ui/MobileBackdrop.js] MobileBackdrop
+[components/ui/Sidebar/Sidebar.js] Sidebar
+[components/ui/Sidebar/SidebarHeader.js] SidebarHeader
+[components/ui/Sidebar/SidebarNavigation.js] SidebarNavigation
+[components/ButtonAccount.js] ButtonAccount
+[libs/supabase/client.js] createClient
+[components/ui/Sidebar/Sidebar.js] Sidebar
+[components/ui/Sidebar/SidebarHeader.js] SidebarHeader
+[components/ui/Sidebar/SidebarNavigation.js] SidebarNavigation
+[components/ButtonAccount.js] ButtonAccount
+[libs/supabase/client.js] createClient
+[components/MeteringToggle.js] MeteringToggle
+[components/CreditMeter.js] CreditMeter
+[components/OutOfCreditsBanner.js] OutOfCreditsBanner
+[app/(private)/settings/page-templates/page.js] PageTemplatesSettings
+ GET /settings/page-templates 200 in 592ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/credits/route.js] GET
+[libs/supabase/server.js] createClient
+ POST /api/database 200 in 595ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /api/credits 200 in 655ms
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 497ms
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 534ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ✓ Compiled /api/templates/bookmarks in 345ms
+[app/api/templates/bookmarks/route.js] POST
+[libs/supabase/server.js] createClient
+ POST /api/templates/bookmarks 200 in 1096ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/templates/bookmarks/route.js] DELETE
+[libs/supabase/server.js] createClient
+ DELETE /api/templates/bookmarks 200 in 635ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ✓ Compiled /api/templates/save in 233ms
+[app/api/templates/save/route.js] POST
+[libs/supabase/server.js] createClient
+ POST /api/templates/save 200 in 858ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/database/route.ts] POST
+[libs/supabase/server.js] createClient
+[app/api/database/route.ts] processSupabaseSettings
+ POST /api/database 200 in 517ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ GET /settings 200 in 240ms

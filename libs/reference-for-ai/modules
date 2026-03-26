@@ -1,0 +1,52 @@
+Recommended Final Structure
+📋 Module Responsibilities Breakdown
+1. research/
+ICP profile creation and refinement
+Prompt generation and testing
+AI vendor integrations (OpenAI, Perplexity)
+Research data persistence
+2. monitor/
+Cron job scheduling
+Google Cloud Run worker management
+Queue processing and monitoring
+Execution status tracking
+3. content/
+Web scraping and crawling
+Competitor content analysis (Frase.io style)
+Real-time content scoring
+User feedback systems
+4. insights/ 🎯
+Collected data analysis
+Automated report generation
+Opportunity identification and prioritization
+Todo/task management integration
+Dashboard metrics and KPIs
+Chart/visualization creation
+
+example API endpoint: api/research
+
+
+ Dashboard UI Design Requirements Summary
+🚀 New User Onboarding
+Clear setup indicators - Show incomplete setup steps prominently
+Popup checklist - Bubble.io-style onboarding flow
+Primary action - Setup initial ICPs and prompts → start tracking
+📊 Established User Dashboard
+KPI Reports - Google Ads-style dashboard (up to 4 KPIs displayed)
+Time-based metrics - Historical performance over time
+Filtering system - Filter by specific ICP, change KPI selection
+Opportunity pipeline - Interactive checklist with check-off and snooze functionality
+🧭 Main Navigation Structure
+ICPs & Prompts - Profile and prompt management
+Performance - AI prompt monitoring results and analytics
+Content Pipeline - Website audit + competitor benchmarking + content writer tools
+Settings - API keys, billing, user preferences (accessible app-wide)
+🎯 Key UX Patterns
+Progressive disclosure - New users see setup, established users see analytics
+Task-oriented design - Clear actionable items and completion tracking
+Contextual access - Settings available throughout the application
+Data-driven interface - Emphasis on metrics, filtering, and time-based reporting
+📐 Design References
+Onboarding: Bubble.io checklist popup
+Analytics: Google Ads dashboard layout
+Navigation: Module-based architecture with persistent settings access

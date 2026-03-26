@@ -1,0 +1,25 @@
+---
+description: Billing and Stripe provisioning conventions
+globs: app/api/webhook/stripe/**,app/api/stripe/**,libs/monkey/subscriptionProvisioner.js,libs/monkey/planContext.js,libs/monkey/registry/subscriptionTiers.js,app/api/credits/**,app/api/plan/**
+alwaysApply: false
+---
+
+# Billing & Stripe
+
+## Source of truth
+
+- **Tier definitions**: `libs/monkey/registry/subscriptionTiers.js` — not the database.
+
+## Provisioning flow
+
+- **Webhook** → `provisionSubscription` / `cancelSubscription` (in `libs/monkey/subscriptionProvisioner.js`)
+
+## PlanContext
+
+- Use `getPlanContext(supabase, userId)` to obtain plan context.
+- **Avoid** direct `profiles.subscription_plan` queries in API routes.
+- Pass PlanContext down; use `assertPlan(plan, feature)` for feature checks.
+
+## Reference
+
+See `docs/BILLING_ARCHITECTURE.md` for flow, webhook events, and schema details.

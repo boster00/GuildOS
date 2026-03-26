@@ -1,0 +1,36 @@
+{
+  "name": "ProviderSettings",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": [
+        "openai",
+        "gemini",
+        "perplexity",
+        "claude"
+      ],
+      "description": "AI provider name"
+    },
+    "apiKey": {
+      "type": "string",
+      "description": "API key (encrypted)"
+    },
+    "monthlyCap": {
+      "type": "number",
+      "description": "Monthly spending cap"
+    },
+    "queryFrequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "custom"
+      ],
+      "description": "Query frequency"
+    }
+  },
+  "required": [
+    "provider"
+  ]
+}

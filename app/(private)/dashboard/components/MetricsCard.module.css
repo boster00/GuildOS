@@ -1,0 +1,158 @@
+/* MetricsCard.module.css */
+.metricsCard {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.metricsCard:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.clickable:hover {
+    border-color: #3ca9d6;
+}
+
+.cardContent {
+    padding: 1.5rem;
+}
+
+.cardLayout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.textSection {
+    flex: 1;
+    min-width: 0;
+}
+
+.cardTitle {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin: 0 0 0.5rem 0;
+    font-family: 'Inter', 'system-ui', sans-serif;
+}
+
+.cardValue {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    line-height: 1.2;
+    font-family: 'Inter', 'system-ui', sans-serif;
+}
+
+.trendSection {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.trendIcon {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.trendText {
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: 'Inter', 'system-ui', sans-serif;
+}
+
+.trendUp {
+    color: #059669;
+}
+
+.trendDown {
+    color: #dc2626;
+}
+
+.iconSection {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #dbeafe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.iconSection svg,
+.iconSection img {
+    width: 24px;
+    height: 24px;
+    color: #2563eb;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .cardContent {
+        padding: 1rem;
+    }
+    
+    .cardValue {
+        font-size: 1.75rem;
+    }
+    
+    .iconSection {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .iconSection svg,
+    .iconSection img {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* Loading state */
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.loading .cardValue::after {
+    content: '...';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0%, 20% { opacity: 0; }
+    50% { opacity: 1; }
+    80%, 100% { opacity: 0; }
+}
+
+/* Error state */
+.error {
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+
+.error .cardTitle {
+    color: #dc2626;
+}
+
+/* Success state */
+.success {
+    border-color: #059669;
+    background: #f0fdf4;
+}
+
+.success .cardTitle {
+    color: #059669;
+}

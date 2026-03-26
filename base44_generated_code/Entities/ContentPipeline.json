@@ -1,0 +1,107 @@
+{
+  "name": "ContentPipeline",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Content title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Content description"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "idea",
+        "drafting",
+        "review",
+        "published"
+      ],
+      "default": "idea",
+      "description": "Content stage"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "prompt_analysis",
+        "audit",
+        "manual",
+        "ai_suggested"
+      ],
+      "description": "How this content idea was generated"
+    },
+    "icpId": {
+      "type": "string",
+      "description": "Target ICP ID"
+    },
+    "promptIds": {
+      "type": "string",
+      "description": "Comma-separated prompt IDs that inspired this"
+    },
+    "aiRationale": {
+      "type": "string",
+      "description": "AI explanation of why this content matters"
+    },
+    "targetKeywords": {
+      "type": "string",
+      "description": "Comma-separated target keywords"
+    },
+    "expectedImpact": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "Expected visibility impact"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "description": "Content creation difficulty"
+    },
+    "assignedTo": {
+      "type": "string",
+      "description": "User email assigned to create"
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Due date"
+    },
+    "contentBody": {
+      "type": "string",
+      "description": "Draft content body"
+    },
+    "publishedUrl": {
+      "type": "string",
+      "description": "URL after publishing"
+    },
+    "publishedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Publication timestamp"
+    },
+    "readabilityScore": {
+      "type": "number",
+      "description": "Content readability score (0-100)"
+    },
+    "coverageScore": {
+      "type": "number",
+      "description": "Keyword coverage score (0-100)"
+    },
+    "wordCount": {
+      "type": "number",
+      "description": "Current word count"
+    }
+  },
+  "required": [
+    "title",
+    "stage"
+  ]
+}

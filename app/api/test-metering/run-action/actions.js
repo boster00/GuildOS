@@ -1,0 +1,141 @@
+/** id -> { label, method, path, action, defaultBody }. Action 7 (evaluate_keywords) omitted - no single endpoint. */
+export const ACTIONS = {
+  suggest_transaction_details: {
+    label: "Suggest transaction details",
+    method: "POST",
+    path: "/api/ai",
+    action: "openai_text",
+    defaultBody: {
+      query: "List 3 example transactional details for a B2B product (price, lead time, warranty). One line each.",
+      vendor: "openai",
+      model: "gpt-4o",
+    },
+  },
+  suggest_icp: {
+    label: "Suggest ICP",
+    method: "POST",
+    path: "/api/ai",
+    action: "openai_text",
+    defaultBody: {
+      query: "Suggest one ideal customer profile (ICP) in one sentence for a SaaS analytics tool.",
+      vendor: "openai",
+      model: "gpt-4o",
+    },
+  },
+  search_competitors: {
+    label: "Search competitors",
+    method: "POST",
+    path: "/api/content-magic/search",
+    action: "tavily_search",
+    defaultBody: { query: "SEO content software", maxResults: 2 },
+  },
+  benchmark_competitors: {
+    label: "Analyze competitors for topics",
+    method: "POST",
+    path: "/api/content-magic/benchmark",
+    action: "benchmark_topics",
+    defaultBody: {
+      pages: [{ url: "https://example.com", content: "Example page content for benchmark test." }],
+      assetType: "key_topics",
+    },
+  },
+  evaluate_topics: {
+    label: "Evaluate topics for relevance",
+    method: "POST",
+    path: "/api/content-magic/topics/evaluate-topic",
+    action: "evaluate_topic",
+    defaultBody: {
+      topicId: "test-topic-1",
+      topic: { label: "Test topic" },
+      article: { title: "Test", content_html: "<p>Test content</p>" },
+    },
+  },
+  ranking_keywords: {
+    label: "Get page also rank for keywords",
+    method: "POST",
+    path: "/api/dataforseo/ranking-keywords",
+    action: "dataforseo_ranked_keywords",
+    defaultBody: { urls: ["https://example.com"], limit: 5 },
+  },
+  related_keywords: {
+    label: "Get related keywords",
+    method: "POST",
+    path: "/api/dataforseo/related-keywords",
+    action: "dataforseo_related_keywords",
+    defaultBody: { keywords: ["seo"], limit: 5 },
+  },
+  suggest_prompts: {
+    label: "Suggest prompts",
+    method: "POST",
+    path: "/api/content-magic/suggest-prompts",
+    action: "suggest_prompts",
+    defaultBody: {
+      articleId: "00000000-0000-0000-0000-000000000001",
+      icp: { name: "Test", description: "Test ICP" },
+      outlineTopics: [{ key: "intro", title: "Introduction" }],
+      keywords: [],
+    },
+  },
+  v0_outline: {
+    label: "v0 outline generation/edits",
+    method: "POST",
+    path: "/api/v0/generate-with-files",
+    action: "v0",
+    defaultBody: { articleId: "00000000-0000-0000-0000-000000000001" },
+  },
+  geo_report: {
+    label: "Evaluate GEO report prompts against article",
+    method: "POST",
+    path: "/api/content-magic/ai-optimization-score",
+    action: "geo_report",
+    defaultBody: {
+      articleId: "00000000-0000-0000-0000-000000000001",
+      contentHtml: "<p>Test</p>",
+    },
+  },
+  topics_prioritize: {
+    label: "Prioritize topics and evaluate for completion",
+    method: "POST",
+    path: "/api/content-magic/topics/suggest-priorities",
+    action: "topics_suggest_priorities",
+    defaultBody: {
+      topics: [{ label: "Test topic" }],
+      article: { title: "Test", content_html: "<p>Test</p>" },
+      campaignContext: {},
+    },
+  },
+  topic_implementation: {
+    label: "Suggest topic implementation (single topic)",
+    method: "POST",
+    path: "/api/content-magic/topics/suggest-implementation",
+    action: "topic_suggest_implementation",
+    defaultBody: {
+      topicId: "t1",
+      topic: { label: "Test" },
+      article: { content_html: "<p>Test</p>" },
+    },
+  },
+  keyword_implementation: {
+    label: "Suggest keyword implementation (multiple keywords)",
+    method: "POST",
+    path: "/api/content-magic/prompts/suggest-implementation",
+    action: "prompts_suggest_implementation",
+    defaultBody: {
+      promptId: "p1",
+      prompt: { text: "Test question?" },
+      article: { content_html: "<p>Test</p>" },
+    },
+  },
+  convert_social: {
+    label: "Convert to social media",
+    method: "POST",
+    path: "/api/content-magic/repurpose-content/generate",
+    action: "repurpose_social",
+    defaultBody: {
+      articleId: "00000000-0000-0000-0000-000000000001",
+      format: "social_media",
+      articleTitle: "Test Article",
+      articleContent: "Test content for social conversion.",
+    },
+  },
+};

@@ -1,0 +1,149 @@
+{
+    "steps": [
+        {
+            "id": "basic_info",
+            "title": "Name Your Ideal Customer",
+            "description": "What is the name of this ideal customer?",
+            "elements": [
+                {
+                    "id": "icpName",
+                    "type": "input",
+                    "inputType": "text",
+                    "label": "ICP Name",
+                    "placeholder": "e.g., SaaS developers, startup founders",
+                    "required": true,
+                    "value": "SaaS developers, startup founders"
+                }
+            ]
+        },
+        {
+            "id": "company_details",
+            "title": "Company & ICP Details",
+            "description": "Provide details about your company and the ICP. What is special about them?",
+            "elements": [
+                {
+                    "id": "ICPDescription",
+                    "type": "textarea",
+                    "label": "Tell us about this ICP",
+                    "placeholder": "Describe this ICP...",
+                    "required": true,
+                    "value": "Our ideal customers are developers and startup founders who want to save time and avoid reinventing the wheel when building SaaS applications."
+                },
+                {
+                    "id": "offerNames",
+                    "type": "input",
+                    "label": "What are the names of your offers for this ICP? Separate by commas.",
+                    "placeholder": "e.g., Offer 1, Offer 2, Offer 3",
+                    "required": true,
+                    "value": "ShipFast, CodeFast"
+                },
+                {
+                    "id": "companyDescription",
+                    "type": "textarea",
+                    "label": "How does your company help this ICP?",
+                    "placeholder": "Describe your company...",
+                    "required": true,
+                    "value": "ShipFast provides a robust boilerplate for developers to launch SaaS products quickly and efficiently."
+                }
+            ]
+        },
+        {
+            "id": "icp_analysis",
+            "title": "ICP Details & Summary",
+            "description": "Fill in the details about your Ideal Customer Profile (ICP). You can also use AI to help generate these details as a starting point. The more insightful your answers, the more effective your AI optimization strategies will be.",
+            "elements": [
+                {
+                    "id": "generateICPDetailsWithAI",
+                    "type": "button",
+                    "onclick": "generateICPDetailsWithAI",
+                    "buttonText": "Generate ICP Details with AI",
+                    "style": "btn-primary"
+                },
+                {
+                    "id": "whoTheyAre",
+                    "type": "textarea",
+                    "label": "Who they are",
+                    "placeholder": "Job/family role, location, organization type...",
+                    "value": "Developers and startup founders building SaaS products."
+                },
+                {
+                    "id": "whatTheyWant",
+                    "type": "textarea",
+                    "label": "What they want",
+                    "placeholder": "What are their goals, needs, or desired outcomes?",
+                    "value": "To launch SaaS applications quickly with minimal setup and proven best practices."
+                },
+                {
+                    "id": "whatGetsInWay",
+                    "type": "textarea",
+                    "label": "What gets in the way",
+                    "placeholder": "What obstacles or challenges do they face?",
+                    "value": "Time constraints, lack of boilerplate code, and uncertainty about scalable architecture."
+                },
+                {
+                    "id": "howSolutionHelps",
+                    "type": "textarea",
+                    "label": "How your solution helps",
+                    "placeholder": "How does your product or service address their needs?",
+                    "value": "ShipFast provides a ready-to-use SaaS boilerplate, reducing development time and ensuring scalability."
+                },
+                {
+                    "id": "uniqueSellingPoints",
+                    "type": "textarea",
+                    "label": "Unique selling points",
+                    "placeholder": "What makes your solution stand out?",
+                    "value": "Comprehensive features, modern tech stack, easy customization, and rapid deployment."
+                },
+                {
+                    "id": "alternatives",
+                    "type": "textarea",
+                    "label": "Alternatives",
+                    "placeholder": "What other solutions might they consider?",
+                    "value": "Building from scratch, using open-source templates, or other SaaS boilerplates."
+                },
+                {
+                    "id": "decisionCriteria",
+                    "type": "textarea",
+                    "label": "Decision criteria",
+                    "placeholder": "What factors influence their buying decision?",
+                    "value": "Speed of setup, feature completeness, documentation quality, and community support."
+                },
+                {
+                    "id": "searchTriggers",
+                    "type": "textarea",
+                    "label": "Search triggers",
+                    "placeholder": "What events or needs prompt them to look for a solution?",
+                    "value": "Starting a new SaaS project, tight deadlines, or lack of internal resources."
+                },
+                {
+                    "id": "informationChannels",
+                    "type": "textarea",
+                    "label": "Information channels",
+                    "placeholder": "Where do they go for information or advice?",
+                    "value": "Developer forums, GitHub, tech blogs, and social media communities."
+                },
+                {
+                    "id": "competitors",
+                    "type": "textarea",
+                    "label": "Competitors",
+                    "placeholder": "Who else offers similar solutions?",
+                    "value": "Other SaaS boilerplate providers, open-source projects, and freelance developers."
+                },
+                {
+                    "id": "whyChooseYou",
+                    "type": "textarea",
+                    "label": "Why choose you",
+                    "placeholder": "Why would they select your solution over others?",
+                    "value": "ShipFast offers a faster launch, better documentation, and more features out of the box."
+                },
+                {
+                    "id": "hesitations",
+                    "type": "textarea",
+                    "label": "Hesitations",
+                    "placeholder": "What concerns or doubts might they have?",
+                    "value": "Concerns about customization limits, ongoing support, and long-term scalability."
+                }
+            ]
+        }
+    ]
+}

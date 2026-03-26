@@ -1,0 +1,83 @@
+{
+  "name": "Icp",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "ICP name"
+    },
+    "brand_name": {
+      "type": "string",
+      "description": "Brand name"
+    },
+    "shortDesc": {
+      "type": "string",
+      "description": "Brief description"
+    },
+    "icpDesc": {
+      "type": "string",
+      "description": "Detailed ICP description"
+    },
+    "offerNames": {
+      "type": "string",
+      "description": "Comma-separated offer names"
+    },
+    "companyHelp": {
+      "type": "string",
+      "description": "How your company helps"
+    },
+    "whoTheyAre": {
+      "type": "string",
+      "description": "Who is this ICP"
+    },
+    "whatTheyWant": {
+      "type": "string",
+      "description": "What they want to achieve"
+    },
+    "whatGetsInWay": {
+      "type": "string",
+      "description": "Obstacles they face"
+    },
+    "howSolutionHelps": {
+      "type": "string",
+      "description": "How solution addresses needs"
+    },
+    "uniqueSellingPts": {
+      "type": "string",
+      "description": "Unique selling points"
+    },
+    "alternatives": {
+      "type": "string",
+      "description": "Alternative solutions they consider"
+    },
+    "decisionCriteria": {
+      "type": "string",
+      "description": "How they make decisions"
+    },
+    "searchTriggers": {
+      "type": "string",
+      "description": "What triggers their search"
+    },
+    "infoChannels": {
+      "type": "string",
+      "description": "Where they find information"
+    },
+    "competitors": {
+      "type": "string",
+      "description": "Competitive landscape"
+    },
+    "whyChooseYou": {
+      "type": "string",
+      "description": "Why they should choose you"
+    },
+    "hesitations": {
+      "type": "string",
+      "description": "Hesitations and concerns"
+    }
+  },
+  "required": [
+    "name",
+    "icpDesc",
+    "companyHelp"
+  ]
+}

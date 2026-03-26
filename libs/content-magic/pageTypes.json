@@ -1,0 +1,121 @@
+{
+  "formatExamples": {
+    "Paragraph": "<div class=\"prose\"><p>This is a standard paragraph format. Text flows naturally with proper spacing and readability. You can include multiple paragraphs to explain concepts, provide background information, or tell a story.</p><p>Each paragraph builds on the previous one, creating a cohesive narrative that guides the reader through your content.</p></div>",
+    "Cards/Grid": "<div class=\"grid grid-cols-3 gap-4\"><div class=\"border rounded-lg p-4\"><h3 class=\"font-semibold mb-2\">Feature One</h3><p class=\"text-sm text-gray-600\">Brief description of this feature and its benefits.</p></div><div class=\"border rounded-lg p-4\"><h3 class=\"font-semibold mb-2\">Feature Two</h3><p class=\"text-sm text-gray-600\">Brief description of this feature and its benefits.</p></div><div class=\"border rounded-lg p-4\"><h3 class=\"font-semibold mb-2\">Feature Three</h3><p class=\"text-sm text-gray-600\">Brief description of this feature and its benefits.</p></div></div>",
+    "Table": "<table class=\"w-full border-collapse\"><thead><tr class=\"bg-gray-100\"><th class=\"border p-2 text-left\">Column 1</th><th class=\"border p-2 text-left\">Column 2</th><th class=\"border p-2 text-left\">Column 3</th></tr></thead><tbody><tr><td class=\"border p-2\">Data point</td><td class=\"border p-2\">Information</td><td class=\"border p-2\">Details</td></tr><tr><td class=\"border p-2\">Data point</td><td class=\"border p-2\">Information</td><td class=\"border p-2\">Details</td></tr></tbody></table>",
+    "Comparison Table": "<table class=\"w-full border-collapse\"><thead><tr class=\"bg-gray-100\"><th class=\"border p-2 text-left\">Feature</th><th class=\"border p-2 text-center\">Option A</th><th class=\"border p-2 text-center\">Option B</th><th class=\"border p-2 text-center\">Option C</th></tr></thead><tbody><tr><td class=\"border p-2 font-medium\">Price</td><td class=\"border p-2 text-center\">$10/mo</td><td class=\"border p-2 text-center\">$25/mo</td><td class=\"border p-2 text-center\">$50/mo</td></tr><tr><td class=\"border p-2 font-medium\">Features</td><td class=\"border p-2 text-center\">✓</td><td class=\"border p-2 text-center\">✓✓</td><td class=\"border p-2 text-center\">✓✓✓</td></tr></tbody></table>",
+    "FAQ Block": "<div class=\"space-y-3\"><div class=\"border rounded-lg\"><div class=\"bg-gray-50 p-3 font-semibold\">Question: How does this work?</div><div class=\"p-3 text-gray-700\">Answer: This is a detailed explanation that addresses the question thoroughly and provides helpful context.</div></div><div class=\"border rounded-lg\"><div class=\"bg-gray-50 p-3 font-semibold\">Question: What are the requirements?</div><div class=\"p-3 text-gray-700\">Answer: Here are the specific requirements listed clearly.</div></div></div>",
+    "Pricing Table": "<div class=\"grid grid-cols-3 gap-4\"><div class=\"border rounded-lg p-6 text-center\"><h3 class=\"text-lg font-bold mb-2\">Basic</h3><div class=\"text-3xl font-bold mb-4\">$10<span class=\"text-sm\">/mo</span></div><ul class=\"text-sm space-y-2 mb-4\"><li>✓ Feature 1</li><li>✓ Feature 2</li><li>✓ Feature 3</li></ul><button class=\"bg-blue-600 text-white px-4 py-2 rounded\">Select</button></div><div class=\"border-2 border-blue-600 rounded-lg p-6 text-center\"><h3 class=\"text-lg font-bold mb-2\">Pro</h3><div class=\"text-3xl font-bold mb-4\">$25<span class=\"text-sm\">/mo</span></div><ul class=\"text-sm space-y-2 mb-4\"><li>✓ Everything in Basic</li><li>✓ Feature 4</li><li>✓ Feature 5</li></ul><button class=\"bg-blue-600 text-white px-4 py-2 rounded\">Select</button></div><div class=\"border rounded-lg p-6 text-center\"><h3 class=\"text-lg font-bold mb-2\">Enterprise</h3><div class=\"text-3xl font-bold mb-4\">Custom</div><ul class=\"text-sm space-y-2 mb-4\"><li>✓ Everything in Pro</li><li>✓ Custom features</li><li>✓ Priority support</li></ul><button class=\"bg-blue-600 text-white px-4 py-2 rounded\">Contact Us</button></div></div>",
+    "Step-by-Step List": "<div class=\"space-y-4\"><div class=\"flex gap-4\"><div class=\"flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold\">1</div><div><h4 class=\"font-semibold mb-1\">First Step</h4><p class=\"text-sm text-gray-600\">Detailed explanation of what to do in this step and why it matters.</p></div></div><div class=\"flex gap-4\"><div class=\"flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold\">2</div><div><h4 class=\"font-semibold mb-1\">Second Step</h4><p class=\"text-sm text-gray-600\">Detailed explanation of what to do in this step and why it matters.</p></div></div><div class=\"flex gap-4\"><div class=\"flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold\">3</div><div><h4 class=\"font-semibold mb-1\">Third Step</h4><p class=\"text-sm text-gray-600\">Detailed explanation of what to do in this step and why it matters.</p></div></div></div>",
+    "Feature Matrix": "<table class=\"w-full border-collapse\"><thead><tr class=\"bg-gray-100\"><th class=\"border p-2 text-left\">Feature</th><th class=\"border p-2 text-center\">Basic</th><th class=\"border p-2 text-center\">Pro</th><th class=\"border p-2 text-center\">Enterprise</th></tr></thead><tbody><tr><td class=\"border p-2\">Core Features</td><td class=\"border p-2 text-center bg-green-50\">✓</td><td class=\"border p-2 text-center bg-green-50\">✓</td><td class=\"border p-2 text-center bg-green-50\">✓</td></tr><tr><td class=\"border p-2\">Advanced Analytics</td><td class=\"border p-2 text-center bg-red-50\">✗</td><td class=\"border p-2 text-center bg-green-50\">✓</td><td class=\"border p-2 text-center bg-green-50\">✓</td></tr><tr><td class=\"border p-2\">Custom Integration</td><td class=\"border p-2 text-center bg-red-50\">✗</td><td class=\"border p-2 text-center bg-red-50\">✗</td><td class=\"border p-2 text-center bg-green-50\">✓</td></tr></tbody></table>"
+  },
+  "pageTypes": {
+    "blog-info": {
+      "label": "Blog / Info",
+      "overview": "Blog and informational content targets users at the top of the funnel who recognize they have a problem but haven't yet identified a specific solution. This content educates, informs, and builds awareness around industry trends, challenges, and foundational concepts. It establishes thought leadership and organic search visibility for broad, high-volume informational queries. Success is measured by engagement, time-on-page, and follow-up conversions to more specific solution-oriented content.",
+      "bestPractices": [
+        "Use clear, descriptive headlines that answer common questions",
+        "Include data, statistics, or case studies to build credibility",
+        "Break content into scannable sections with subheadings",
+        "Link to related guides and solution pages for progressive engagement",
+        "Optimize for long-tail keywords and question-based queries",
+        "Include visual elements (charts, infographics) to enhance comprehension"
+      ],
+      "auditsToIgnore": [
+        "product-specific-claims",
+        "pricing-validation",
+        "cta-conversion-focus"
+      ],
+      "key_topics": "You can copy in contents from your existing pages or use AI suggest outline to get started."
+    },
+    "guide": {
+      "label": "Guide",
+      "overview": "Guides are in-depth, solution-focused resources for users who've identified a specific solution category and want to understand how it works, best practices for implementation, and comparative evaluation criteria. These pages rank for mid-funnel keywords and serve as decision-support content that moves prospects closer to a purchasing decision. Guides build authority by providing comprehensive, actionable information that demonstrates deep expertise in a specific domain.",
+      "bestPractices": [
+        "Structure content with clear, logical progression from basics to advanced",
+        "Include step-by-step instructions or checklists",
+        "Provide comparison frameworks or evaluation criteria",
+        "Use tables or matrices to simplify complex information",
+        "Include implementation examples or code snippets where relevant",
+        "Link to related product/service pages and deeper resources",
+        "Anticipate and answer objections to the solution"
+      ],
+      "auditsToIgnore": [
+        "brand-specific-messaging"
+      ],
+      "key_topics": "You can copy in contents from your existing pages or use AI suggest outline to get started."
+    },
+    "service-page": {
+      "label": "Service Page",
+      "overview": "Service pages describe the specific services your organization offers, targeting prospects in the consideration stage who have identified their problem and solution category but are evaluating providers. These pages must clearly communicate service scope, unique value propositions, methodologies, outcomes, and differentiators. They balance persuasive copywriting with credibility signals and typically include client testimonials, case studies, and clear calls-to-action that drive qualified leads.",
+      "bestPractices": [
+        "Lead with the primary benefit and pain point addressed",
+        "Clearly define service scope and what's included",
+        "Use social proof: testimonials, case studies, client logos",
+        "Explain your unique methodology or approach",
+        "Quantify results and outcomes with metrics",
+        "Include clear pricing or inquiry CTAs",
+        "Address common objections and FAQs",
+        "Include video testimonials or demonstrations"
+      ],
+      "auditsToIgnore": [
+        "informational-depth"
+      ],
+      "key_topics": "You can copy in contents from your existing pages or use AI suggest outline to get started."
+    },
+    "product-page": {
+      "label": "Product Page",
+      "overview": "Product pages showcase a specific product offering with detailed feature descriptions, benefits, technical specifications, and value propositions. These pages target prospects actively evaluating your solution and must clearly communicate differentiation, use cases, and integration capabilities. They balance technical depth with accessibility, include visual demonstrations, pricing information, and strong conversion-focused CTAs that drive trial signups, demos, or purchases.",
+      "bestPractices": [
+        "Lead with primary use case and target customer",
+        "Use clear product imagery and demo videos",
+        "List key features with benefit explanations",
+        "Include technical specifications and requirements",
+        "Show integration capabilities",
+        "Display pricing clearly (if applicable)",
+        "Include customer logos and testimonials",
+        "Provide links to documentation and support",
+        "A/B test CTAs and messaging"
+      ],
+      "auditsToIgnore": [
+        "informational-content-depth"
+      ],
+      "key_topics": "You can copy in contents from your existing pages or use AI suggest outline to get started."
+    },
+    "pillar-page": {
+      "label": "Pillar Page",
+      "overview": "Pillar pages are comprehensive, authority-building resources that cover a broad topic in significant depth while linking to more specific, narrower \"cluster\" content. These pages target high-value, competitive keywords and establish topical authority for search engines. Pillar pages serve as hubs that connect related content and provide SEO benefits through a cluster topology. They typically rank for primary, high-volume keywords and drive traffic to more specific, conversion-focused cluster pages.",
+      "bestPractices": [
+        "Cover the topic exhaustively but remain readable",
+        "Use clear table of contents with internal anchor links",
+        "Link to related cluster content strategically",
+        "Use consistent terminology and taxonomy",
+        "Include visual elements for complex concepts",
+        "Update regularly with new insights and statistics",
+        "Maintain 5,000+ words for topical authority",
+        "Use schema markup for enhanced search visibility",
+        "Include expert quotes and citations"
+      ],
+      "auditsToIgnore": [],
+      "key_topics": "You can copy in contents from your existing pages or use AI suggest outline to get started."
+    },
+    "homepage": {
+      "label": "Homepage",
+      "overview": "The homepage is the digital front door of your organization, serving both new visitors discovering your brand and returning users seeking specific information. It must clearly communicate your value proposition, build credibility, and guide users to relevant content or conversion actions. The homepage balances brand messaging with functional navigation, typically including sections on products/services, customer success, and clear calls-to-action. It's optimized for both brand searches and for establishing first impressions.",
+      "bestPractices": [
+        "Lead with clear, concise value proposition",
+        "Use compelling hero image or video",
+        "Highlight key products/services prominently",
+        "Include social proof: logos, testimonials, metrics",
+        "Make navigation intuitive and clear",
+        "Feature customer success stories or case studies",
+        "Include multiple CTAs at key points",
+        "Mobile-first responsive design",
+        "Fast loading times and performance",
+        "Clear secondary messaging about unique selling points"
+      ],
+      "auditsToIgnore": [],
+      "key_topics": "You can copy in contents from your existing pages or use AI suggest outline to get started."
+    }
+  }
+}

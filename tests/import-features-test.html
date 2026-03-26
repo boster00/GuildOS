@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Page for Import Features</title>
+  
+  <!-- External CSS Link for testing CSS import -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  
+  <!-- Inline styles for testing CSS import -->
+  <style>
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 4rem 2rem;
+      color: white;
+    }
+    
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    
+    .hero p {
+      font-size: 1.25rem;
+      opacity: 0.9;
+    }
+  </style>
+  
+  <style>
+    .features {
+      padding: 4rem 2rem;
+      background: #f7fafc;
+    }
+    
+    .feature-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Section 1: Hero -->
+  <section class="hero">
+    <div class="container mx-auto text-center">
+      <h1>Welcome to Our Platform</h1>
+      <p>Build amazing things with our powerful tools</p>
+      <button class="mt-4 bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100">
+        Get Started
+      </button>
+    </div>
+  </section>
+  
+  <!-- Section 2: Features -->
+  <section class="features">
+    <div class="container mx-auto">
+      <h2 class="text-3xl font-bold text-center mb-8">Amazing Features</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="feature-card">
+          <h3 class="text-xl font-semibold mb-2">Fast Performance</h3>
+          <p>Lightning-fast load times and smooth interactions</p>
+        </div>
+        <div class="feature-card">
+          <h3 class="text-xl font-semibold mb-2">Easy to Use</h3>
+          <p>Intuitive interface that anyone can master</p>
+        </div>
+        <div class="feature-card">
+          <h3 class="text-xl font-semibold mb-2">Secure</h3>
+          <p>Enterprise-grade security for your peace of mind</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Section 3: Testimonials -->
+  <section class="py-16 bg-white">
+    <div class="container mx-auto">
+      <h2 class="text-3xl font-bold text-center mb-12">What Our Customers Say</h2>
+      <div class="max-w-4xl mx-auto">
+        <blockquote class="text-xl italic text-gray-700 mb-4">
+          "This product has completely transformed how we work. Highly recommended!"
+        </blockquote>
+        <p class="text-gray-600 font-semibold">- John Doe, CEO of Example Corp</p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Section 4: CTA -->
+  <section class="bg-gradient-to-r from-blue-500 to-purple-600 py-16 text-white">
+    <div class="container mx-auto text-center">
+      <h2 class="text-3xl font-bold mb-4">Ready to Get Started?</h2>
+      <p class="text-xl mb-8">Join thousands of satisfied customers today</p>
+      <button class="bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+        Start Your Free Trial
+      </button>
+    </div>
+  </section>
+</body>
+</html>

@@ -1,0 +1,66 @@
+{
+  "name": "Quest",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Quest title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Quest description"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "strategic"
+      ],
+      "description": "Quest type"
+    },
+    "module": {
+      "type": "string",
+      "enum": [
+        "icp",
+        "prompts",
+        "auditor",
+        "optimizer",
+        "reputation"
+      ],
+      "description": "Related module"
+    },
+    "xpReward": {
+      "type": "number",
+      "description": "XP reward for completion"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "done"
+      ],
+      "default": "not_started",
+      "description": "Quest status"
+    },
+    "target": {
+      "type": "number",
+      "description": "Target count for completion"
+    },
+    "current": {
+      "type": "number",
+      "default": 0,
+      "description": "Current progress"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Completion timestamp"
+    }
+  },
+  "required": [
+    "title",
+    "type",
+    "xpReward"
+  ]
+}

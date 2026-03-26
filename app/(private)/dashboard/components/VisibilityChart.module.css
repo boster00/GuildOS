@@ -1,0 +1,198 @@
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.cardHeader {
+  padding: 24px 24px 0 24px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 24px;
+}
+
+.cardHeaderContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .cardHeaderContent {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.filtersContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cardContent {
+  padding: 0 24px 24px 24px;
+}
+
+/* Select Component Styles */
+.selectContainer {
+  position: relative;
+  width: 160px;
+}
+
+.selectTrigger {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.selectTrigger:hover {
+  border-color: #9ca3af;
+}
+
+.selectTrigger:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.selectArrow {
+  font-size: 10px;
+  color: #6b7280;
+  transition: transform 0.2s;
+}
+
+.selectDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  z-index: 50;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.selectOption {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.selectOption:hover {
+  background-color: #f3f4f6;
+}
+
+/* Chart Styles */
+.chartContainer {
+  position: relative;
+  width: 100%;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.chartSvg {
+  border-radius: 4px;
+}
+
+.axisLabel {
+  font-size: 10px;
+  fill: #6b7280;
+  font-family: 'Inter', sans-serif;
+}
+
+.dataLine {
+  filter: drop-shadow(0 2px 4px rgb(59 130 246 / 0.2));
+}
+
+.dataPoint {
+  transition: r 0.2s;
+}
+
+.dataPoint:hover {
+  r: 3;
+  fill: #1d4ed8;
+}
+
+.xAxisLabels {
+  position: absolute;
+  bottom: 0;
+  left: 20px;
+  right: 20px;
+  height: 20px;
+}
+
+.xAxisLabel {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'Inter', sans-serif;
+}
+
+.yAxisLabels {
+  font-family: 'Inter', sans-serif;
+}
+
+.chartPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  border-radius: 8px;
+  color: #6b7280;
+  border: 2px dashed #d1d5db;
+}
+
+.loadingSkeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .cardHeader {
+    padding: 16px 16px 0 16px;
+  }
+  
+  .cardContent {
+    padding: 0 16px 16px 16px;
+  }
+  
+  .selectContainer {
+    width: 140px;
+  }
+}

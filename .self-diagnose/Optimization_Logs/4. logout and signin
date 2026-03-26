@@ -1,0 +1,113 @@
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/updated/route.js] GET
+[libs/supabase/server.js] createClient
+[libs/monkey/tools/metering.js] consumeCreditUpdated
+ GET /api/credits/updated 200 in 503ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/layout.js] RootLayout
+[app/not-found.js] NotFound
+[app/not-found.js] NotFound
+[app/(public)/page.js] Home
+[components/Hero.js] Hero
+[components/TestimonialsAvatars.js] TestimonialsAvatars
+[components/DemoPagesSection.js] DemoPagesSection
+[components/ResultsProof.js] ResultsProof
+[components/Problem.js] Problem
+[components/Solution.js] Solution
+[components/RepurposeFeature.js] RepurposeFeature
+[components/OurStory.js] OurStory
+[components/Footer.js] Footer
+[components/LayoutClient.js] ClientLayout
+[components/Header.js] Header
+[components/Logo.js] Logo
+[components/ButtonSignin.js] ButtonSignin
+[libs/supabase/client.js] createClient
+[components/Logo.js] Logo
+[components/ButtonSignin.js] ButtonSignin
+[libs/supabase/client.js] createClient
+[components/Logo.js] Logo
+[components/LayoutClient.js] CrispChat
+ GET / 200 in 2315ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ○ Compiling /signin ...
+ ✓ Compiled /signin in 3.9s
+[libs/seo.js] getSEOTags
+[app/signin/layout.js] Layout
+ GET /signin 200 in 4343ms
+ GET /icon.svg 200 in 625ms
+[middleware.js] middleware
+[middleware.js] updateSession
+ ✓ Compiled /api/auth/callback in 384ms
+[app/api/auth/callback/route.js] GET
+[libs/supabase/server.js] createClient
+ GET /api/auth/callback?code=147067e6-3e01-41e2-b120-ff023a21a101 307 in 1088ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/layout.js] RootLayout
+[app/not-found.js] NotFound
+[app/(private)/layout.js] LayoutPrivate
+[libs/supabase/server.js] createClient
+[app/(private)/tutorials/page.js] TutorialsPage
+[components/LayoutClient.js] ClientLayout
+[components/LayoutClient.js] CrispChat
+[app/not-found.js] NotFound
+[components/ui/Layout/DashboardContainer.js] DashboardContainer
+[components/ui/MobileBackdrop.js] MobileBackdrop
+[components/ui/Sidebar/Sidebar.js] Sidebar
+[components/ui/Sidebar/SidebarHeader.js] SidebarHeader
+[components/ui/Sidebar/SidebarNavigation.js] SidebarNavigation
+[components/ButtonAccount.js] ButtonAccount
+[libs/supabase/client.js] createClient
+[components/ui/Sidebar/Sidebar.js] Sidebar
+[components/ui/Sidebar/SidebarHeader.js] SidebarHeader
+[components/ui/Sidebar/SidebarNavigation.js] SidebarNavigation
+[components/ButtonAccount.js] ButtonAccount
+[libs/supabase/client.js] createClient
+[components/MeteringToggle.js] MeteringToggle
+[components/CreditMeter.js] CreditMeter
+[components/OutOfCreditsBanner.js] OutOfCreditsBanner
+[components/ButtonAccount.js] ButtonAccount
+[libs/supabase/client.js] createClient
+[libs/content-magic/references/tutorialRegistry.js] getTutorialVideos
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[libs/content-magic/rules/index.js] getRule
+[app/(private)/dashboard/components/TutorialVideos.js] TutorialVideos
+[app/(private)/dashboard/components/TutorialVideos.js] embedUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+[app/(private)/dashboard/components/TutorialVideos.js] thumbnailUrl
+[app/(private)/dashboard/components/TutorialVideos.js] getLoomId
+ GET /tutorials 200 in 695ms
+[middleware.js] middleware
+[middleware.js] updateSession
+[app/api/credits/route.js] GET
+[libs/supabase/server.js] createClient
+ GET /api/credits 200 in 810ms

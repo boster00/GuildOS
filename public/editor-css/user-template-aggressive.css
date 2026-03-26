@@ -1,0 +1,25 @@
+/**
+ * Aggressive user CSS that would break default templates if not isolated.
+ * Used in test-shadow to verify nested shadow protection.
+ */
+@layer base {
+  * {
+    box-sizing: border-box !important;
+  }
+  h1 {
+    font-size: 60px;
+    color: red;
+  }
+  h2 {
+    font-size: 48px;
+    color: darkred;
+  }
+  .col-12 {
+    width: 100%;
+    background: yellow;
+  }
+  ul {
+    list-style: square;
+    margin-left: 40px;
+  }
+}

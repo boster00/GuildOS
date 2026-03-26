@@ -1,0 +1,449 @@
+import { z } from "zod";
+import { Agent, AgentInputItem, Runner, withTrace } from "@openai/agents";
+
+const IntakeNormalizeSchema = z.object({ service_name: z.string(), icp: z.string(), offer_summary: z.string() });
+const OutlineBuilderSchema = z.object({ purpose: z.string(), audience: z.string(), major_sections: z.array(z.object({ section_name: z.string(), requirements: z.string() })), key_points_per_section: z.string(), language_tone: z.string(), example_outline: z.object({ title: z.string(), sections: z.array(z.object({ section: z.string(), points: z.array(z.string()) })) }) });
+const DraftGeneratorSchema = z.object({ sections: z.array(z.object({ heading: z.string(), content: z.string() })) });
+const QaReviewerSchema = z.object({ status: z.string(), issues: z.array(z.object({ rule: z.string(), section_id: z.string(), severity: z.string(), fix_instruction: z.string() })) });
+const RevisionAgentSchema = z.object({ sections: z.array(z.object({ heading: z.string(), content: z.string() })) });
+const QaReviewerSchema1 = z.object({ status: z.string(), issues: z.array(z.object({ rule: z.string(), section_id: z.string(), severity: z.string(), fix_instruction: z.string() })) });
+const HtmlConverterSchema = z.object({ sections: z.array(z.object({ heading: z.string(), html: z.string() })), page_html: z.string() });
+const intakeNormalize = new Agent({
+  name: "Intake_Normalize",
+  instructions: `Parse input_as_text and extract:
+service_name
+icp
+offer_summary Return them as structured JSON.`,
+  model: "gpt-5.2",
+  outputType: IntakeNormalizeSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+const outlineBuilder = new Agent({
+  name: "Outline_Builder",
+  instructions: `You are an information architect.
+Create an outline for a service landing page using the fixed section order below.Do not add, remove, or reorder sections. Do not write final marketing copy.For each section, output: id, type, goal, required_fields, and notes.Use the service context: service_name, icp, offer.Return JSON only.
+Ensure each outline item has the correct type:
+hero → hero
+problem_outcome → problem_outcome
+process_steps → process_steps`,
+  model: "gpt-5.2",
+  outputType: OutlineBuilderSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+const draftGenerator = new Agent({
+  name: "Draft_Generator",
+  instructions: `You are a conversion copywriter generating a service landing page. You are provided with a predefined 8-section outline as structured context.
+You MUST:
+Generate content for exactly the sections in the outline, in the same order.
+Do NOT add, remove, rename, merge, or reorder sections.
+Each section must include: id, type, props.
+Output JSON only matching the required schema. No extra text.
+Claims policy (strict):
+Do NOT use numeric claims or statistics (no percentages, counts, “30 years”, etc.).
+Do NOT use superlatives such as “best”, “#1”, “industry-leading”.
+If a point would normally require numbers, rewrite it in qualitative, non-numeric language.
+Hero rules:
+hero.props.subheadline must be 40–60 words.
+Include a clear primary_cta in both hero and cta_banner.
+
+Section prop requirements:
+hero.props: headline (string), subheadline (string), primary_cta {label, action}, secondary_cta {label, action}, trust_markers (string[])
+problem_outcome.props: title (string), pains (string[]), outcomes (string[])
+proof_points.props: title (string), cards (array of {title, detail})
+process_steps.props: title (string), steps (array of {name, detail})
+deliverables_scope.props: title (string), included (string[]), not_included (string[])
+faq.props: title (string), items (array of {q, a}) with 6–10 items
+cta_banner.props: headline (string), supporting (string), cta {label, action}
+form_block.props: title (string), fields (array), submit_label (string), privacy_microcopy (string)
+For form_block.props.fields, output exactly:
+first_name (required true)
+last_name (required true)
+email (required true)
+phone (required false)
+inquiry_details (required true) `,
+  model: "gpt-5.2",
+  outputType: DraftGeneratorSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+const qaReviewer = new Agent({
+  name: "QA_Reviewer",
+  instructions: `You are a strict QA reviewer for a service landing page.
+
+You are given `draft_sections` as structured context.
+
+Validate ONLY the rules below and return a QA result.
+
+STRUCTURE
+1) Exactly 3 sections.
+2) Section order must be:
+   hero
+   problem_outcome
+   process_steps
+3) Each section must include id, type, and props.
+
+REQUIRED FIELDS
+4) hero.props must include headline, subheadline, primary_cta, secondary_cta, trust_markers.
+5) cta_banner.props must include headline, supporting, and cta.
+6) form_block.props must include title, fields, submit_label, privacy_microcopy.
+
+HERO RULE
+7) hero.props.subheadline must be 40–60 words.
+
+CLAIMS POLICY
+8) No numeric claims or statistics.
+9) No superlatives such as “best”, “#1”, “industry-leading”.
+
+For each violation, add an issue with:
+- rule
+- section_id
+- severity (\"high\" or \"medium\")
+- fix_instruction (explicit and actionable)
+
+Return JSON ONLY matching the output schema.
+`,
+  model: "gpt-5.2",
+  outputType: QaReviewerSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+const revisionAgent = new Agent({
+  name: "Revision_Agent",
+  instructions: `Fix ONLY the issues listed by QA.
+
+Do NOT add, remove, or reorder sections.
+Do NOT introduce numeric claims or superlatives.
+
+Return JSON only:
+{ \"sections\": [...] }
+`,
+  model: "gpt-5.2",
+  outputType: RevisionAgentSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+const qaReviewer1 = new Agent({
+  name: "QA_Reviewer",
+  instructions: `You are a strict QA reviewer for a service landing page.
+
+You are given `draft_sections` as structured context.
+
+Validate ONLY the rules below and return a QA result.
+
+STRUCTURE
+1) Exactly 3 sections.
+2) Section order must be:
+   hero
+   problem_outcome
+   process_steps
+3) Each section must include id, type, and props.
+
+REQUIRED FIELDS
+4) hero.props must include headline, subheadline, primary_cta, secondary_cta, trust_markers.
+5) cta_banner.props must include headline, supporting, and cta.
+6) form_block.props must include title, fields, submit_label, privacy_microcopy.
+
+HERO RULE
+7) hero.props.subheadline must be 40–60 words.
+
+CLAIMS POLICY
+8) No numeric claims or statistics.
+9) No superlatives such as “best”, “#1”, “industry-leading”.
+
+For each violation, add an issue with:
+- rule
+- section_id
+- severity (\"high\" or \"medium\")
+- fix_instruction (explicit and actionable)
+
+Return JSON ONLY matching the output schema.
+`,
+  model: "gpt-5.2",
+  outputType: QaReviewerSchema1,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+const htmlConverter = new Agent({
+  name: "HTML_Converter",
+  instructions: `You are a front-end renderer.
+
+Input is a JSON draft provided in the user message as text. It follows this format:
+{
+  \"name\": \"sections_draft\",
+  \"sections\": [
+    { \"heading\": \"...\", \"content\": \"...\" }
+  ]
+}
+
+Your job:
+1) Convert each draft section into semantic HTML section markup.
+2) Assemble a complete HTML document in page_html.
+
+Design requirements:
+- Output must look like a real landing page (not plain paragraphs).
+- Use embedded CSS in a <style> block (no external assets).
+- Use a max-width centered container, modern typography, whitespace.
+- Use varied formatting patterns:
+  - Hero-style section with background treatment and CTA buttons (primary links to #form).
+  - Card grid for proof/feature content (responsive).
+  - A clean form section with labeled fields.
+- Mobile responsive.
+
+Content rules:
+- Do NOT rewrite the copy. Preserve the wording from content exactly.
+- You may split content into paragraphs and bullet lists if the content contains line breaks or list markers, but do not change the words.
+
+Anchors:
+- Add a top anchor #top.
+- Each section must have an id attribute derived from heading (safe lowercase kebab-case).
+- The form section must have id=\"form\".
+- Primary CTA href must be \"#form\".
+- Add a simple nav with links to each section anchor.
+
+Section HTML rules:
+- sections[].html MUST contain only the <section>...</section> markup for that section.
+- Do NOT include <html>, <head>, or <body> inside sections[].html.
+
+page_html rules:
+- page_html MUST be a complete HTML document:
+  <!DOCTYPE html><html><head>...</head><body>...</body></html>
+- page_html MUST include the concatenated section HTML in order.
+
+Return JSON ONLY matching the output schema.
+`,
+  model: "gpt-5.2",
+  outputType: HtmlConverterSchema,
+  modelSettings: {
+    reasoning: {
+      effort: "low",
+      summary: "auto"
+    },
+    store: true
+  }
+});
+
+type WorkflowInput = { input_as_text: string };
+
+
+// Main code entrypoint
+export const runWorkflow = async (workflow: WorkflowInput) => {
+  return await withTrace("Webpage Builder", async () => {
+    const state = {
+      service_name: null,
+      icp: null,
+      offer: null,
+      revision_count: 0,
+      sections_outline: {
+        sections: []
+      },
+      sections_draft: {
+        sections: []
+      },
+      sections_html: {
+        sections: [],
+        page_html: null
+      },
+      sections_feedback: {
+        status: undefined,
+        sections: []
+      }
+    };
+    const conversationHistory: AgentInputItem[] = [
+      { role: "user", content: [{ type: "input_text", text: workflow.input_as_text }] }
+    ];
+    const runner = new Runner({
+      traceMetadata: {
+        __trace_source__: "agent-builder",
+        workflow_id: "wf_69705f0840908190865e838b09a17a50021ec825fe266c3c"
+      }
+    });
+    const intakeNormalizeResultTemp = await runner.run(
+      intakeNormalize,
+      [
+        ...conversationHistory
+      ]
+    );
+    conversationHistory.push(...intakeNormalizeResultTemp.newItems.map((item) => item.rawItem));
+
+    if (!intakeNormalizeResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const intakeNormalizeResult = {
+      output_text: JSON.stringify(intakeNormalizeResultTemp.finalOutput),
+      output_parsed: intakeNormalizeResultTemp.finalOutput
+    };
+    state.service_name = intakeNormalizeResult.output_parsed.service_name;
+    state.icp = intakeNormalizeResult.output_parsed.icp;
+    state.offer = state.offer;
+    const outlineBuilderResultTemp = await runner.run(
+      outlineBuilder,
+      [
+        ...conversationHistory
+      ]
+    );
+    conversationHistory.push(...outlineBuilderResultTemp.newItems.map((item) => item.rawItem));
+
+    if (!outlineBuilderResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const outlineBuilderResult = {
+      output_text: JSON.stringify(outlineBuilderResultTemp.finalOutput),
+      output_parsed: outlineBuilderResultTemp.finalOutput
+    };
+    state.sections_outline = outlineBuilderResult.output_parsed;
+    const transformResult = {sections_outline_text: string(state.sections_outline.sections)};
+    const draftGeneratorResultTemp = await runner.run(
+      draftGenerator,
+      [
+        { role: "user", content: [{ type: "input_text", text: `Generate the service landing page draft.
+
+      Use these inputs to tailor content:
+      service_name: ${state.service_name}
+      icp: ${state.icp}
+      offer: ${state.offer}
+      outline:   ${input.sections_outline_text}` }] }
+      ]
+    );
+    conversationHistory.push(...draftGeneratorResultTemp.newItems.map((item) => item.rawItem));
+
+    if (!draftGeneratorResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const draftGeneratorResult = {
+      output_text: JSON.stringify(draftGeneratorResultTemp.finalOutput),
+      output_parsed: draftGeneratorResultTemp.finalOutput
+    };
+    state.sections_draft = draftGeneratorResult.output_parsed;
+    const transformResult1 = {sections_draft_text: string(draftGeneratorResult.output_parsed)};
+    const qaReviewerResultTemp = await runner.run(
+      qaReviewer1,
+      [
+        { role: "user", content: [{ type: "input_text", text: `Review the draft for structural and policy compliance.
+       ${input.sections_draft_text}` }] }
+      ]
+    );
+    conversationHistory.push(...qaReviewerResultTemp.newItems.map((item) => item.rawItem));
+
+    if (!qaReviewerResultTemp.finalOutput) {
+        throw new Error("Agent result is undefined");
+    }
+
+    const qaReviewerResult = {
+      output_text: JSON.stringify(qaReviewerResultTemp.finalOutput),
+      output_parsed: qaReviewerResultTemp.finalOutput
+    };
+    state.sections_feedback = qaReviewerResult.output_parsed;
+    state.revision_count = state.revision_count + 1;
+    while (state.revision_count < 3 && state.sections_feedback.status != "pass") {
+      const transformResult2 = {sections_feedback_text: string(state.sections_feedback.sections), sections_draft_text: string(state.sections_draft.sections)};
+      const revisionAgentResultTemp = await runner.run(
+        revisionAgent,
+        [
+          ...conversationHistory,
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: `Apply the QA fixes to the draft.
+            Draft:  ${input.sections_draft_text}
+            Feedback issues:  ${input.sections_feedback_text}` }
+            ]
+          }
+        ]
+      );
+      conversationHistory.push(...revisionAgentResultTemp.newItems.map((item) => item.rawItem));
+
+      if (!revisionAgentResultTemp.finalOutput) {
+          throw new Error("Agent result is undefined");
+      }
+
+      const revisionAgentResult = {
+        output_text: JSON.stringify(revisionAgentResultTemp.finalOutput),
+        output_parsed: revisionAgentResultTemp.finalOutput
+      };
+      state.sections_draft = revisionAgentResult.output_parsed;
+      const transformResult3 = {sections_draft_text: string(state.sections_draft.sections)};
+      const qaReviewerResultTemp1 = await runner.run(
+        qaReviewer,
+        [
+          { role: "user", content: [{ type: "input_text", text: `Review the draft for structural and policy compliance.
+         ${input.sections_draft_text}` }] }
+        ]
+      );
+      conversationHistory.push(...qaReviewerResultTemp1.newItems.map((item) => item.rawItem));
+
+      if (!qaReviewerResultTemp1.finalOutput) {
+          throw new Error("Agent result is undefined");
+      }
+
+      const qaReviewerResult1 = {
+        output_text: JSON.stringify(qaReviewerResultTemp1.finalOutput),
+        output_parsed: qaReviewerResultTemp1.finalOutput
+      };
+      state.sections_feedback = qaReviewerResult1.output_parsed;
+      state.revision_count = state.revision_count + 1;
+    }
+    if (state.sections_feedback.status == "pass") {
+      const transformResult2 = {sections_draft_text: string(state.sections_draft.sections)};
+      const htmlConverterResultTemp = await runner.run(
+        htmlConverter,
+        [
+          { role: "user", content: [{ type: "input_text", text: `Convert this draft into HTML. 
+         ${input.sections_draft_text}` }] }
+        ]
+      );
+      conversationHistory.push(...htmlConverterResultTemp.newItems.map((item) => item.rawItem));
+
+      if (!htmlConverterResultTemp.finalOutput) {
+          throw new Error("Agent result is undefined");
+      }
+
+      const htmlConverterResult = {
+        output_text: JSON.stringify(htmlConverterResultTemp.finalOutput),
+        output_parsed: htmlConverterResultTemp.finalOutput
+      };
+    } else {
+
+    }
+  });
+}

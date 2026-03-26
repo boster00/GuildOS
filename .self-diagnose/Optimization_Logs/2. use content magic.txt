@@ -1,0 +1,151 @@
+Log	Count
+[middleware.js] middleware	64
+[middleware.js] updateSession	64
+[app/api/credits/updated/route.js] GET	7
+[libs/supabase/server.js] createClient	64
+[libs/monkey/tools/metering.js] consumeCreditUpdated	7
+ GET /api/credits/updated 200 in 491ms	1
+ GET /api/credits/updated 200 in 560ms	1
+ GET /api/credits/updated 200 in 414ms	1
+ ✓ Compiled /api/metering/spend in 334ms	1
+[app/api/metering/spend/route.js] POST	14
+[libs/monkey/planContext.js] getPlanContext	14
+[libs/monkey/planContext.js] fetchPlanContext	14
+[libs/monkey/registry/subscriptionTiers.js] getTierById	28
+[libs/monkey/registry/subscriptionTiers.js] getLimitsForTierId	14
+[libs/monkey.js] initMonkey	26
+[libs/monkey.js] log	342
+[libs/monkey/tools/metering_costs.js] getExternalRequestMapping	14
+[libs/monkey/tools/metering_costs.js] normalizePath	28
+[libs/monkey/planContext.js] assertPlan	14
+[libs/monkey/tools/metering_costs.js] getCostByPath	14
+[libs/monkey/tools/metering.js] meterSpend	15
+[libs/monkey/tools/metering.js] markCreditUpdated	15
+ POST /api/metering/spend 200 in 1299ms	1
+ ✓ Compiled /api/content-magic/search in 180ms	1
+[app/api/content-magic/search/route.js] POST	2
+[libs/monkey/tools/metering.js] estimateCredits	14
+[libs/monkey/tools/metering.js] calculateCredits	30
+[libs/monkey/tools/metering.js] checkQuota	14
+[libs/monkey/tools/metering.js] shouldApplyMetering	42
+[libs/monkey/tools/metering.js] logUsage	14
+[libs/monkey/tools/metering.js] deductCredits	14
+[libs/monkey/tools/external_requests.js] finishExternalRequest	14
+[libs/monkey/tools/external_requests.js] truncate	14
+ POST /api/content-magic/search 200 in 2115ms	1
+ POST /api/metering/spend 200 in 810ms	1
+ ✓ Compiled /api/dataforseo/ranking-keywords in 171ms	1
+[app/api/dataforseo/ranking-keywords/route.js] POST	1
+[app/api/dataforseo/ranking-keywords/route.js] getDefaultLocationCode	1
+[libs/monkey/tools/dataForSeo.ts] getDataForSeoAuth	1
+[libs/monkey/tools/dataForSeo.ts] if	1
+ POST /api/dataforseo/ranking-keywords 200 in 1587ms	1
+ ✓ Compiled /api/content-magic/save-assets in 198ms	1
+[app/api/content-magic/save-assets/route.js] POST	21
+[libs/shared/assertPlainJson.js] isReactEvent	358
+[libs/shared/assertPlainJson.js] isDomEvent	358
+[libs/shared/assertPlainJson.js] isDomNode	358
+ POST /api/content-magic/save-assets 200 in 730ms	1
+ POST /api/content-magic/save-assets 200 in 520ms	1
+ GET /api/credits/updated 200 in 480ms	1
+[app/api/credits/route.js] GET	4
+ GET /api/credits 200 in 633ms	1
+ POST /api/metering/spend 200 in 853ms	1
+ POST /api/content-magic/search 200 in 747ms	1
+ ✓ Compiled /api/content-magic/extract in 169ms	1
+[app/api/content-magic/extract/route.js] POST	1
+ POST /api/content-magic/extract 200 in 862ms	1
+ POST /api/content-magic/save-assets 200 in 577ms	1
+ POST /api/content-magic/save-assets 200 in 775ms	1
+ POST /api/metering/spend 200 in 796ms	1
+ ✓ Compiled /api/ai in 177ms	1
+[app/api/ai/route.js] POST	2
+[config/ai-models.js] resolveMonkeyModelTier	13
+ POST /api/ai 200 in 23222ms	1
+ POST /api/metering/spend 200 in 767ms	1
+ POST /api/ai 200 in 23893ms	1
+ GET /api/credits/updated 200 in 429ms	1
+ GET /api/credits 200 in 561ms	1
+ POST /api/content-magic/save-assets 200 in 526ms	1
+ POST /api/metering/spend 200 in 776ms	1
+ ✓ Compiled /api/content-magic/suggest-research-prompts in 129ms	1
+[app/api/content-magic/suggest-research-prompts/route.js] POST	2
+ POST /api/content-magic/suggest-research-prompts 200 in 4005ms	1
+ POST /api/content-magic/save-assets 200 in 482ms	1
+ POST /api/content-magic/save-assets 200 in 561ms	1
+ ✓ Compiled /api/content-magic/save in 137ms	1
+[app/api/content-magic/save/route.js] POST	2
+ POST /api/metering/spend 200 in 763ms	2
+ POST /api/content-magic/save 200 in 743ms	1
+ POST /api/content-magic/suggest-research-prompts 200 in 3440ms	1
+ POST /api/content-magic/save-assets 200 in 475ms	1
+ POST /api/content-magic/save-assets 200 in 523ms	1
+ ✓ Compiled /api/content-magic/ai-optimization-score in 198ms	1
+[app/api/content-magic/ai-optimization-score/route.js] POST	2
+[app/api/content-magic/ai-optimization-score/route.js] htmlToPlainText	2
+ POST /api/content-magic/ai-optimization-score 200 in 7699ms	1
+ POST /api/content-magic/save-assets 200 in 445ms	1
+ POST /api/content-magic/save-assets 200 in 657ms	1
+ POST /api/content-magic/save-assets 200 in 596ms	1
+ POST /api/content-magic/save-assets 200 in 808ms	1
+ POST /api/content-magic/save-assets 200 in 545ms	1
+ POST /api/metering/spend 200 in 818ms	1
+ ✓ Compiled /api/content-magic/prompts/suggest-implementation in 168ms	1
+[app/api/content-magic/prompts/suggest-implementation/route.js] POST	1
+[app/api/content-magic/prompts/suggest-implementation/route.js] stripHtml	48
+[app/api/content-magic/prompts/suggest-implementation/route.js] extractHeadings	1
+ POST /api/content-magic/prompts/suggest-implementation 200 in 2675ms	1
+ POST /api/content-magic/save-assets 200 in 570ms	1
+ POST /api/metering/spend 200 in 771ms	1
+ POST /api/content-magic/ai-optimization-score 200 in 5571ms	1
+ POST /api/content-magic/save-assets 200 in 487ms	1
+ POST /api/content-magic/save-assets 200 in 455ms	1
+ POST /api/content-magic/save-assets 200 in 501ms	1
+ POST /api/metering/spend 200 in 867ms	1
+ ✓ Compiled /api/content-magic/keyword-suggestions/generate in 274ms	1
+[app/api/content-magic/keyword-suggestions/generate/route.js] POST	2
+[app/api/content-magic/keyword-suggestions/generate/route.js] extractArticleStructure	2
+ POST /api/content-magic/keyword-suggestions/generate 200 in 7314ms	1
+ POST /api/content-magic/save-assets 200 in 542ms	1
+ GET /api/credits/updated 200 in 464ms	1
+ GET /api/credits 200 in 579ms	1
+ POST /api/content-magic/save 200 in 1105ms	1
+ POST /api/metering/spend 200 in 753ms	1
+ POST /api/content-magic/keyword-suggestions/generate 200 in 3718ms	1
+ POST /api/content-magic/save-assets 200 in 477ms	1
+ ✓ Compiled /api/content-magic/get-second-opinions in 257ms	1
+[app/api/content-magic/get-second-opinions/route.js] POST	1
+[libs/ai/eden/modelRegistry.js] getModel	2
+[libs/ai/eden/modelRegistry.js] resolveEdenModel	2
+[app/api/content-magic/get-second-opinions/route.js] stripHtml	1
+[app/api/content-magic/get-second-opinions/route.js] buildAutoCriteria	1
+[app/api/content-magic/get-second-opinions/route.js] getModelCost	2
+[libs/ai/eden/chatGateway.js] sendChatPrompt	1
+[libs/ai/eden/edenClient.js] edenPost	1
+[libs/ai/eden/edenClient.js] generateRequestId	1
+[libs/ai/eden/edenClient.js] log	2
+[libs/ai/eden/edenClient.js] truncateRaw	1
+[app/api/content-magic/get-second-opinions/route.js] randomUUID	1
+ POST /api/content-magic/get-second-opinions 200 in 7786ms	1
+ POST /api/content-magic/save-assets 200 in 459ms	1
+ POST /api/content-magic/save-assets 200 in 483ms	1
+ POST /api/metering/spend 200 in 689ms	1
+ ✓ Compiled /api/content-magic/repurpose-content/generate in 144ms	1
+[app/api/content-magic/repurpose-content/generate/route.js] POST	2
+[app/api/content-magic/repurpose-content/generate/route.js] buildSocialPostsPrompt	1
+ POST /api/content-magic/repurpose-content/generate 200 in 5923ms	1
+ GET /api/credits/updated 200 in 465ms	1
+ GET /api/credits 200 in 525ms	1
+ POST /api/metering/spend 200 in 839ms	1
+[app/api/content-magic/repurpose-content/generate/route.js] buildColdEmailPrompt	1
+[middleware.js] middleware	1
+[middleware.js] updateSession	1
+[app/api/credits/updated/route.js] GET	1
+[libs/supabase/server.js] createClient	1
+[libs/monkey/tools/metering.js] consumeCreditUpdated	1
+ GET /api/credits/updated 200 in 418ms	1
+[middleware.js] middleware	1
+[middleware.js] updateSession	1
+[app/api/credits/route.js] GET	1
+[libs/supabase/server.js] createClient	1
+ GET /api/credits 200 in 544ms	1

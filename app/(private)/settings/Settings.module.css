@@ -1,0 +1,302 @@
+.pageContainer {
+  padding: 24px 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.pageHeader {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.pageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.pageSubtitle {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Tabs Styles */
+.tabs {
+  width: 100%;
+}
+
+.tabsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tabsList {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.tabsListGrid {
+  display: flex;
+  width: 100%;
+  gap: 4px;
+}
+
+@media (min-width: 1024px) {
+  .tabsListGrid {
+    gap: 4px;
+  }
+}
+
+.tabsTrigger {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tabsTrigger:hover {
+  color: #374151;
+  background: #e5e7eb;
+}
+
+.tabsActive {
+  background: white;
+  color: #1f2937;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.tabIcon {
+  font-size: 16px;
+}
+
+.tabsContent {
+  width: 100%;
+}
+
+/* Card Styles */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cardHeader {
+  padding: 24px 24px 0 24px;
+  text-align: center;
+}
+
+.cardTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.providerTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.providerIcon {
+  font-size: 24px;
+}
+
+.cardDescription {
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.cardContent {
+  padding: 24px;
+}
+
+/* Form Styles */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.inputGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.apiKeyInput {
+  flex: 1;
+}
+
+.eyeButton {
+  flex-shrink: 0;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #6b7280;
+}
+
+.eyeButton:hover {
+  background: #f9fafb;
+  color: #374151;
+}
+
+.saveButton {
+  width: 100%;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pageContainer {
+    padding: 16px 20px;
+  }
+  
+  .pageTitle {
+    font-size: 1.75rem;
+  }
+  
+  .cardHeader,
+  .cardContent {
+    padding: 20px;
+  }
+  
+  .tabsTrigger {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .tabIcon {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .inputGroup {
+    flex-direction: column;
+  }
+  
+  .apiKeyInput {
+    flex: none;
+  }
+  
+  .tabsTrigger {
+    font-size: 12px;
+    padding: 8px 10px;
+    min-width: fit-content;
+  }
+}
+
+/* Loading animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.saveButton:disabled .spinner {
+  animation: spin 1s linear infinite;
+}

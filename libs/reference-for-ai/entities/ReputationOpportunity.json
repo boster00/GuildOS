@@ -1,0 +1,48 @@
+{
+  "name": "Website",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Website name/label"
+    },
+    "url": {
+      "type": "string",
+      "description": "Base URL of website"
+    },
+    "icpId": {
+      "type": "string",
+      "description": "Associated ICP ID"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "archived"
+      ],
+      "default": "active",
+      "description": "Website status"
+    },
+    "lastAuditDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last audit execution date"
+    },
+    "crawlFrequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "manual"
+      ],
+      "default": "weekly",
+      "description": "How often to audit"
+    }
+  },
+  "required": [
+    "name",
+    "url"
+  ]
+}

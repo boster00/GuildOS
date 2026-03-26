@@ -1,0 +1,41 @@
+{
+  "name": "Achievement",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Achievement title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Achievement description"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Achievement icon (emoji)"
+    },
+    "xpValue": {
+      "type": "number",
+      "description": "XP value of achievement"
+    },
+    "unlocked": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether unlocked"
+    },
+    "unlockedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Unlock timestamp"
+    },
+    "howToUnlock": {
+      "type": "string",
+      "description": "Instructions on how to unlock"
+    }
+  },
+  "required": [
+    "title",
+    "icon",
+    "xpValue"
+  ]
+}

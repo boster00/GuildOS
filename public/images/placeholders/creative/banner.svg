@@ -1,0 +1,13 @@
+<svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+    <defs>
+      <linearGradient id="bannerGrad-400-120" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.11249999999999999" />
+        <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.037500000000000006" />
+      </linearGradient>
+    </defs>
+    <rect width="400" height="120" fill="url(#bannerGrad-400-120)" 
+          rx="16"/>
+    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" 
+          fill="#be185d" font-size="16" 
+          font-family="system-ui, sans-serif" font-weight="500" opacity="0.75">Banner</text>
+  </svg>

@@ -1,0 +1,88 @@
+/* Editor Content Styles - V0 Design System */
+/* Minimal base styles - Tailwind utilities handle most styling */
+/* Using :where() to reduce specificity so style tags in body can override */
+.editorContent {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 1.5rem;
+  min-height: 100%;
+  /* Base line-height and color kept for fallback when Tailwind isn't used */
+  line-height: 1.7;
+  color: oklch(0.15 0 0);
+  background: oklch(1 0 0);
+}
+
+/* Text formatting - keep only semantic properties not covered by Tailwind */
+.editorContent :where(em),
+.editorContent :where(i) {
+  font-style: italic;
+}
+
+.editorContent :where(u) {
+  text-decoration: underline;
+}
+
+.editorContent :where(s),
+.editorContent :where(del) {
+  text-decoration: line-through;
+}
+
+/* Links - keep non-Tailwind properties */
+.editorContent :where(a) {
+  text-decoration: underline;
+  cursor: pointer;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+
+.editorContent :where(a:hover) {
+  text-decoration-thickness: 2px;
+}
+
+/* Lists - keep list-style properties, spacing handled by Tailwind */
+.editorContent :where(ul),
+.editorContent :where(ol) {
+  list-style-position: inside;
+}
+
+.editorContent :where(ul) {
+  list-style-type: disc;
+}
+
+.editorContent :where(ol) {
+  list-style-type: decimal;
+}
+
+/* Tables - keep structural properties only */
+.editorContent :where(table) {
+  border-collapse: collapse;
+  width: 100%;
+  overflow: hidden;
+}
+
+.editorContent :where(table td),
+.editorContent :where(table th) {
+  text-align: left;
+}
+
+.editorContent :where(table th) {
+  border-bottom-width: 2px;
+}
+
+/* Change tracking styles - keep editor-specific functionality */
+.editorContent :where(.change-from) {
+  text-decoration: line-through;
+}
+
+/* Focused Section Highlighting - keep editor-specific functionality */
+.editorContent :where(section.focused-section) {
+  outline: 2px solid rgba(59, 130, 246, 0.3);
+  outline-offset: 4px;
+  position: relative;
+  transition: outline 0.2s ease-in-out;
+}
+
+.editorContent :where(section:hover) {
+  outline: 1px solid rgba(59, 130, 246, 0.15);
+  outline-offset: 2px;
+}

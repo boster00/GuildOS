@@ -1,0 +1,26 @@
+---
+description: Shadow DOM and CSS isolation conventions
+globs: libs/monkey.js,libs/rendering/**,libs/content-magic/utils/**
+alwaysApply: false
+---
+
+# Shadow DOM CSS Architecture
+
+## Rule: Never use @scope CSS
+
+CSS isolation is handled by Shadow DOM. Never generate `@scope` CSS in any context.
+`_wrapCssInScope` and `renderCustomCSS` in libs/monkey.js are DEPRECATED — do not call or extend them.
+
+## Shadow DOM CSS injection (`getCustomCssTagsForShadowDom`)
+
+- External CSS URLs (from profile `external_css_links`): inject as `<link rel="stylesheet">` inside the shadow `<head>`. Do NOT fetch these client-side.
+- Inline CSS (from profile `customizations.css`): strip scope via `_stripEditorContentScopeForShadowDom`, then put in `<style>` inside the shadow.
+- Do NOT use `_getRawCombinedCustomCss` for shadow DOM path.
+
+## Font loading (main document head)
+
+When getCustomCssTagsForShadowDom runs, any external CSS URL from the user profile that matches
+FONT_CDN_WHITELIST is duplicated into document.head as `<link rel="stylesheet" data-custom-css-font-link>`.
+This primes the browser font cache so shadow DOM fonts load correctly.
+Do NOT use _extractRootRules, _injectRootRulesIntoDocumentHead, _getPreloadFontUrlsForExternalCssLinks,
+or _ensurePreloadLinksInDocumentHead — all are deprecated and unused.

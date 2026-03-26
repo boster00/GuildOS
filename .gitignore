@@ -1,0 +1,19 @@
+# ... existing content ...
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Vitest
+.vitest/
+
+# Next.js build output
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Environment variables
+.env.local
+.env*.local

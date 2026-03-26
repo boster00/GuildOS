@@ -1,0 +1,27 @@
+{
+  "runId": "run-1766966687994-xywpx59qd",
+  "startedAt": "2025-12-29T00:04:47.994Z",
+  "env": {
+    "nodeEnv": "development",
+    "port": 3000,
+    "specVersion": "1.0.0"
+  },
+  "steps": [
+    {
+      "name": "server-health-check",
+      "kind": "server-smoke",
+      "attempts": 4,
+      "ok": false,
+      "durationMs": 6515,
+      "artifacts": {},
+      "errorSummary": "Health check returned 500"
+    }
+  ],
+  "summary": {
+    "ok": false,
+    "durationMs": 6693,
+    "errors": 1,
+    "warnings": 0,
+    "failedStep": "server-health-check"
+  }
+}

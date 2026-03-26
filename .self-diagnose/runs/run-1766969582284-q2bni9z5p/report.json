@@ -1,0 +1,39 @@
+{
+  "runId": "run-1766969582284-q2bni9z5p",
+  "startedAt": "2025-12-29T00:53:02.285Z",
+  "env": {
+    "nodeEnv": "development",
+    "port": 3000,
+    "specVersion": "1.0.0"
+  },
+  "steps": [
+    {
+      "name": "server-health-check",
+      "kind": "server-smoke",
+      "attempts": 1,
+      "ok": true,
+      "durationMs": 378,
+      "artifacts": {},
+      "httpFailures": []
+    },
+    {
+      "name": "agent-playground-suggest-ideas",
+      "kind": "ui-smoke",
+      "attempts": 2,
+      "ok": false,
+      "durationMs": 79825,
+      "artifacts": {
+        "serverLogSnippet": "\n> ship-fast-code@0.1.0 dev\n> next dev --turbo\n\n ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.\n We detected multiple lockfiles and selected the directory of C:\\Users\\xsj70\\package-lock.json as the root directory.\n To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.\n   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.\n Detected additional lockfiles: \n   * C:\\Users\\xsj70\\cjgeo\\package-lock.json\n\n   ▲ Next.js 15.5.7 (Turbopack)\n   - Local:        http://localhost:3000\n   - Network:      http://10.0.0.110:3000\n   - Environments: .env.local\n\n ✓ Starting...\n ✓ Compiled middleware in 244ms\n ✓ Ready in 4.3s\n ○ Compiling /api/healthz ...\n ✓ Compiled /api/healthz in 1562ms\n GET /api/healthz 200 in 2352ms\n GET /api/healthz 200 in 355ms\n ○ Compiling /agent-playground ...\n/*! 🌼 daisyUI 5.0.50 */\n ✓ Compiled /agent-playground in 3.7s\n GET /agent-playground?scenario=suggest_ideas_basic 307 in 4360ms\n ○ Compiling /signin ...\n ✓ Compiled /signin in 500ms\n GET /signin 200 in 762ms\n[Sidebar Filter Debug] {\n  SHOW_DEV_SIDEBAR_ITEMS: 'true',\n  NODE_ENV: 'development',\n  shouldShowDevItems: true,\n  allItemsCount: 10,\n  devOnlyItems: [ 'Dashboard', 'Prompts', 'Quests', 'Settings', 'Billing' ],\n  publicItems: [\n    'Tutorial Videos',\n    'Campaigns',\n    'ContentMagic.ai',\n    'Offers',\n    'ICPs'\n  ]\n}\n[Sidebar Filter] Dashboard - INCLUDED (showDevItems: true)\n[Sidebar Filter] Prompts - INCLUDED (showDevItems: true)\n[Sidebar Filter] Quests - INCLUDED (showDevItems: true)\n[Sidebar Filter] Settings - INCLUDED (showDevItems: true)\n[Sidebar Filter] Billing - INCLUDED (showDevItems: true)\n[Sidebar Filter Result] {\n  filteredItemsCount: 10,\n  filteredItems: [\n    'Dashboard',\n    'Tutorial Videos',\n    'Campaigns',\n    'ContentMagic.ai',\n    'Offers',\n    'ICPs',\n    'Prompts',\n    'Quests',\n    'Settings',\n    'Billing'\n  ],\n  devItemsShown: 5,\n  publicItemsShown: 5\n}\n GET /agent-playground 200 in 991ms\n ✓ Compiled /favicon.ico in 153ms\n GET /favicon.ico?favicon.1114f488.ico 200 in 459ms\n GET /agent-playground?scenario=suggest_ideas_basic 307 in 218ms\n GET /signin 200 in 179ms\n",
+        "browserLogSnippet": "info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:boldlog: [Fast Refresh] rebuildinglog: [Fast Refresh] done in 161msinfo: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      "errorSummary": "locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-testid=\"select-task-type\"]')\n"
+    }
+  ],
+  "summary": {
+    "ok": false,
+    "durationMs": 90163,
+    "errors": 1,
+    "warnings": 0,
+    "failedStep": "agent-playground-suggest-ideas"
+  }
+}

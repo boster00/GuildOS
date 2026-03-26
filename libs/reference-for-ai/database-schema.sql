@@ -1,0 +1,198 @@
+-- Database schema reference for AI context.
+-- Regenerate with: supabase db dump --schema public > libs/reference-for-ai/database-schema.sql
+-- Prerequisite: Supabase CLI installed and project linked (supabase link) or local supabase start.
+-- Re-run after schema-changing migrations. See docs/DATABASE_CONVENTIONS.md.
+--
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.achievements (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  title text NOT NULL,
+  description text,
+  icon text NOT NULL,
+  xp_value integer NOT NULL,
+  unlocked boolean DEFAULT false,
+  unlocked_at timestamp with time zone,
+  how_to_unlock text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT achievements_pkey PRIMARY KEY (id),
+  CONSTRAINT achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.campaigns (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  icp_id uuid,
+  offer_id uuid,
+  status text DEFAULT 'planning'::text CHECK (status = ANY (ARRAY['planning'::text, 'in_progress'::text, 'completed'::text, 'archived'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  outcome text,
+  peace_of_mind text,
+  description text,
+  campaign_roadmap jsonb,
+  satellites jsonb DEFAULT '{"schedule": {"cadence": "weekly", "startDate": null}, "evaluations": [], "plannedSatellites": []}'::jsonb,
+  CONSTRAINT campaigns_pkey PRIMARY KEY (id),
+  CONSTRAINT campaigns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT campaigns_icp_id_fkey FOREIGN KEY (icp_id) REFERENCES public.icps(id),
+  CONSTRAINT campaigns_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES public.offers(id)
+);
+CREATE TABLE public.content_magic_articles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  source_url text,
+  content_html text NOT NULL,
+  status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'in_review'::text, 'published'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  type text,
+  context jsonb,
+  assets jsonb DEFAULT '{}'::jsonb,
+  chat_history jsonb DEFAULT '[]'::jsonb,
+  campaign_id uuid,
+  campaign_phase integer CHECK (campaign_phase IS NULL OR (campaign_phase = ANY (ARRAY[1, 2, 3, 4]))),
+  CONSTRAINT content_magic_articles_pkey PRIMARY KEY (id),
+  CONSTRAINT content_magic_articles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT fk_articles_campaign_id FOREIGN KEY (campaign_id) REFERENCES public.campaigns(id)
+);
+CREATE TABLE public.cron_history (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  task_id uuid NOT NULL,
+  job_type text NOT NULL,
+  worker_id text,
+  retry_attempt integer,
+  executed_at timestamp without time zone NOT NULL DEFAULT now(),
+  json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT cron_history_pkey PRIMARY KEY (id),
+  CONSTRAINT cron_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.cron_jobs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  task_id uuid NOT NULL,
+  status text NOT NULL CHECK (status = ANY (ARRAY['queued'::text, 'assigned'::text, 'processing'::text, 'error'::text, 'completed'::text, 'failed'::text])),
+  job_type text NOT NULL DEFAULT 'prompt'::text,
+  worker_id text,
+  worker_started_at timestamp without time zone,
+  retry_count integer NOT NULL DEFAULT 0,
+  max_retries integer NOT NULL DEFAULT 3,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT cron_jobs_pkey PRIMARY KEY (id),
+  CONSTRAINT cron_jobs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT cron_jobs_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.prompts(id)
+);
+CREATE TABLE public.icps (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'active'::text, 'inactive'::text, 'archived'::text])),
+  description text,
+  CONSTRAINT icps_pkey PRIMARY KEY (id),
+  CONSTRAINT icps_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.offers (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  transactional_facts text,
+  CONSTRAINT offers_pkey PRIMARY KEY (id),
+  CONSTRAINT offers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  name text,
+  email text,
+  image text,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  stripe_price_id text,
+  has_access boolean DEFAULT false,
+  subscription_plan text,
+  credits_reset_at timestamptz,
+  credits_remaining numeric(12, 4) NOT NULL DEFAULT 0,
+  payg_wallet integer NOT NULL DEFAULT 0,
+  metering_enabled boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone DEFAULT (now() AT TIME ZONE 'UTC'::text),
+  updated_at timestamp with time zone DEFAULT (now() AT TIME ZONE 'UTC'::text),
+  json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.prompts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  icp_id uuid,
+  text text,
+  visibility numeric,
+  last_scan_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  brand_name character varying,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'archived'::text, 'paused'::text])),
+  result jsonb,
+  cron_status text,
+  scheduled_for timestamp with time zone,
+  CONSTRAINT prompts_pkey PRIMARY KEY (id),
+  CONSTRAINT prompts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT prompts_icp_id_fkey FOREIGN KEY (icp_id) REFERENCES public.icps(id)
+);
+CREATE TABLE public.provider_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  provider text NOT NULL CHECK (provider = ANY (ARRAY['openai'::text, 'gemini'::text, 'perplexity'::text, 'claude'::text])),
+  api_key text,
+  monthly_cap numeric,
+  query_frequency text CHECK (query_frequency = ANY (ARRAY['daily'::text, 'weekly'::text, 'custom'::text])),
+  entity_json jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT provider_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT provider_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.quests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  title text NOT NULL,
+  description text,
+  type text NOT NULL CHECK (type = ANY (ARRAY['daily'::text, 'strategic'::text])),
+  module text CHECK (module = ANY (ARRAY['icp'::text, 'prompts'::text, 'auditor'::text, 'optimizer'::text, 'reputation'::text])),
+  xp_reward integer NOT NULL,
+  status text DEFAULT 'not_started'::text CHECK (status = ANY (ARRAY['not_started'::text, 'in_progress'::text, 'done'::text])),
+  target integer,
+  current integer DEFAULT 0,
+  completed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT quests_pkey PRIMARY KEY (id),
+  CONSTRAINT quests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_api_keys (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  provider character varying NOT NULL CHECK (provider::text = ANY (ARRAY['openai'::character varying, 'perplexity'::character varying, 'anthropic'::character varying]::text[])),
+  api_key text NOT NULL,
+  api_key_name character varying,
+  is_active boolean DEFAULT true,
+  last_used_at timestamp without time zone,
+  usage_count integer DEFAULT 0,
+  monthly_usage_count integer DEFAULT 0,
+  monthly_cost_cents integer DEFAULT 0,
+  last_monthly_reset date DEFAULT CURRENT_DATE,
+  status character varying DEFAULT 'active'::character varying CHECK (status::text = ANY (ARRAY['active'::character varying, 'inactive'::character varying, 'invalid'::character varying, 'expired'::character varying]::text[])),
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT user_api_keys_pkey PRIMARY KEY (id),
+  CONSTRAINT user_api_keys_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);

@@ -1,0 +1,30 @@
+/**
+ * Minimal Bootstrap-like grid for test-shadow.
+ * Used to verify external CSS loading inside Shadow DOM.
+ */
+.col-12 {
+  width: 100%;
+}
+.col-lg-4 {
+  width: 33.333333%;
+}
+@media (max-width: 991px) {
+  .col-lg-4 {
+    width: 100%;
+  }
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}

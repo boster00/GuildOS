@@ -1,0 +1,747 @@
+# CJGEO MVP - Research & Decision Engine - Cursor Rules (Updated for Next.js 15 + Tailwind v4 + DaisyUI v5)
+
+## 🎯 Product Definition (MVP Scope)
+
+**CJGEO at MVP launch is an SEO content writer that combines research, planning, and writing capabilities.**
+
+Primary job: Help users research, plan, draft outlines, and write SEO-optimized content using structured keyword, prompt, and competitor research grounded in ICP and offer context.
+
+📋 **See `docs/MVP_SCOPE.md` for complete MVP scope definition and architectural guardrails.**
+
+### ✅ MVP Scope (Hard Boundary)
+
+**In Scope:**
+- Keyword Research (traditional SEO + long-tail + intent-driven)
+- Prompt Research (AI-search-style, conversational, task-based prompts)
+- Vertical & Horizontal Expansion (depth within intent, adjacent intents)
+- Competitor Research (identify competing pages/topics, coverage gaps)
+- AI-Based Evaluation & Scoring (relevance to ICP, alignment with offer, explainable rationale)
+- Outline Generation (section-level outlines with topics and structure)
+- Content Writing (section-by-section content generation, SEO-optimized prose)
+- Ranked outputs with intent classification and prioritization buckets (Build now, Build later, Ignore)
+
+**Explicitly Out of Scope:**
+- ❌ CMS publishing or auto-posting
+- ❌ Ranking guarantees or SERP prediction
+- ❌ UX polish beyond functional clarity
+- ❌ Full repurposing workflows (future expansion)
+
+### 📋 Architectural Guardrails
+- Treat **research outputs as first-class artifacts**
+- Writing integrates with research and planning
+- Optimize for: Explainability, Trust, Actionability
+- Content writing is grounded in ICP and offer context
+
+### 🚫 Non-Goals
+CJGEO is **NOT**:
+- A replacement for ChatGPT or Cursor (though it complements them)
+- A full CMS or publishing platform
+- A ranking prediction tool
+
+CJGEO **IS**:
+- An SEO content writer that combines research, planning, and writing
+- A tool that helps users create SEO-optimized content grounded in ICP and offer context
+
+---
+
+## 💳 SaaS Pricing Plans (Source of Truth)
+
+Use this section as the single source of truth for plan limits, PAYG pricing, and billing behavior. Implement metering, credits, and Stripe integration to match these values.
+
+### 🟠 Starter Plan — $99 / month
+
+- **500 monthly credits**
+- **PAYG credits:** $0.50 per credit
+- **Concurrency:** 1 active external process
+- **Projects / Domains:** 1
+- **Scheduled runs:** Monthly
+- **Data retention:** Standard (baseline retention window)
+- **ICP slots:** Limited tier
+- **Offers slots:** Limited tier
+- **Tracked keywords:** Starter cap
+- **Tracked prompts:** Starter cap  
+- **Use case:** Solo users, early testing, low automation, light AI/SEO workflows
+
+### 🔵 Pro Plan — $399 / month
+
+- **4000 monthly credits**
+- **PAYG credits:** $0.10 per credit
+- **Concurrency:** 3 active external processes
+- **Projects / Domains:** Higher limit (multi-project)
+- **Scheduled runs:** Daily / Weekly
+- **Data retention:** Extended retention
+- **ICP slots:** Expanded
+- **Offers slots:** Expanded
+- **Tracked keywords:** High cap
+- **Tracked prompts:** High cap  
+- **Use case:** Agencies, heavy automation, multi-project, high-volume AI/SEO workflows
+
+### ⚡ PAYG (Pay-As-You-Go)
+
+- Used when: monthly credits run out, or extra burst usage is needed.
+- **Credits do not expire.**
+- **Pricing:** Starter = $0.50/credit, Pro = $0.10/credit.
+
+### 🧠 Credit Philosophy
+
+**Consumed by:** External API usage, AI generation, data enrichment, automated workflows, scheduled runs.  
+**Not consumed by:** Viewing data, basic UI actions, cached internal reads.
+
+### 🔒 Billing Responsibilities
+
+- **Stripe:** Subscription billing, recurring renewals, payment failures, customer portal.
+- **App:** Credit ledger, PAYG wallet, external usage metering, concurrency gating.
+
+### 🧾 Monthly Credit Grant Timing
+
+**Credits are granted when:** Stripe invoice payment succeeds (not when the subscription is created).
+
+### Positioning (for copy/UX)
+
+- **Starter:** “Try the platform, automate lightly, scale later.”
+- **Pro:** “Run automation seriously, manage multiple workflows, pay less per credit.”
+
+### Database & Migrations
+
+- Prefer `ADD COLUMN IF NOT EXISTS` for new columns; use `DO $$` only for renames or conditional logic.
+- Tier definitions live in code only (`libs/monkey/registry/subscriptionTiers.js`); no new tier tables or seeds for plans.
+- See `docs/DATABASE_CONVENTIONS.md` for full conventions.
+
+### Billing & Stripe
+
+- Source of truth for tiers: `libs/monkey/registry/subscriptionTiers.js`.
+- Provisioner flow: webhook → provisioner → profiles → PlanContext.
+- Use `getPlanContext(supabase, userId)`; avoid direct `profiles.subscription_plan` queries.
+- See `docs/BILLING_ARCHITECTURE.md` for flow and schema details.
+
+---
+
+You are an expert full-stack developer working on CJGEO, a research and decision engine built on Next.js with the latest tech stack.
+
+## 🚀 Current Tech Stack (Updated)
+- **Next.js**: 15.1.3 with React 19 and Turbopack
+- **React**: 19.0.0 (latest stable)
+- **Tailwind CSS**: 4.0.0 (CSS-based configuration)
+- **DaisyUI**: 5.0.50 (latest with new component system)
+- **Supabase**: Latest SSR package with async cookies support
+- **Stripe**: 17.3.1 (latest API)
+- **Eden AI**: Visibility tracker AI (ChatGPT, Claude, Perplexity) is routed through Eden AI (`libs/ai/eden`). Do not call OpenAI/Anthropic/Perplexity directly for visibility tracker; use `libs/ai/eden/chatGateway` and `modelRegistry`.
+
+## ⚠️ Critical Rules to Eliminate Warnings
+
+### 1. **Supabase Client Usage**
+```javascript
+// ❌ WRONG - Will cause async cookies warning
+const supabase = createClient();
+
+// ✅ CORRECT - Always await in server components
+const supabase = await createClient();
+
+// ✅ CORRECT - Client components use different import
+import { createClient } from "@/libs/supabase/client"; // For client components
+import { createClient } from "@/libs/supabase/server"; // For server components (async)
+```
+
+### 2. **Next.js 15 Headers API**
+```javascript
+// ❌ WRONG - Synchronous headers access
+const signature = headers().get("stripe-signature");
+
+// ✅ CORRECT - Always await headers in Next.js 15
+const signature = (await headers()).get("stripe-signature");
+```
+
+### 3. **Import Cleanup Rules**
+- Remove unused imports immediately
+- Use specific imports instead of wildcard imports
+- Comment out imports in commented code blocks
+
+```javascript
+// ❌ WRONG - Unused import
+import { createClient } from "@/libs/supabase/server";
+// const supabase = createClient(); // commented out
+
+// ✅ CORRECT - Move import inside comment or remove
+// const { createClient } = require("@/libs/supabase/server");
+// const supabase = createClient();
+```
+
+### 4. **React Hooks Dependencies**
+```javascript
+// ❌ WRONG - Missing dependencies
+useEffect(() => {
+  supabase.auth.getUser();
+}, []); // Missing supabase dependency
+
+// ✅ CORRECT - Include all dependencies or move inside useEffect
+useEffect(() => {
+  const supabase = createClient();
+  supabase.auth.getUser();
+}, []); // No external dependencies
+```
+
+### 5. **Tailwind CSS v4 Utilities**
+```css
+/* ❌ WRONG - Pseudo-selectors in @utility */
+@utility btn-gradient:hover {
+  filter: saturate(1.2);
+}
+
+/* ✅ CORRECT - Separate CSS rules for pseudo-selectors */
+@utility btn-gradient {
+  background: var(--color-gradient);
+}
+
+.btn-gradient:hover {
+  filter: saturate(1.2);
+}
+```
+
+### 6. **DaisyUI v5 Theme Configuration**
+```css
+/* ✅ CORRECT - New v5 syntax */
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  --color-primary: oklch(49.12% 0.309 275.75);
+  --color-gradient: linear-gradient(60deg, #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82);
+}
+```
+
+### 7. **Environment Variable Checks**
+```javascript
+// ✅ ALWAYS check env vars before using them
+export async function POST(req) {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+  }
+  
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2023-08-16",
+  });
+}
+```
+
+### 8. **Site URL Configuration (Never Hardcode localhost:3000)**
+```javascript
+// ❌ WRONG - Hardcoded localhost:3000
+const url = process.env.NODE_ENV === "development" ? "http://localhost:3000/" : "https://example.com/";
+
+// ✅ CORRECT - Use environment variables with fallback pattern
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 
+  (process.env.NODE_ENV === "development" 
+    ? `http://localhost:${process.env.PORT || 3000}` 
+    : `https://${config.domainName}`);
+
+// ✅ CORRECT - For server-side, prefer SITE_URL, for client-side, use NEXT_PUBLIC_SITE_URL
+// Always check for required env vars in production
+if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SITE_URL && !process.env.SITE_URL) {
+  throw new Error("NEXT_PUBLIC_SITE_URL or SITE_URL must be set in production");
+}
+```
+
+**Required Environment Variables:**
+- `NEXT_PUBLIC_SITE_URL` - Full URL including protocol (e.g., `http://localhost:3000` or `https://example.com`)
+- `SITE_URL` - Alternative server-side variable (same format)
+- `PORT` - Optional, defaults to 3000 if not set
+
+## 📁 File Structure & Naming
+
+### API Routes (App Router)
+```
+app/api/[endpoint]/route.js
+- Always use async/await for database operations
+- Always await createClient() for Supabase
+- Always await headers() for Next.js 15
+- Include error handling with proper status codes
+```
+
+### PlanContext & subscription tier (API routes)
+- **Do not** query `profiles.subscription_plan` or call `getTierById` in API routes for "current user" tier/limits.
+- **Do** use `getPlanContext(supabase, user.id)` once per request and pass the result down; use `assertPlan(plan, "feature_x")` for feature/limit checks.
+- Tier and limits live in `libs/monkey/registry/subscriptionTiers.js`; PlanContext is built in `libs/monkey/planContext.js`. Client pages that need tier/plan can call `GET /api/plan`.
+
+### Content Magic — render-page (`/api/content-magic/render-page`)
+- **H1 gate**: Page must have an `h1`. Wait for it; if not found, wait **5 seconds** and check again (one retry).
+- **Extraction**: Use the direct child of `body` that contains the `h1` (any tag: div, main, article, etc.). Do **not** use div-with-text, `#__next`, or `document.body.innerHTML` (or any other fallback).
+- **Timeout**: If an h1 is not present or content is not available within **10 minutes**, return an error; do not return partial or fallback HTML.
+
+### Components
+```
+components/ComponentName.js
+- Use "use client" for interactive components
+- Use async server components for data fetching
+- Import from @/config for app settings
+- Use absolute imports with @/ prefix
+```
+
+## 🎨 Styling Rules
+
+### Tailwind CSS v4 Syntax
+```css
+/* Import and plugin setup */
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* Theme variables */
+@theme {
+  --color-custom: #ff0000;
+  --size-custom: 1rem;
+}
+
+/* Custom utilities */
+@utility custom-class {
+  property: value;
+}
+
+/* Pseudo-selectors as separate rules */
+.custom-class:hover {
+  property: value;
+}
+```
+
+### DaisyUI v5 Component Usage
+```html
+<!-- ✅ Use new v5 class names -->
+<div class="card card-border"> <!-- v5: card-border instead of card-bordered -->
+<div class="card card-sm"> <!-- v5: card-sm instead of card-compact -->
+<button class="btn btn-primary btn-sm"> <!-- Responsive modifiers work -->
+
+<!-- ✅ New responsive syntax -->
+<button class="btn btn-primary md:btn-lg lg:btn-xl">Responsive Button</button>
+```
+
+## 🔧 Performance & Best Practices
+
+### Server Components (Default)
+```javascript
+// ✅ Server component with data fetching
+export default async function Page() {
+  const supabase = await createClient();
+  const { data } = await supabase.from('table').select('*');
+  
+  return <div>{/* JSX */}</div>;
+}
+```
+
+### Client Components (Interactive)
+```javascript
+"use client";
+import { useState, useEffect } from "react";
+import { createClient } from "@/libs/supabase/client";
+
+export default function InteractiveComponent() {
+  const [data, setData] = useState(null);
+  const supabase = createClient(); // Client-side, no await needed
+  
+  useEffect(() => {
+    // Fetch data
+  }, []);
+  
+  return <div>{/* Interactive JSX */}</div>;
+}
+```
+
+## 🚫 Common Mistakes to Avoid
+
+1. **DON'T** use synchronous `headers()` or `cookies()` in Next.js 15
+2. **DON'T** import unused dependencies
+3. **DON'T** use old Tailwind v3 `@tailwind` directives with v4
+4. **DON'T** use old DaisyUI v4 theme import paths
+5. **DON'T** use `createClient()` without await in server components
+6. **DON'T** mix server and client component patterns
+7. **DON'T** use deprecated `domains` in next.config.js (use `remotePatterns`)
+8. **DON'T** hardcode `localhost:3000` or any specific port/URL - always use environment variables
+
+## 🔍 Debugging & Troubleshooting Rules
+
+### When Root Cause is Unclear, Add Strategic Logging
+
+When encountering errors where the root cause is unclear, add strategic logging along the workflow to get clarity:
+
+1. **Identify the execution flow**: Trace the code path from entry point to failure
+2. **Add logs at decision points**: 
+   - Function entry/exit with parameters
+   - Before/after async operations
+   - Before/after state changes
+   - Error catch blocks
+3. **Log format for consistency**:
+   ```javascript
+   console.log(`[Component/Function] [Step] Details`, { key: value });
+   // Example:
+   console.log(`[runTask] [Start] Processing task`, { taskType, model });
+   console.log(`[runTask] [Pipeline Selected]`, { pipeline: pipelineName });
+   console.log(`[runTask] [Error] Failed to execute`, { error: error.message, stack: error.stack });
+   ```
+4. **Include context in logs**: Always log relevant variables, IDs, and state that help identify the failure point
+5. **Remove or guard logs in production**: Use `process.env.NODE_ENV === 'development'` checks or a logging utility that strips logs in production
+6. **For self-diagnose failures**: Always check `.self-diagnose/latest/report.json` and `server.log` first, then add logs to capture missing information
+
+## 🎯 Commit Message Format
+Use Conventional Commits:
+- `feat:` for new features
+- `fix:` for bug fixes  
+- `refactor:` for code refactoring
+- `style:` for formatting changes
+- `docs:` for documentation
+- `perf:` for performance improvements
+
+## 🔍 Before Committing Checklist
+- [ ] No unused imports
+- [ ] All async functions properly awaited
+- [ ] No ESLint warnings
+- [ ] Build passes (`npm run build`)
+- [ ] All environment variables checked
+- [ ] Proper error handling in API routes
+- [ ] Server/client components used correctly
+- [ ] Browser reality check completed (if browser available)
+
+## 🌐 Browser Reality Check (Required After Feature Updates)
+
+**CRITICAL**: After completing any feature update or code change that affects the UI or user-facing functionality, you MUST perform a browser reality check before reporting the job as finished.
+
+### Process:
+1. **Check browser availability**: Use `mcp_cursor-ide-browser_browser_tabs` to check if browser is available
+2. **If browser is available**:
+   - Check console messages using `mcp_cursor-ide-browser_browser_console_messages` for errors/warnings
+   - Check network requests using `mcp_cursor-ide-browser_browser_network_requests` if relevant
+   - Take a snapshot using `mcp_cursor-ide-browser_browser_snapshot` to verify UI state if needed
+   - **Retry up to 5 times** if initial checks show errors, waiting a few seconds between attempts for hot reload
+3. **If browser is NOT available**: Stop immediately and report that browser check was skipped
+4. **Fix any issues found**: If errors are detected, fix them and repeat the browser check
+5. **Report findings**: Always mention browser check results in your completion summary
+
+### Implementation Pattern:
+```javascript
+// Example workflow:
+1. Complete feature implementation
+2. Check browser tabs: browser_tabs({ action: "list" })
+3. If tabs exist:
+   - Check console: browser_console_messages({ viewId })
+   - If errors found: Fix → Wait 2-3 seconds → Re-check (up to 5 attempts)
+   - If no errors after 5 attempts or fixes: Proceed
+4. If no browser available: Report "Browser not available, skipped reality check"
+5. Report completion with browser check results
+```
+
+### What to Check:
+- **Console errors**: Module resolution errors, runtime errors, React errors
+- **Console warnings**: Deprecation warnings, missing dependencies
+- **Network errors**: Failed API calls, 404s, 500s
+- **UI state**: Visual verification if snapshot is needed
+
+### When to Skip:
+- Browser tools are not available (no MCP server connection)
+- Feature is backend-only with no UI impact
+- Changes are to configuration files only
+
+**Remember**: A feature is NOT complete until it passes browser reality check or browser is confirmed unavailable.
+
+## 🛠️ Development Commands
+```bash
+npm run dev          # Development with Turbopack
+npm run build        # Production build
+npm run lint         # ESLint check
+npm run lint:fix     # Auto-fix ESLint issues
+```
+
+## 🤖 Monkey AI Module (Centralized AI System)
+
+### Architecture
+All AI calls must route through `libs/monkey/` - a centralized, provider-agnostic AI module.
+
+### Usage
+```typescript
+import { runTask } from "@/libs/monkey";
+
+const result = await runTask({
+  model: "agent" | "high" | "mid",  // Model tier
+  taskType: "SUGGEST_IDEAS" | "SUGGEST_TITLE" | "WRITE_ARTICLE",
+  campaignContext: {},  // Campaign/ICP context
+  userInput: {},  // User query/input
+  constraints: {},  // Tone, audience, etc.
+  outputFormat: "markdown" | "html" | "json",
+}, {
+  apiKey?: string,  // Optional explicit API key
+  userApiKeys?: Array<{ vendor: string; key: string }>,  // User's API keys
+});
+```
+
+### Legacy monkey.js AI Function
+The `libs/monkey.js` AI function also supports model tiers ("agent", "high", "mid") for backward compatibility. **Model tier resolution is defined in the monkey.js AI function itself**, not elsewhere:
+
+```javascript
+import { initMonkey } from "@/libs/monkey";
+const monkey = await initMonkey();
+
+// ✅ CORRECT - Use model tiers (resolved via env vars)
+await monkey.AI(query, { model: "agent" });  // Resolved to MONKEY_MODEL_AGENT
+await monkey.AI(query, { model: "high" });   // Resolved to MONKEY_MODEL_HIGH
+await monkey.AI(query, { model: "mid" });    // Resolved to MONKEY_MODEL_MID
+
+// ✅ CORRECT - Direct model names still work (must come from env vars, not hardcoded)
+// Example: await monkey.AI(query, { model: process.env.AI_MODEL_ADVANCED });
+```
+
+**Model Tier Resolution (in `libs/monkey.js` _resolveModelTier method):**
+- `"agent"` → `process.env.MONKEY_MODEL_AGENT || AI_MODELS.ADVANCED`
+- `"high"` → `process.env.MONKEY_MODEL_HIGH || AI_MODELS.ADVANCED`
+- `"mid"` → `process.env.MONKEY_MODEL_MID || AI_MODELS.STANDARD`
+- Direct model names are passed through unchanged (must come from env vars, not hardcoded)
+
+### Key Principles
+1. **Provider-agnostic**: Model resolution via env vars (MONKEY_MODEL_AGENT, MONKEY_MODEL_HIGH, MONKEY_MODEL_MID)
+2. **Pure functions**: Monkey never mutates React state - only returns validated artifacts
+3. **JSON validation**: Uses Ajv with schemas that allow additionalProperties
+4. **Error handling**: Typed errors via MonkeyErrorCode enum
+5. **Logging**: Console-only in dev, no logs in production (NODE_ENV check)
+6. **No direct provider calls**: All AI calls must go through monkey runtime
+7. **No direct external API calls**: All external API calls (Tavily, DataForSEO, etc.) must go through monkey methods
+8. **Model tiers**: "agent", "high", "mid" are parallel options defined in monkey.js AI function
+
+### Model Configuration
+**CRITICAL RULE: No Hardcoded Model Names**
+- ❌ **NEVER** hardcode model names (e.g., "gpt-4o", "gpt-4", "gpt-image-1.5") anywhere in code, including:
+  - Default values in code
+  - Comments
+  - Documentation strings in code files
+  - Fallback values
+- ✅ **ALWAYS** use environment variables defined in `.env.local`
+- ✅ All model names must be defined in environment variables only
+- ✅ If a model name is needed, it must come from `process.env.*` or the centralized `config/ai-models.js`
+
+Set via environment variables (all required - no defaults in code):
+- `MONKEY_PROVIDER`
+- `MONKEY_MODEL_AGENT` (optional - defaults to AI_MODEL_ADVANCED if not set)
+- `MONKEY_MODEL_HIGH` (optional - defaults to AI_MODEL_ADVANCED if not set)
+- `MONKEY_MODEL_MID` (optional - defaults to AI_MODEL_STANDARD if not set)
+- `AI_MODEL_ADVANCED` or `NEXT_PUBLIC_AI_MODEL_ADVANCED` (required)
+- `AI_MODEL_LARGE_CONTEXT` or `NEXT_PUBLIC_AI_MODEL_LARGE_CONTEXT` (required)
+- `AI_MODEL_STANDARD` or `NEXT_PUBLIC_AI_MODEL_STANDARD` (required)
+- `AI_MODEL_IMAGE` (required - comma-separated list)
+
+### Migration from Old Code
+- ❌ **DON'T** use `monkey.AI()` directly for new features (prefer `runTask()`)
+- ❌ **DON'T** call OpenAI API directly
+- ❌ **DON'T** call external APIs (Tavily, DataForSEO, etc.) directly - always use monkey methods
+- ✅ **DO** use `runTask()` from `@/libs/monkey` for new features
+- ✅ **DO** use model tiers ("agent", "high", "mid") in `monkey.AI()` when needed for legacy code
+- ✅ **DO** migrate existing `monkey.AI()` calls to appropriate task types when possible
+- ✅ **DO** use `monkey.webExtract()` for Tavily page extraction (not direct Tavily API calls)
+- ✅ **DO** use `monkey.webSearch()` for Tavily search (not direct Tavily API calls)
+- ✅ **DO** use `monkey.webCrawl()` for Tavily crawling (not direct Tavily API calls)
+
+### Task Types
+- `SUGGEST_IDEAS`: Generate content ideas (returns ContentIdeasArtifact)
+- `SUGGEST_TITLE`: Generate title options (returns TitleOptionsArtifact)
+- `WRITE_ARTICLE`: Full article generation pipeline (returns markdown + HTML)
+
+### Testing
+Use `/agent-playground` (private route) to test all task types with placeholder context.
+
+## 🔐 Content Magic - Outline Generation Asset Whitelisting
+
+### Security Rules for Asset Access
+When generating prompts from `article.assets` in the Content Magic outline generation feature, you MUST follow these security rules:
+
+**Whitelisted Asset Keys** (defined in `ASSET_CONFIGS` in `libs/content-magic/rules/createOutline.js`):
+- `main_keyword` - Main SEO keyword
+- `topics` - Array of topics to cover
+- `keywords` - Array of keywords to incorporate
+- `prompts` - Array of user prompts to address
+
+**Note**: Only these 4 assets are available for context assembly. Other assets (original_vision, icp, offer) have been removed from the whitelist.
+
+### Implementation Rules
+1. **NEVER** directly interpolate user-controlled asset keys without validation
+2. **ALWAYS** use the `ASSET_CONFIGS` whitelist defined in `libs/content-magic/rules/createOutline.js`
+3. **ALWAYS** filter assets through the approved configuration before processing
+4. **NEVER** dynamically construct property paths from user input
+5. **ALWAYS** validate asset values before formatting (check for undefined, empty arrays, etc.)
+
+### Code Pattern
+```javascript
+// ✅ CORRECT - Loop through whitelisted configs
+ASSET_CONFIGS.forEach(config => {
+  if (!selectedAssetKeys.includes(config.key)) return;
+  const value = config.path.split('.').reduce((obj, key) => obj?.[key], article);
+  if (value) prompt += config.format(value);
+});
+
+// ❌ WRONG - Direct property access from user input
+const assetKey = userInput.assetKey;
+const value = article.assets[assetKey]; // Dangerous!
+```
+
+### Rationale
+User-provided asset keys could potentially access unintended data or cause injection vulnerabilities. The whitelist approach ensures:
+- Only approved data fields are accessible
+- Formatting is controlled and safe
+- No arbitrary property access
+- Clear documentation of what data flows to external AI APIs
+
+## 🎨 Content Magic - Template System Architecture
+
+### Overview
+The template system provides pre-built webpage component sections that users can insert, customize globally, and fill with AI-generated content. All template logic resides in the Monkey class following the provider-agnostic pattern.
+
+### Core Principles
+1. **Monkey-centric**: All template operations are monkey methods, not separate API routes
+2. **Pure UI**: React components only render UI and call monkey methods
+3. **User customization**: Templates stored in `profiles.json.customizations.components`
+4. **Registry-based**: Default templates defined in `libs/content-magic/components/registry.js`
+
+### Monkey Methods
+
+**Load Templates**:
+```javascript
+const monkey = await initMonkey();
+const components = await monkey.loadComponents();
+// Returns: Object with merged default + user-customized templates
+// Each component has: { id, name, category, pageTypes, html, placeholders, isCustom? }
+```
+
+**Save Template Customization**:
+```javascript
+await monkey.saveComponentCustomization(componentId, html);
+// Saves to: profiles.json.customizations.components[componentId]
+// Updates user's global template override
+```
+
+**AI Fill Template**:
+```javascript
+const filledHtml = await monkey.fillTemplate({
+  componentId: 'hero-simple',
+  contentString: 'Your content here...',
+  mode: 'fill' // or 'convert'
+});
+// Uses 'mid' tier model to fill placeholders in template
+// Returns: HTML string with placeholders replaced
+```
+
+**Insert Component** (client-side only):
+```javascript
+const insertedElement = monkey.insertComponent(
+  focusedElement, 
+  componentHtml, 
+  'after' // or 'before'
+);
+// Inserts HTML relative to focused section element
+// Returns: The newly inserted DOM element
+```
+
+### Data Structure
+
+**Component Registry** (`libs/content-magic/components/registry.js`):
+```javascript
+export const COMPONENTS = {
+  'hero-simple': {
+    id: 'hero-simple',
+    name: 'Hero - Simple',
+    category: 'hero',
+    pageTypes: ['homepage', 'landing-page'],
+    html: '<section class="px-6 py-24">...</section>',
+    placeholders: {
+      'BrandName': 'company name',
+      'tagline': 'main value proposition'
+    }
+  }
+  // ... more components
+};
+
+export const PAGE_TYPES = {
+  'homepage': {
+    id: 'homepage',
+    name: 'Homepage',
+    description: 'Company homepage with overview',
+    defaultComponents: ['hero-centered', 'features-grid-3col']
+  }
+  // ... more page types
+};
+```
+
+**User Customizations** (`profiles.json.customizations`):
+```javascript
+{
+  "components": {
+    "hero-simple": {
+      "html": "<section>...custom...</section>",
+      "enabled": true,
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  },
+  "pageTypeMapping": {
+    "landing-page": ["hero-cta", "custom-section-1"]
+  },
+  "defaultStyles": {
+    "primaryColor": "#0066cc",
+    "fontFamily": "Inter"
+  }
+}
+```
+
+### Security Rules
+
+1. **Whitelist Pattern**:
+   - ✅ Use `COMPONENTS` registry as whitelist
+   - ✅ User customizations must reference existing component IDs
+   - ❌ Don't create components from arbitrary user input without validation
+
+2. **Template Validation**:
+   - ✅ Validate HTML structure matches expected patterns (starts with `<section>`)
+   - ✅ Component IDs must match registry keys
+   - ❌ Don't allow arbitrary HTML without validation
+
+3. **DOM Manipulation**:
+   - ✅ `insertComponent()` is client-side only (checks `typeof window`)
+   - ✅ Other methods are pure functions that return data
+   - ❌ Don't manipulate DOM outside of explicit editor operations
+
+### UI Pattern
+
+```javascript
+// ✅ CORRECT - Component calls monkey, renders result
+export default function ComponentPickerModal() {
+  const [components, setComponents] = useState({});
+  
+  useEffect(() => {
+    const loadData = async () => {
+      const monkey = await initMonkey();
+      const data = await monkey.loadComponents();
+      setComponents(data);
+    };
+    loadData();
+  }, []);
+  
+  const handleInsert = async (component) => {
+    const monkey = await initMonkey();
+    const insertedElement = monkey.insertComponent(
+      focusedElement, 
+      component.html, 
+      'after'
+    );
+    onClose();
+  };
+  
+  return <div>{/* Render UI */}</div>;
+}
+
+// ❌ WRONG - Direct API call bypassing monkey
+const response = await fetch('/api/templates/load');
+```
+
+### Migration from AI Assistant
+
+**Deprecated (Removed)**:
+- `ContentMagicAIAssistant.js` - Chat-based editing interface
+- `/api/content-magic/ai-assistant` - AI chat endpoint
+- Change wrapper system (red/green diff UI)
+
+**New Pattern**:
+- Component picker modal for structured insertion
+- Template-based content creation
+- AI filling via `monkey.fillTemplate()` with 'mid' tier model
+- Direct HTML replacement instead of diff/adopt workflow
+
+Remember: This codebase uses the latest Next.js 15, React 19, Tailwind v4, and DaisyUI v5. Always follow the new patterns and APIs for these versions. 

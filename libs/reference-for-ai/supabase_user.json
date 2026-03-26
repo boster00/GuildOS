@@ -1,0 +1,74 @@
+{
+    "id": "00000000-0000-0000-0000-000000000000",
+    "aud": "authenticated",
+    "role": "authenticated",
+    "email": "user@example.com",
+    "email_confirmed_at": "2025-10-02T22:18:40.143124Z",
+    "phone": "",
+    "confirmation_sent_at": "2025-10-02T22:18:20.195379Z",
+    "confirmed_at": "2025-10-02T22:18:40.143124Z",
+    "recovery_sent_at": "2025-10-05T16:49:27.968662Z",
+    "last_sign_in_at": "2025-10-06T05:44:59.863227Z",
+    "app_metadata": {
+        "provider": "email",
+        "providers": [
+            "email",
+            "google"
+        ]
+    },
+    "user_metadata": {
+        "avatar_url": "https://example.com/avatar.png",
+        "email": "user@example.com",
+        "email_verified": true,
+        "full_name": "John Doe",
+        "iss": "https://accounts.example.com",
+        "name": "John Doe",
+        "phone_verified": false,
+        "picture": "https://example.com/avatar.png",
+        "provider_id": "000000000000000000000",
+        "sub": "000000000000000000000"
+    },
+    "identities": [
+        {
+            "identity_id": "11111111-1111-1111-1111-111111111111",
+            "id": "00000000-0000-0000-0000-000000000000",
+            "user_id": "00000000-0000-0000-0000-000000000000",
+            "identity_data": {
+                "email": "user@example.com",
+                "email_verified": true,
+                "phone_verified": false,
+                "sub": "00000000-0000-0000-0000-000000000000"
+            },
+            "provider": "email",
+            "last_sign_in_at": "2025-10-02T22:18:20.155915Z",
+            "created_at": "2025-10-02T22:18:20.155971Z",
+            "updated_at": "2025-10-02T22:18:20.155971Z",
+            "email": "user@example.com"
+        },
+        {
+            "identity_id": "22222222-2222-2222-2222-222222222222",
+            "id": "000000000000000000000",
+            "user_id": "00000000-0000-0000-0000-000000000000",
+            "identity_data": {
+                "avatar_url": "https://example.com/avatar.png",
+                "email": "user@example.com",
+                "email_verified": true,
+                "full_name": "John Doe",
+                "iss": "https://accounts.example.com",
+                "name": "John Doe",
+                "phone_verified": false,
+                "picture": "https://example.com/avatar.png",
+                "provider_id": "000000000000000000000",
+                "sub": "000000000000000000000"
+            },
+            "provider": "google",
+            "last_sign_in_at": "2025-10-05T08:24:24.062859Z",
+            "created_at": "2025-10-05T08:24:24.062905Z",
+            "updated_at": "2025-10-06T05:44:59.53727Z",
+            "email": "user@example.com"
+        }
+    ],
+    "created_at": "2025-10-02T22:18:20.093169Z",
+    "updated_at": "2025-10-08T21:32:01.819789Z",
+    "is_anonymous": false
+}

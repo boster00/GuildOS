@@ -1,0 +1,27 @@
+---
+description: Database migration conventions for Supabase migrations
+globs: supabase/migrations/**/*.sql
+alwaysApply: false
+---
+
+# Database Migrations
+
+## Migration patterns
+
+- **Prefer `ADD COLUMN IF NOT EXISTS`** for new columns instead of `DO $$` blocks when possible.
+- **Use `DO $$` only when** handling renames, conditional logic, or multi-statement operations.
+- Keep migrations idempotent where practical.
+
+## Tier definitions
+
+- **Tier definitions live in code**: `libs/monkey/registry/subscriptionTiers.js`
+- Do **not** create new tier tables or seeds for plans in the database.
+- `profiles.subscription_plan` stores the plan name (free, starter, pro); the registry defines limits and Stripe mapping.
+
+## Credit usage and ledger
+
+- **Usage and balance**: Credit spend and grants are recorded in `credit_ledger`; balances live on `profiles` (`credits_remaining`, `payg_wallet`). Do **not** reintroduce `api_usage_logs` — it has been removed (migration `20260225120000_drop_api_usage_logs.sql`). User-facing usage history is served from `credit_ledger` (debit rows, cost > 0) via GET `/api/usage/logs`.
+
+## Reference
+
+See `docs/DATABASE_CONVENTIONS.md` for full conventions, profiles schema, and schema sync instructions.

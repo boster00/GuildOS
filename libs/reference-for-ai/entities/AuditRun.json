@@ -1,0 +1,78 @@
+{
+  "name": "AuditRun",
+  "type": "object",
+  "properties": {
+    "websiteId": {
+      "type": "string",
+      "description": "Associated website ID"
+    },
+    "auditType": {
+      "type": "string",
+      "enum": [
+        "technical",
+        "content_strategy",
+        "full"
+      ],
+      "description": "Type of audit performed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "completed",
+        "failed"
+      ],
+      "default": "running",
+      "description": "Audit run status"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When audit started"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When audit completed"
+    },
+    "totalPages": {
+      "type": "number",
+      "description": "Total pages crawled"
+    },
+    "technicalScore": {
+      "type": "number",
+      "description": "Overall technical score (0-100)"
+    },
+    "contentScore": {
+      "type": "number",
+      "description": "Overall content score (0-100)"
+    },
+    "issuesHigh": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of high severity issues"
+    },
+    "issuesMedium": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of medium severity issues"
+    },
+    "issuesLow": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of low severity issues"
+    },
+    "aiSummary": {
+      "type": "string",
+      "description": "AI-generated summary of audit results"
+    },
+    "reportUrl": {
+      "type": "string",
+      "description": "URL to full audit report"
+    }
+  },
+  "required": [
+    "websiteId",
+    "auditType"
+  ]
+}

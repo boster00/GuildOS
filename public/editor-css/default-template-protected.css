@@ -1,0 +1,30 @@
+/**
+ * Clean, controlled styles for default templates inside nested shadow.
+ * Used by DefaultTemplateBoundary in test-shadow.
+ */
+.default-template-inner,
+.default-template {
+  display: block;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #111;
+  line-height: 1.5;
+}
+.default-template h1,
+.default-template-inner h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: #111;
+}
+.default-template h2,
+.default-template-inner h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  color: #333;
+}
+.default-template p,
+.default-template-inner p {
+  margin: 0.25rem 0;
+  color: #333;
+}

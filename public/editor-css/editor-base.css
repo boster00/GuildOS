@@ -1,0 +1,29 @@
+/**
+ * Minimal editor content styles for test-shadow (inside Shadow DOM).
+ * Keeps .editorContent usable when document styles don't apply.
+ */
+#shadow-app-root .editorContent,
+.editorContent {
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 1.5rem;
+  min-height: 100%;
+  line-height: 1.7;
+  color: #111;
+  background: #fff;
+}
+.editorContent :where(em),
+.editorContent :where(i) { font-style: italic; }
+.editorContent :where(u) { text-decoration: underline; }
+.editorContent :where(s),
+.editorContent :where(del) { text-decoration: line-through; }
+.editorContent :where(a) {
+  text-decoration: underline;
+  cursor: pointer;
+  color: #0d6efd;
+}
+.editorContent :where(ul) { list-style-type: disc; list-style-position: inside; }
+.editorContent :where(ol) { list-style-type: decimal; list-style-position: inside; }
+.editorContent :where(section:hover) {
+  outline: 1px solid rgba(59, 130, 246, 0.15);
+  outline-offset: 2px;
+}

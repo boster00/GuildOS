@@ -1,0 +1,518 @@
+# 🎨 CJGeo Visual Identity & Design Guide
+
+## 📋 Brand Overview
+**Project:** CJGeo - Customer Journey Geolocation & ICP Analysis Platform  
+**Purpose:** AI-powered customer profiling and business optimization tools  
+**Tone:** Professional, Modern, Data-Driven, Trustworthy
+
+---
+
+## 🎯 Color Palette
+
+### Primary Colors
+```css
+/* Primary Brand Colors */
+--cj-primary: #2563eb;          /* Professional Blue */
+--cj-primary-hover: #1d4ed8;    /* Darker Blue on Hover */
+--cj-primary-light: #dbeafe;    /* Light Blue Background */
+
+/* Secondary Colors */
+--cj-secondary: #7c3aed;        /* Purple Accent */
+--cj-secondary-hover: #6d28d9;  /* Purple Hover */
+--cj-secondary-light: #ede9fe;  /* Light Purple */
+
+/* Tertiary Colors */
+--cj-tertiary: #059669;         /* Success Green */
+--cj-tertiary-hover: #047857;   /* Green Hover */
+--cj-warning: #f59e0b;          /* Warning Amber */
+--cj-error: #dc2626;            /* Error Red */
+```
+
+### Neutral Colors
+```css
+/* Gray Scale */
+--cj-gray-900: #111827;         /* Dark Text */
+--cj-gray-800: #1f2937;         /* Secondary Dark */
+--cj-gray-700: #374151;         /* Medium Dark */
+--cj-gray-600: #4b5563;         /* Medium */
+--cj-gray-500: #6b7280;         /* Medium Light */
+--cj-gray-400: #9ca3af;         /* Light */
+--cj-gray-300: #d1d5db;         /* Very Light */
+--cj-gray-200: #e5e7eb;         /* Background Light */
+--cj-gray-100: #f3f4f6;         /* Background */
+--cj-gray-50: #f9fafb;          /* Lightest Background */
+
+/* Pure Colors */
+--cj-white: #ffffff;
+--cj-black: #000000;
+```
+
+---
+
+## 🎭 Typography
+
+### Font Families
+```css
+/* Primary Font Stack */
+--cj-font-sans: 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif';
+
+/* Monospace for Code/Data */
+--cj-font-mono: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', 'monospace';
+
+/* Display Font (Optional) */
+--cj-font-display: 'Poppins', 'Inter', 'sans-serif';
+```
+
+### Typography Scale
+```css
+/* Font Sizes */
+--cj-text-xs: 0.75rem;      /* 12px */
+--cj-text-sm: 0.875rem;     /* 14px */
+--cj-text-base: 1rem;       /* 16px */
+--cj-text-lg: 1.125rem;     /* 18px */
+--cj-text-xl: 1.25rem;      /* 20px */
+--cj-text-2xl: 1.5rem;      /* 24px */
+--cj-text-3xl: 1.875rem;    /* 30px */
+--cj-text-4xl: 2.25rem;     /* 36px */
+--cj-text-5xl: 3rem;        /* 48px */
+
+/* Font Weights */
+--cj-font-light: 300;
+--cj-font-normal: 400;
+--cj-font-medium: 500;
+--cj-font-semibold: 600;
+--cj-font-bold: 700;
+--cj-font-extrabold: 800;
+
+/* Line Heights */
+--cj-leading-tight: 1.25;
+--cj-leading-normal: 1.5;
+--cj-leading-relaxed: 1.625;
+--cj-leading-loose: 2;
+```
+
+---
+
+## 📐 Spacing & Layout
+
+### Spacing Scale
+```css
+/* Spacing System (8px base) */
+--cj-space-0: 0;
+--cj-space-1: 0.25rem;       /* 4px */
+--cj-space-2: 0.5rem;        /* 8px */
+--cj-space-3: 0.75rem;       /* 12px */
+--cj-space-4: 1rem;          /* 16px */
+--cj-space-5: 1.25rem;       /* 20px */
+--cj-space-6: 1.5rem;        /* 24px */
+--cj-space-8: 2rem;          /* 32px */
+--cj-space-10: 2.5rem;       /* 40px */
+--cj-space-12: 3rem;         /* 48px */
+--cj-space-16: 4rem;         /* 64px */
+--cj-space-20: 5rem;         /* 80px */
+--cj-space-24: 6rem;         /* 96px */
+```
+
+### Container Widths
+```css
+--cj-container-sm: 640px;
+--cj-container-md: 768px;
+--cj-container-lg: 1024px;
+--cj-container-xl: 1280px;
+--cj-container-2xl: 1536px;
+```
+
+---
+
+## 🎨 Component Styling
+
+### Buttons
+```css
+/* Base Button */
+.cj-btn {
+    font-family: var(--cj-font-sans);
+    font-weight: var(--cj-font-semibold);
+    padding: var(--cj-space-3) var(--cj-space-6);
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cj-space-2);
+    text-decoration: none;
+    font-size: var(--cj-text-sm);
+    line-height: 1.5;
+}
+
+/* Button Variants */
+.cj-btn-primary {
+    background: var(--cj-primary);
+    color: var(--cj-white);
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.cj-btn-primary:hover {
+    background: var(--cj-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+}
+
+.cj-btn-secondary {
+    background: var(--cj-secondary);
+    color: var(--cj-white);
+}
+
+.cj-btn-outline {
+    background: transparent;
+    color: var(--cj-primary);
+    border: 2px solid var(--cj-primary);
+}
+
+.cj-btn-ghost {
+    background: transparent;
+    color: var(--cj-gray-700);
+    border: 1px solid var(--cj-gray-300);
+}
+
+.cj-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+```
+
+### Form Elements
+```css
+/* Input Fields */
+.cj-input {
+    font-family: var(--cj-font-sans);
+    padding: var(--cj-space-3) var(--cj-space-4);
+    border: 2px solid var(--cj-gray-300);
+    border-radius: 8px;
+    font-size: var(--cj-text-base);
+    transition: all 0.2s ease;
+    width: 100%;
+    background: var(--cj-white);
+}
+
+.cj-input:focus {
+    outline: none;
+    border-color: var(--cj-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.cj-input::placeholder {
+    color: var(--cj-gray-500);
+}
+
+/* Labels */
+.cj-label {
+    font-family: var(--cj-font-sans);
+    font-weight: var(--cj-font-semibold);
+    font-size: var(--cj-text-sm);
+    color: var(--cj-gray-700);
+    margin-bottom: var(--cj-space-2);
+    display: block;
+}
+
+/* Textarea */
+.cj-textarea {
+    font-family: var(--cj-font-sans);
+    padding: var(--cj-space-3) var(--cj-space-4);
+    border: 2px solid var(--cj-gray-300);
+    border-radius: 8px;
+    resize: vertical;
+    min-height: 100px;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.cj-textarea:focus {
+    outline: none;
+    border-color: var(--cj-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+```
+
+### Cards & Containers
+```css
+/* Base Card */
+.cj-card {
+    background: var(--cj-white);
+    border-radius: 12px;
+    padding: var(--cj-space-6);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--cj-gray-200);
+    transition: all 0.3s ease;
+}
+
+.cj-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Wizard Container */
+.cj-wizard {
+    max-width: var(--cj-container-lg);
+    margin: 0 auto;
+    padding: var(--cj-space-8);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress Bar */
+.cj-progress {
+    width: 100%;
+    height: 8px;
+    background: var(--cj-gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cj-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cj-primary), var(--cj-secondary));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+```
+
+---
+
+## 🎯 Design Patterns
+
+### Layout Principles
+1. **8px Grid System** - All spacing based on 8px increments
+2. **Consistent Margins** - 24px between major sections, 16px between elements
+3. **White Space** - Generous padding for breathing room
+4. **Responsive Design** - Mobile-first approach
+
+### Interactive States
+```css
+/* Hover Effects */
+.cj-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus States */
+.cj-focusable:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Loading States */
+.cj-loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.cj-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--cj-gray-300);
+    border-top: 2px solid var(--cj-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+```
+
+---
+
+## 📱 Responsive Breakpoints
+
+```css
+/* Mobile First Breakpoints */
+@media (min-width: 640px) { /* sm */ }
+@media (min-width: 768px) { /* md */ }
+@media (min-width: 1024px) { /* lg */ }
+@media (min-width: 1280px) { /* xl */ }
+@media (min-width: 1536px) { /* 2xl */ }
+```
+
+---
+
+## 🎨 Example Component Implementation
+
+```css
+/* ICPWizard.module.css - Following Design System */
+.wizardContainer {
+    max-width: var(--cj-container-lg);
+    margin: 0 auto;
+    padding: var(--cj-space-8);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.progressSection {
+    margin-bottom: var(--cj-space-8);
+}
+
+.stepContent {
+    background: var(--cj-white);
+    padding: var(--cj-space-8);
+    border-radius: 12px;
+    margin: var(--cj-space-6) 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.navigationButtons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--cj-space-8);
+    gap: var(--cj-space-4);
+}
+
+.navButton {
+    font-family: var(--cj-font-sans);
+    font-weight: var(--cj-font-semibold);
+    padding: var(--cj-space-3) var(--cj-space-6);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.prevButton {
+    background: var(--cj-gray-600);
+    color: var(--cj-white);
+}
+
+.prevButton:hover:not(:disabled) {
+    background: var(--cj-gray-700);
+    transform: translateY(-2px);
+}
+
+.nextButton {
+    background: var(--cj-primary);
+    color: var(--cj-white);
+}
+
+.nextButton:hover:not(:disabled) {
+    background: var(--cj-primary-hover);
+    transform: translateY(-2px);
+}
+```
+
+---
+
+## ✅ Usage Guidelines
+
+### Do's
+- ✅ Use consistent spacing from the 8px grid system
+- ✅ Apply hover effects to interactive elements
+- ✅ Use semantic color meanings (green for success, red for error)
+- ✅ Maintain proper contrast ratios (4.5:1 minimum)
+- ✅ Use the established typography scale
+
+### Don'ts
+- ❌ Don't use arbitrary spacing values
+- ❌ Don't mix different blue shades outside the palette
+- ❌ Don't skip focus states for accessibility
+- ❌ Don't use more than 3 font weights in a single view
+- ❌ Don't create buttons smaller than 44px touch target
+
+---
+
+## 🔧 CSS Variables Setup
+
+```css
+/* Add this to your global CSS file or root component */
+:root {
+    /* Colors */
+    --cj-primary: #2563eb;
+    --cj-primary-hover: #1d4ed8;
+    --cj-primary-light: #dbeafe;
+    --cj-secondary: #7c3aed;
+    --cj-secondary-hover: #6d28d9;
+    --cj-secondary-light: #ede9fe;
+    --cj-tertiary: #059669;
+    --cj-tertiary-hover: #047857;
+    --cj-warning: #f59e0b;
+    --cj-error: #dc2626;
+    
+    /* Grays */
+    --cj-gray-900: #111827;
+    --cj-gray-800: #1f2937;
+    --cj-gray-700: #374151;
+    --cj-gray-600: #4b5563;
+    --cj-gray-500: #6b7280;
+    --cj-gray-400: #9ca3af;
+    --cj-gray-300: #d1d5db;
+    --cj-gray-200: #e5e7eb;
+    --cj-gray-100: #f3f4f6;
+    --cj-gray-50: #f9fafb;
+    --cj-white: #ffffff;
+    --cj-black: #000000;
+    
+    /* Typography */
+    --cj-font-sans: 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif';
+    --cj-font-mono: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', 'monospace';
+    --cj-font-display: 'Poppins', 'Inter', 'sans-serif';
+    
+    /* Font Sizes */
+    --cj-text-xs: 0.75rem;
+    --cj-text-sm: 0.875rem;
+    --cj-text-base: 1rem;
+    --cj-text-lg: 1.125rem;
+    --cj-text-xl: 1.25rem;
+    --cj-text-2xl: 1.5rem;
+    --cj-text-3xl: 1.875rem;
+    --cj-text-4xl: 2.25rem;
+    --cj-text-5xl: 3rem;
+    
+    /* Font Weights */
+    --cj-font-light: 300;
+    --cj-font-normal: 400;
+    --cj-font-medium: 500;
+    --cj-font-semibold: 600;
+    --cj-font-bold: 700;
+    --cj-font-extrabold: 800;
+    
+    /* Line Heights */
+    --cj-leading-tight: 1.25;
+    --cj-leading-normal: 1.5;
+    --cj-leading-relaxed: 1.625;
+    --cj-leading-loose: 2;
+    
+    /* Spacing */
+    --cj-space-0: 0;
+    --cj-space-1: 0.25rem;
+    --cj-space-2: 0.5rem;
+    --cj-space-3: 0.75rem;
+    --cj-space-4: 1rem;
+    --cj-space-5: 1.25rem;
+    --cj-space-6: 1.5rem;
+    --cj-space-8: 2rem;
+    --cj-space-10: 2.5rem;
+    --cj-space-12: 3rem;
+    --cj-space-16: 4rem;
+    --cj-space-20: 5rem;
+    --cj-space-24: 6rem;
+    
+    /* Container Widths */
+    --cj-container-sm: 640px;
+    --cj-container-md: 768px;
+    --cj-container-lg: 1024px;
+    --cj-container-xl: 1280px;
+    --cj-container-2xl: 1536px;
+}
+```
+
+---
+
+This design guide provides a comprehensive foundation for consistent styling across the CJGeo project, ensuring a professional and cohesive user experience for your ICP analysis platform.

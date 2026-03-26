@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","functions":{"app/api/cron/**":{"maxDuration":60},"app/api/visibility_tracker/cron/**":{"maxDuration":60},"app/api/visibility_tracker/worker/**":{"maxDuration":60}},"crons":[{"path":"/api/cron/trigger","schedule":"*/5 * * * *"}]}

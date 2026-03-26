@@ -1,0 +1,81 @@
+{
+  "name": "AuditPage",
+  "type": "object",
+  "properties": {
+    "auditRunId": {
+      "type": "string",
+      "description": "Associated audit run ID"
+    },
+    "url": {
+      "type": "string",
+      "description": "Page URL"
+    },
+    "pageTitle": {
+      "type": "string",
+      "description": "Page title"
+    },
+    "statusCode": {
+      "type": "number",
+      "description": "HTTP status code"
+    },
+    "loadTime": {
+      "type": "number",
+      "description": "Page load time in milliseconds"
+    },
+    "wordCount": {
+      "type": "number",
+      "description": "Total word count"
+    },
+    "technicalIssues": {
+      "type": "string",
+      "description": "JSON array of technical issues found"
+    },
+    "contentIssues": {
+      "type": "string",
+      "description": "JSON array of content issues found"
+    },
+    "hasMetaDescription": {
+      "type": "boolean",
+      "description": "Has meta description"
+    },
+    "hasH1": {
+      "type": "boolean",
+      "description": "Has H1 tag"
+    },
+    "hasSchema": {
+      "type": "boolean",
+      "description": "Has structured data"
+    },
+    "imagesMissingAlt": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of images missing alt text"
+    },
+    "internalLinks": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of internal links"
+    },
+    "externalLinks": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of external links"
+    },
+    "aiAnalysis": {
+      "type": "string",
+      "description": "AI-generated page analysis"
+    },
+    "icpAlignment": {
+      "type": "number",
+      "description": "ICP alignment score (0-100)"
+    },
+    "recommendations": {
+      "type": "string",
+      "description": "JSON array of improvement recommendations"
+    }
+  },
+  "required": [
+    "auditRunId",
+    "url"
+  ]
+}

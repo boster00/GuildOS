@@ -1,0 +1,71 @@
+
+> ship-fast-code@0.1.0 dev
+> next dev --turbo
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\xsj70\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\xsj70\cjgeo\package-lock.json
+
+   ▲ Next.js 15.5.7 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://10.0.0.110:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Compiled middleware in 244ms
+ ✓ Ready in 4.3s
+ ○ Compiling /api/healthz ...
+ ✓ Compiled /api/healthz in 1562ms
+ GET /api/healthz 200 in 2352ms
+ GET /api/healthz 200 in 355ms
+ ○ Compiling /agent-playground ...
+/*! 🌼 daisyUI 5.0.50 */
+ ✓ Compiled /agent-playground in 3.7s
+ GET /agent-playground?scenario=suggest_ideas_basic 307 in 4360ms
+ ○ Compiling /signin ...
+ ✓ Compiled /signin in 500ms
+ GET /signin 200 in 762ms
+[Sidebar Filter Debug] {
+  SHOW_DEV_SIDEBAR_ITEMS: 'true',
+  NODE_ENV: 'development',
+  shouldShowDevItems: true,
+  allItemsCount: 10,
+  devOnlyItems: [ 'Dashboard', 'Prompts', 'Quests', 'Settings', 'Billing' ],
+  publicItems: [
+    'Tutorial Videos',
+    'Campaigns',
+    'ContentMagic.ai',
+    'Offers',
+    'ICPs'
+  ]
+}
+[Sidebar Filter] Dashboard - INCLUDED (showDevItems: true)
+[Sidebar Filter] Prompts - INCLUDED (showDevItems: true)
+[Sidebar Filter] Quests - INCLUDED (showDevItems: true)
+[Sidebar Filter] Settings - INCLUDED (showDevItems: true)
+[Sidebar Filter] Billing - INCLUDED (showDevItems: true)
+[Sidebar Filter Result] {
+  filteredItemsCount: 10,
+  filteredItems: [
+    'Dashboard',
+    'Tutorial Videos',
+    'Campaigns',
+    'ContentMagic.ai',
+    'Offers',
+    'ICPs',
+    'Prompts',
+    'Quests',
+    'Settings',
+    'Billing'
+  ],
+  devItemsShown: 5,
+  publicItemsShown: 5
+}
+ GET /agent-playground 200 in 991ms
+ ✓ Compiled /favicon.ico in 153ms
+ GET /favicon.ico?favicon.1114f488.ico 200 in 459ms
+ GET /agent-playground?scenario=suggest_ideas_basic 307 in 218ms
+ GET /signin 200 in 179ms

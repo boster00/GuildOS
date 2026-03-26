@@ -1,0 +1,188 @@
+.card {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border: 2px solid #dbeafe;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.cardHeader {
+  padding: 20px 24px 16px 24px;
+  border-bottom: 1px solid #f0f9ff;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.progressText {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2563eb;
+}
+
+.progressBarContainer {
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+}
+
+.cardContent {
+  padding: 20px 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stepItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.iconContainer {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.completedIcon {
+  width: 20px;
+  height: 20px;
+  color: #10b981;
+}
+
+.incompleteIcon {
+  width: 20px;
+  height: 20px;
+  color: #d1d5db;
+}
+
+.stepContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepTitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+}
+
+.stepDescription {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.actionContainer {
+  margin-top: 8px;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.actionButton:hover:not(.disabledButton) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+  color: #1f2937;
+}
+
+.actionButton:focus:not(.disabledButton) {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+.disabledButton {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.disabledButton:hover {
+  background-color: #ffffff;
+  border-color: #d1d5db;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .cardHeader {
+    padding: 16px 20px 12px 20px;
+  }
+  
+  .cardContent {
+    padding: 16px 20px 20px 20px;
+    gap: 16px;
+  }
+  
+  .stepItem {
+    gap: 12px;
+  }
+  
+  .headerContent {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .progressText {
+    align-self: flex-end;
+  }
+}
+
+/* Animation for progress bar */
+@keyframes progressFill {
+  0% { width: 0%; }
+  100% { width: var(--progress-width); }
+}
+
+.progressBar {
+  animation: progressFill 0.8s ease-out;
+}
+
+/* Hover effects */
+.stepItem:hover .incompleteIcon {
+  color: #9ca3af;
+}
+
+.stepItem:hover .stepTitle {
+  color: #111827;
+}
+
+/* Focus styles for accessibility */
+.actionButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

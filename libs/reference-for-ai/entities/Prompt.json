@@ -1,0 +1,26 @@
+{
+  "name": "Prompt",
+  "type": "object",
+  "properties": {
+    "icpId": {
+      "type": "string",
+      "description": "Associated ICP ID"
+    },
+    "text": {
+      "type": "string",
+      "description": "Prompt text to track"
+    },
+    "visibility": {
+      "type": "number",
+      "description": "Latest visibility percentage"
+    },
+    "lastScanAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last scan timestamp"
+    }
+  },
+  "required": [
+    "text"
+  ]
+}

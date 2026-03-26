@@ -1,0 +1,215 @@
+Phase 1 — Wire the risky pieces first
+
+Install & render the editor
+
+Add CKEditor 5 React (or TinyMCE if you prefer).
+
+Make a temp page /app/audit-sandbox that just renders the editor.
+
+Hardcode a sample HTML string (your crawler output).
+
+Make sure onChange updates React state.
+
+✅ Goal: “I can load HTML → edit → see new HTML in state.”
+
+Create the rule registry skeleton
+
+Make /lib/audit-rules/types.ts with AuditRule, AuditContext, AuditRuleResult.
+
+Make /lib/audit-rules/index.ts that exports an empty ruleRegistry = {}.
+
+✅ Goal: “I can import ruleRegistry and loop it without errors.”
+
+Make 1 real rule file
+
+e.g. /lib/audit-rules/seoTitleLength.ts
+
+It should:
+
+read ctx.meta.title
+
+return status, evidence
+
+define ui.sidebarSummary and ui.detailFields
+
+Add it to ruleRegistry.
+
+✅ Goal: “I can add a rule by making one file.”
+
+Write the executor
+
+Make /lib/audit/executeRules.ts
+
+It should take (ctx) => {} and loop over ruleRegistry and return a dictionary of results.
+
+For now, stub ctx with hardcoded HTML/meta.
+
+✅ Goal: “I can run all rules in a loop and get results back.”
+
+Phase 2 — Connect editor ↔ rules
+
+Build the audit sandbox UI
+
+Layout: left = rule list, right = editor.
+
+State:
+
+const [html, setHtml] = useState(sampleHtml);
+
+const [ruleResults, setRuleResults] = useState({});
+
+Add a button: “Run audit on this content”.
+
+On click:
+
+build ctx from current html (parse title, text)
+
+call executeRules
+
+save results in setRuleResults
+
+✅ Goal: “I change content → run → see different rule results.”
+
+Map rule results to UI
+
+Left sidebar: list all rules from registry.
+
+For each rule, show:
+
+rule.meta.label
+
+rule.ui.sidebarSummary(ruleResults[rule.key])
+
+status color
+
+Clicking a rule opens a side panel/modal with detailFields(...).
+
+✅ Goal: “Rule files fully drive what UI shows.”
+
+Highlight in editor (simple version)
+
+Pick one rule (e.g. “ICP relevance”) and make it return a substring to highlight.
+
+Before giving HTML to CKEditor, wrap that substring in <span class="audit-warn">...</span>.
+
+✅ Goal: “Audit result can influence editor content.”
+
+Phase 3 — Page/audit structure (still minimal UI)
+
+Create data shapes for Website / Audit / AuditPage in code
+
+Just TypeScript interfaces for now.
+
+Create a dummy array of websites and audits in the sandbox page.
+
+✅ Goal: “My rule system can receive a ctx that has url, pageType, icp.”
+
+Add page-type awareness
+
+In the sandbox page, let user pick: homepage / product / service / blog / pillar.
+
+Pass that to executeRules.
+
+Make one rule skip if pageType not applicable.
+
+✅ Goal: “Rules can say ‘not applicable’.”
+
+Phase 4 — Real fetching & context enrichment
+
+Add real HTML fetch util
+
+In /lib/audit/fetchHtml.ts write a server-side fetch that:
+
+gets the URL
+
+extracts <title>, <meta name=description>, <link rel=canonical>
+
+Plug that into ctx instead of hardcoded HTML when URL is present.
+
+✅ Goal: “I can audit a real URL, not just a pasted string.”
+
+Add mutateContext support
+
+Pick your schema rule and make it parse <script type="application/ld+json"> and write it to ctx.meta.schema.
+
+In executor, after each rule, if rule has mutateContext, reassign ctx = mutateContext(...).
+
+✅ Goal: “One rule can help the next.”
+
+Phase 5 — Start shaping actual pages
+
+Listing page (audits list)
+
+Now that editor + rules work, make /app/audits:
+
+list dummy audits
+
+“Open” → /app/audits/[id] → loads sandbox-like UI with editor + rules
+
+✅ Goal: “Navigation works; audit detail page uses the working components.”
+
+Audit detail page shell
+
+Header: audit name, website, ICP, status
+
+2-column layout: left rule list, right editor
+
+Reuse the sandbox logic
+
+✅ Goal: “Real page uses the same rule engine.”
+
+Phase 6 — Hardening / cleanup
+
+Extract shared components
+
+<RuleList />
+
+<RuleDetail />
+
+<AuditEditor /> (CKEditor wrapper)
+
+Now your pages just assemble them.
+
+✅ Goal: “Adding a new page is just composing components.”
+
+Add loading / error states
+
+If fetch fails, show warning item in the rule list.
+
+If analyze throws, mark rule as fail with evidence.
+
+✅ Goal: “Engine doesn’t crash on bad pages.”
+
+Phase 7 — Optional but smart
+
+Rule generator template
+
+Create a code snippet/template for new rule files so you never start from scratch.
+
+You can even make an internal route that POSTs rule metadata and scaffolds a file (later).
+
+✅ Goal: “Adding rules stays fast.”
+
+Order recap (short)
+
+install editor → render → state works
+
+create rule types + registry
+
+add 1 rule file
+
+write executor
+
+build sandbox UI (sidebar + editor + run button)
+
+display rule results
+
+add simple highlight
+
+add pageType + ICP to ctx
+
+add real HTML fetch
+
+create audits list/detail pages
+
+That will get you from “nothing” to “I can load a real page and run multiple modular rules on it, showing results next to an editor” without getting stuck on lower-risk markup work.
