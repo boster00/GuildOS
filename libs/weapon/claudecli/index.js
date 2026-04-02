@@ -1,27 +1,17 @@
 /**
- * claudeCLI weapon — invokes `claude --print --dangerously-skip-permissions` as a child
- * process and returns stdout as an HTML report. Used exclusively by the Blacksmith.
- *
- * Requires `claude` CLI to be installed. Resolves the full path via `where` (Windows)
- * or `which` (Unix) so that execFile works without shell interpolation issues.
+ * claudeCLI weapon — invokes `claude --print --dangerously-skip-permissions` and returns
+ * stdout. Uses exec() with a temp file for the prompt to avoid shell escaping issues
+ * and environment quirks in the Next.js dev server.
  */
-import { execFile, execSync } from "child_process";
+import { exec } from "child_process";
+import { writeFileSync, unlinkSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import { randomUUID } from "crypto";
 
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-/** Resolve full path to `claude` binary once (cached). */
-let _claudePath = null;
-function getClaudePath() {
-  if (_claudePath) return _claudePath;
-  const cmd = process.platform === "win32" ? "where claude" : "which claude";
-  const raw = execSync(cmd, { encoding: "utf8" }).trim();
-  _claudePath = raw.split(/\r?\n/)[0]; // first match
-  return _claudePath;
-}
-
 /**
- * Invoke the Claude CLI with a task prompt. Expects Claude to output a complete HTML document.
- *
  * @param {string} taskPrompt
  * @returns {Promise<{ ok: boolean, html: string, rawOutput: string, error?: string }>}
  */
@@ -30,41 +20,38 @@ export async function invoke(taskPrompt) {
     return { ok: false, html: "", rawOutput: "", error: "taskPrompt is required" };
   }
 
-  let claudeBin;
+  // Write prompt to a temp file so we don't have to shell-escape it
+  const tmpFile = join(tmpdir(), `claudecli-${randomUUID()}.txt`);
   try {
-    claudeBin = getClaudePath();
+    writeFileSync(tmpFile, taskPrompt.trim(), "utf8");
   } catch (e) {
-    const msg = `Could not find claude CLI on PATH: ${e.message || e}`;
-    return { ok: false, html: buildErrorHtml(msg, ""), rawOutput: "", error: msg };
+    return { ok: false, html: buildErrorHtml(`Failed to write temp file: ${e.message}`, ""), rawOutput: "", error: e.message };
   }
 
+  // Use `type` (Windows) or `cat` (Unix) to pipe the prompt file into claude --print
+  const cat = process.platform === "win32" ? "type" : "cat";
+  const cmd = `${cat} "${tmpFile}" | claude --print --dangerously-skip-permissions`;
+
   return new Promise((resolve) => {
-    execFile(
-      claudeBin,
-      ["--print", "--dangerously-skip-permissions", taskPrompt.trim()],
-      { cwd: process.cwd(), timeout: TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        if (process.env.NODE_ENV === "development" && stderr) {
-          process.stderr.write(`[claudecli:stderr] ${stderr}`);
-        }
+    exec(cmd, { cwd: process.cwd(), timeout: TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      // Clean up temp file
+      try { unlinkSync(tmpFile); } catch { /* ignore */ }
 
-        const rawOutput = stdout || "";
+      if (process.env.NODE_ENV === "development" && stderr) {
+        process.stderr.write(`[claudecli:stderr] ${stderr}`);
+      }
 
-        if (err) {
-          const isTimeout = err.killed || err.code === "ETIMEDOUT";
-          const msg = isTimeout ? "Claude CLI timed out after 5 minutes." : `Claude CLI error: ${err.message}`;
-          resolve({
-            ok: false,
-            html: buildErrorHtml(msg, rawOutput),
-            rawOutput,
-            error: isTimeout ? "timeout" : err.message,
-          });
-          return;
-        }
+      const rawOutput = stdout || "";
 
-        resolve({ ok: true, html: rawOutput.trim(), rawOutput });
-      },
-    );
+      if (err) {
+        const isTimeout = err.killed || err.code === "ETIMEDOUT";
+        const msg = isTimeout ? "Claude CLI timed out after 5 minutes." : `Claude CLI error: ${err.message}`;
+        resolve({ ok: false, html: buildErrorHtml(msg, rawOutput), rawOutput, error: isTimeout ? "timeout" : err.message });
+        return;
+      }
+
+      resolve({ ok: true, html: rawOutput.trim(), rawOutput });
+    });
   });
 }
 
