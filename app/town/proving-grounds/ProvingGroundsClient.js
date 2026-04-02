@@ -335,6 +335,8 @@ export default function ProvingGroundsClient() {
   const [testQuestInput, setTestQuestInput] = useState("");
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [greenBtnColor, setGreenBtnColor] = useState("btn-error");
+  const [greenRunning, setGreenRunning] = useState(false);
   const logsRef = useRef(null);
 
   // Load skill book catalog
@@ -386,16 +388,47 @@ export default function ProvingGroundsClient() {
             onChange={(e) => setTestQuestInput(e.target.value)}
             disabled={testRunning}
           />
-          <button
-            type="button"
-            className="btn btn-primary btn-sm mt-3"
-            disabled={testRunning || !testQuestInput.trim()}
-            onClick={runTestQuest}
-          >
-            {testRunning
-              ? <><span className="loading loading-spinner loading-xs" /> Running… (may take several minutes)</>
-              : "Submit Quest"}
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={testRunning || !testQuestInput.trim()}
+              onClick={runTestQuest}
+            >
+              {testRunning
+                ? <><span className="loading loading-spinner loading-xs" /> Running… (may take several minutes)</>
+                : "Submit Quest"}
+            </button>
+            <button
+              type="button"
+              id="green-test-btn"
+              className={`btn btn-sm ${greenBtnColor}`}
+              disabled={greenRunning}
+              onClick={async () => {
+                setGreenRunning(true);
+                setTestResult(null);
+                try {
+                  const r = await fetch("/api/proving_grounds", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "cliSmoke" }),
+                  });
+                  const j = await r.json().catch(() => ({}));
+                  setTestResult(j && typeof j === "object" ? j : { raw: j });
+                  if (j.ok) {
+                    setGreenBtnColor("btn-success");
+                    toast.success("Claude made it green");
+                  } else {
+                    toast.error(j.error || "CLI smoke test failed");
+                  }
+                  setTimeout(() => logsRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
+                } finally { setGreenRunning(false); }
+              }}
+            >
+              {greenRunning
+                ? <><span className="loading loading-spinner loading-xs" /> Working…</>
+                : "Make this button green"}
+            </button>
+          </div>
         </section>
 
         {/* ── Weapon / Skill Book Tester ── */}

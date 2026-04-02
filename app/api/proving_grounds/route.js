@@ -250,6 +250,16 @@ export async function POST(request) {
     return Response.json({ ok: true, count: results.length, adventurers: results });
   }
 
+  if (action === "cliSmoke") {
+    const { invoke } = await import("@/libs/weapon/claudecli/index.js");
+    const prompt = `In the file app/town/proving-grounds/ProvingGroundsClient.js, find the button with id="green-test-btn". It currently has className that includes "btn-error". Change "btn-error" to "btn-success" in the DEFAULT state (the useState initializer for greenBtnColor). Do not change anything else. Your entire output must be a single valid HTML document reporting what you changed. Begin with <!DOCTYPE html> immediately.`;
+    const result = await invoke(prompt);
+    const logs = [
+      { step: 0, action: "cliSmoke:invoke", ok: result.ok, detail: { error: result.error || null, outputLength: result.rawOutput?.length ?? 0 } },
+    ];
+    return Response.json({ ok: result.ok, finalStage: result.ok ? "completed" : "failed", logs, html: result.html });
+  }
+
   if (action === "runTestQuest") {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const description = typeof body?.description === "string" ? body.description.trim() : "";
