@@ -68,6 +68,19 @@ export async function GET(request) {
     return Response.json({ ok: true, preview: data.preview, quest: data.quest });
   }
 
+  if (action === "getSkillBookToc") {
+    const skillBookId = request.nextUrl.searchParams.get("skillBookId")?.trim();
+    if (!skillBookId) {
+      return Response.json({ error: "skillBookId is required" }, { status: 400 });
+    }
+    const { getSkillBook } = await import("@/libs/skill_book");
+    const book = getSkillBook(skillBookId);
+    if (!book) {
+      return Response.json({ error: `Unknown skill book: ${skillBookId}` }, { status: 404 });
+    }
+    return Response.json({ ok: true, toc: book.toc || {} });
+  }
+
   if (action === "getSetupSteps") {
     const db = await database.init("server");
     const { data } = await db
