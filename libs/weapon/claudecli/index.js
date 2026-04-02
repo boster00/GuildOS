@@ -25,7 +25,7 @@ export async function invoke(taskPrompt) {
 
     const proc = spawn("claude", ["--print", "--dangerously-skip-permissions", taskPrompt.trim()], {
       cwd: process.cwd(),
-      shell: false,
+      shell: true,
     });
 
     const timer = setTimeout(() => {
