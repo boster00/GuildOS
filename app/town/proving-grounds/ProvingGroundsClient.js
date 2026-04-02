@@ -1,43 +1,86 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { isRecruitReady, mergeDraftPatch } from "@/libs/proving_grounds/ui.js";
 
-function DevWorkflowRail() {
+// Default BigQuery setup steps shown when no custom steps are stored
+const BIGQUERY_DEFAULT_STEPS = [
+  "Go to GCP Console → IAM & Admin → Service Accounts. Create a new service account and grant it the BigQuery Data Viewer and BigQuery Job User roles.",
+  "On the service account page, go to Keys → Add Key → Create new key → JSON. Download the key file.",
+  "In GuildOS, open Council → Potions → add a new potion with kind set to bigquery_service_account and paste the full contents of the JSON key file into the secrets field.",
+  "Return here and run the BigQuery test quest. The Blacksmith will scaffold the weapon and skill book automatically.",
+];
+
+function SetupStepsRail({ onSeedGuild }) {
+  const [steps, setSteps] = useState(null);
+  const [seeding, setSeeding] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/proving_grounds?action=getSetupSteps");
+        const json = await res.json().catch(() => ({}));
+        if (!cancelled) {
+          setSteps(Array.isArray(json.steps) && json.steps.length > 0 ? json.steps : BIGQUERY_DEFAULT_STEPS);
+        }
+      } catch {
+        if (!cancelled) setSteps(BIGQUERY_DEFAULT_STEPS);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const seedGuild = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/proving_grounds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "seedGuildAdventurers" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error || "Seed failed");
+        return;
+      }
+      toast.success(`Guild seeded — ${json.count ?? 0} adventurers ready`);
+      if (onSeedGuild) onSeedGuild();
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <aside className="md:sticky md:top-20 space-y-4 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-sm md:w-80 md:shrink-0">
-      <p className="text-xs font-semibold uppercase tracking-wide text-primary">Questmaster triage (cat)</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-primary">Setup steps</p>
       <div className="space-y-3 text-xs leading-relaxed text-base-content/80">
-        <p>
-          The request was passed to the questmaster, the cat, who thought (the triaging process):
+        {steps === null ? (
+          <p className="text-base-content/50">Loading setup steps…</p>
+        ) : (
+          steps.map((step, i) => (
+            <div key={i} className="rounded-lg border border-base-300/60 bg-base-100/50 p-3">
+              <span className="font-semibold text-primary">{i + 1}. </span>
+              {step}
+            </div>
+          ))
+        )}
+      </div>
+      <div className="border-t border-primary/20 pt-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-2">Guild roster</p>
+        <p className="text-[11px] text-base-content/60 mb-2">
+          Seeds Cat, Pig, Runesmith, and Blacksmith adventurers for the current user. Safe to run multiple times.
         </p>
-        <p className="rounded-lg border border-base-300/60 bg-base-100/50 p-3 text-base-content/85">
-          <span className="font-medium text-base-content">1.</span> I checked all my adventurers, no one has that
-          capability (initial triaging query, checking NL against roster of agents), we must recruit a new adventurer who
-          can do BigQuery. This is the most immediate goal, so I should add a note about next steps after the goal is
-          accomplished.
-        </p>
-        <div className="space-y-2 border-l-2 border-primary/40 pl-3">
-          <p className="font-medium text-base-content/90">Key concepts:</p>
-          <p>
-            First step in advancing the idea stage is to evalaute if we have the right adventurer for the job. If so,
-            proceed to the planning stage, if not, proceed to the recruiting workflow by naming the quest as
-            &quot;recruiting an adventurer for XXX&quot; and put the user instruction into the what to do next description
-            of the quest.
-          </p>
-          <p>
-            These &quot;next steps&quot; instructions should be recorded in the description of the quest at the end under
-            the label &quot;next steps&quot; and in a number bullet format like 1. xxxx 2. xxxx.
-          </p>
-          <p>
-            At the closing step of these quests, the next steps quest will be used to create new quests, which will use
-            item 1 as main quest and inherit the next steps.
-          </p>
-          <p>
-            These AI actions prompt template are defined in questmaster skill book actions.
-          </p>
-        </div>
+        <button
+          type="button"
+          className="btn btn-outline btn-xs w-full"
+          disabled={seeding}
+          onClick={seedGuild}
+        >
+          {seeding ? <span className="loading loading-spinner loading-xs" /> : null}
+          {seeding ? "Seeding…" : "Seed Guild Adventurers"}
+        </button>
       </div>
     </aside>
   );
@@ -58,7 +101,6 @@ const DEFAULT_QUEST_ID = "e8dfccc1-3adf-41fc-9ff3-a71ad78a05db";
 
 const DEFAULT_SKILL_BOOK_ID = "testskillbook";
 const DEFAULT_ACTION_NAME = "sendpigeonpost";
-/** Pigeon letters without `url` run on the active browser tab when delivering from the Browserclaw popup (no navigation). */
 const PLACEHOLDER_BROWSER_ACTIONS_JSON = `[{"action":"obtainText","selector":"h1","item":"h1text"}]`;
 const DEFAULT_PAYLOAD_KV_ROWS = [
   {
@@ -67,9 +109,6 @@ const DEFAULT_PAYLOAD_KV_ROWS = [
   },
 ];
 
-/**
- * Turn a form string into booleans, finite decimals, or JSON (objects, arrays, string literals, null).
- */
 function parseProvingGroundsPayloadValue(raw) {
   if (raw === null || raw === undefined) return raw;
   const t = String(raw).trim();
@@ -115,11 +154,15 @@ export default function ProvingGroundsClient() {
   const [questDetail, setQuestDetail] = useState(null);
   const [loadingQuest, setLoadingQuest] = useState(false);
   const [advancingQuest, setAdvancingQuest] = useState(false);
-  /** Last `advanceQuest` API JSON (logs, stage, errors) for PG debugging */
   const [advanceQuestResult, setAdvanceQuestResult] = useState(null);
-  /** Quest-context quick test: action name + optional JSON payload (same POST as Run action; uses loaded quest as guildos.quest). */
   const [questTestActionName, setQuestTestActionName] = useState("");
   const [questTestInputJson, setQuestTestInputJson] = useState("");
+
+  // Test Quest state
+  const [testQuestInput, setTestQuestInput] = useState("");
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const reportRef = useRef(null);
 
   const skillBookSelectValue = useMemo(() => {
     if (!catalog.length) return "";
@@ -216,7 +259,6 @@ export default function ProvingGroundsClient() {
     }
   };
 
-  /** One shot of the same path as cron: `advanceAssignedQuest` (owner execution context + stage machine). */
   const advanceQuestOnce = async () => {
     const id = loadedQuestId || questIdInput.trim();
     if (!id) {
@@ -326,7 +368,6 @@ export default function ProvingGroundsClient() {
     }
   };
 
-  /** Single action + optional JSON object; uses skill book from "Skill book + action" and current quest context if loaded. */
   const testAdventurerActionFromQuest = async () => {
     if (!loadedId) {
       toast.error("Load an adventurer first");
@@ -368,10 +409,96 @@ export default function ProvingGroundsClient() {
     }
   };
 
+  const runTestQuest = async () => {
+    const desc = testQuestInput.trim();
+    if (!desc) {
+      toast.error("Enter a quest description");
+      return;
+    }
+    setTestRunning(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/proving_grounds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "runTestQuest",
+          title: desc.slice(0, 80),
+          description: desc,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      setTestResult(json && typeof json === "object" ? json : { raw: json });
+      if (!res.ok || json.ok === false) {
+        toast.error(json.error || "Test quest failed — check report for details");
+      } else {
+        toast.success(`Quest reached: ${json.finalStage}`);
+        // Auto-load the created quest into the quest context section
+        if (json.questId) {
+          setQuestIdInput(json.questId);
+          await loadQuest(json.questId);
+        }
+      }
+      // Scroll report into view
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
+    } finally {
+      setTestRunning(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start">
-      <DevWorkflowRail />
+      <SetupStepsRail onSeedGuild={() => {}} />
       <div className="min-w-0 flex-1 space-y-8" id="proving-grounds-action-test">
+
+        {/* ── Test Quest ── */}
+        <section className="rounded-2xl border border-primary/40 bg-primary/5 p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-base-content">Test Quest</h2>
+          <p className="mt-1 text-xs text-base-content/60">
+            Describe a task in plain language. The guild pipeline (Cat → Pig → Runesmith → Blacksmith) runs to completion and forges any required skill books or weapons.
+          </p>
+          <textarea
+            className="textarea textarea-bordered mt-4 min-h-[80px] w-full text-sm"
+            placeholder={`e.g. "Create a weapon that multiplies two numbers, use it in testskillbook under action test"`}
+            value={testQuestInput}
+            onChange={(e) => setTestQuestInput(e.target.value)}
+            disabled={testRunning}
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={testRunning || !testQuestInput.trim()}
+              onClick={runTestQuest}
+            >
+              {testRunning ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="loading loading-spinner loading-xs" />
+                  Running quest… (may take several minutes)
+                </span>
+              ) : (
+                "Run Test Quest"
+              )}
+            </button>
+            {testResult && !testRunning && (
+              <span className={`text-xs font-medium ${testResult.ok ? "text-success" : "text-error"}`}>
+                {testResult.ok ? `Completed → ${testResult.finalStage}` : "Failed — see report"}
+              </span>
+            )}
+          </div>
+          {testResult?.logs && Array.isArray(testResult.logs) && testResult.logs.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-medium text-base-content/80">
+                Pipeline log ({testResult.logs.length} steps)
+              </summary>
+              <pre className="mt-2 max-h-48 overflow-auto rounded-lg border border-base-300 bg-base-100 p-2 font-mono text-[10px] text-base-content/85">
+                {JSON.stringify(testResult.logs, null, 2)}
+              </pre>
+            </details>
+          )}
+        </section>
+
+        {/* ── Adventurer profile ── */}
         <section className="rounded-2xl border border-base-300 bg-base-100/90 p-5 shadow-sm backdrop-blur">
           <h2 className="text-lg font-bold text-base-content">Adventurer profile</h2>
           <p className="mt-1 text-xs text-base-content/60">
@@ -452,6 +579,7 @@ export default function ProvingGroundsClient() {
           </div>
         </section>
 
+        {/* ── Quest context ── */}
         <section className="rounded-2xl border border-base-300 bg-base-100/90 p-5 shadow-sm backdrop-blur">
           <h2 className="text-lg font-bold text-base-content">Quest context (optional)</h2>
           <p className="mt-1 text-xs text-base-content/60">
@@ -571,6 +699,7 @@ export default function ProvingGroundsClient() {
           ) : null}
         </section>
 
+        {/* ── Skill book + action ── */}
         <section className="rounded-2xl border border-base-300 bg-base-100/90 p-5 shadow-sm backdrop-blur">
           <h2 className="text-lg font-bold text-base-content">Skill book + action</h2>
           <p className="mt-1 text-xs text-base-content/60">
@@ -662,6 +791,7 @@ export default function ProvingGroundsClient() {
           </button>
         </section>
 
+        {/* ── Result (JSON) ── */}
         <section className="rounded-2xl border border-base-300 bg-base-200/30 p-5">
           <h2 className="text-lg font-bold text-base-content">Result</h2>
           {result == null ? (
@@ -678,8 +808,23 @@ export default function ProvingGroundsClient() {
             </pre>
           )}
         </section>
+
+        {/* ── Execution Report (HTML from claudeCLI / test quest) ── */}
+        <section ref={reportRef} className="rounded-2xl border border-base-300 bg-base-200/30 p-5">
+          <h2 className="text-lg font-bold text-base-content">Execution Report</h2>
+          {testResult?.html ? (
+            <div
+              className="mt-3 rounded-xl border border-base-300 bg-base-100 overflow-auto"
+              dangerouslySetInnerHTML={{ __html: testResult.html }}
+            />
+          ) : (
+            <p className="mt-2 text-sm text-base-content/55">
+              Run a test quest to see the Blacksmith&apos;s execution report here.
+            </p>
+          )}
+        </section>
+
       </div>
     </div>
   );
 }
-

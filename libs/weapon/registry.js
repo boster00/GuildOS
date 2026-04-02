@@ -17,6 +17,17 @@ export const WEAPONS = [
     requiresActivation: false,
   },
   {
+    id: "claudecli",
+    title: "Claude CLI",
+    tagline: "Spawns claude --print as a child process to write code and return HTML reports.",
+    summary: "Lets the Blacksmith invoke Claude Code non-interactively to forge weapon files, register them, and wire skill book actions.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "The claudeCLI weapon spawns `claude --print --dangerously-skip-permissions` in the project root. The Blacksmith crafts a precise prompt; Claude writes the weapon file, updates the registry, and outputs a complete HTML report.",
+    ],
+    requiresActivation: false,
+  },
+  {
     id: "zoho",
     title: "Zoho Books",
     tagline: "Blueprint: Books API, OAuth, and ledger reads for skill books—forge it to make it real.",

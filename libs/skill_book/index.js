@@ -28,6 +28,7 @@ import {
   selectAdventurer as runSelectAdventurer,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
+import { skillBook as blacksmithSkillBook, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
 
 // --- planStepUtils (inlined) ---
 
@@ -267,6 +268,7 @@ export const SKILL_BOOKS = {
   zoho: zohoSkillBook,
   questmaster: questmasterDef,
   guildmaster: guildmasterSkillBook,
+  blacksmith: blacksmithSkillBook,
   testskillbook: testskillbookDef,
   browsercontrol: browsercontrolSkillBook,
 };
@@ -385,11 +387,17 @@ const questmasterAdventurerActions = {
   },
 };
 
+const blacksmithAdventurerActions = {
+  forgeWeapon: (_userId, input) => forgeWeapon(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  updateProvingGrounds: (_userId, input) => updateProvingGrounds(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+};
+
 const ADVENTURER_REGISTRY = {
   default: { definition: defaultDef, adventurerActions: {} },
   zoho: { definition: zohoSkillBook, adventurerActions: zohoAdventurerActions },
   questmaster: { definition: questmasterDef, adventurerActions: questmasterAdventurerActions },
   guildmaster: { definition: guildmasterSkillBook, adventurerActions: guildmasterAdventurerActions },
+  blacksmith: { definition: blacksmithSkillBook, adventurerActions: blacksmithAdventurerActions },
   testskillbook: { definition: testskillbookDef, adventurerActions: testskillbookAdventurerActions },
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: browsercontrolAdventurerActions },
 };

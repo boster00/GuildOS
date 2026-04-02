@@ -8,7 +8,11 @@ import {
   getQuestContextForOwner,
   runProvingGroundsAction,
 } from "@/libs/proving_grounds";
-import { getQuestForOwner, advance as advanceQuest } from "@/libs/quest";
+import { getQuestForOwner, advance as advanceQuest, createQuest } from "@/libs/quest";
+import { runQuestToCompletion } from "@/libs/proving_grounds/server.js";
+import { publicTables } from "@/libs/council/publicTables";
+
+export const maxDuration = 300;
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -62,6 +66,17 @@ export async function GET(request) {
       return Response.json({ error: error.message }, { status: 404 });
     }
     return Response.json({ ok: true, preview: data.preview, quest: data.quest });
+  }
+
+  if (action === "getSetupSteps") {
+    const db = await database.init("server");
+    const { data } = await db
+      .from(publicTables.profiles)
+      .select("council_settings")
+      .eq("id", user.id)
+      .single();
+    const steps = data?.council_settings?.proving_grounds_setup;
+    return Response.json({ ok: true, steps: Array.isArray(steps) ? steps : [] });
   }
 
   return Response.json({ error: "Unknown action" }, { status: 400 });
@@ -160,7 +175,6 @@ export async function POST(request) {
       questRow = q;
     }
 
-    // Proving grounds: catalog + UI selection are authoritative (dev/QA), not adventurer.skill_books.
     const result = await runProvingGroundsAction({
       userId: user.id,
       client: db,
@@ -177,6 +191,45 @@ export async function POST(request) {
       msg: result.msg ?? "",
       items: result.items ?? {},
     });
+  }
+
+  if (action === "seedGuildAdventurers") {
+    const serviceDb = await database.init("service");
+    const { data, error } = await serviceDb.rpc("seed_guild_adventurers", { p_owner_id: user.id });
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+    const rows = Array.isArray(data) ? data : [];
+    return Response.json({ ok: true, count: rows.length, adventurers: rows });
+  }
+
+  if (action === "runTestQuest") {
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    const description = typeof body?.description === "string" ? body.description.trim() : "";
+    if (!title && !description) {
+      return Response.json({ error: "title or description is required" }, { status: 400 });
+    }
+
+    const questTitle = title || description.slice(0, 80);
+    const questDescription = description || title;
+
+    const { data: newQuest, error: createErr } = await createQuest({
+      userId: user.id,
+      title: questTitle,
+      description: questDescription,
+      stage: "idea",
+      client: db,
+    });
+
+    if (createErr || !newQuest) {
+      return Response.json({ error: createErr?.message || "Failed to create quest" }, { status: 500 });
+    }
+
+    // Use service client for the long-running advancement loop (bypasses RLS, consistent)
+    const serviceDb = await database.init("service");
+    const { ok, finalStage, logs, html } = await runQuestToCompletion(newQuest.id, { client: serviceDb });
+
+    return Response.json({ ok, questId: newQuest.id, finalStage, logs, html });
   }
 
   return Response.json({ error: "Unknown action" }, { status: 400 });
