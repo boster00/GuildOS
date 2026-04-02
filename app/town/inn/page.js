@@ -1,113 +1,129 @@
 import Link from "next/link";
-import {
-  Beer,
-  ScrollText,
-  Send,
-  Inbox,
-  Swords,
-  ClipboardList,
-  Crown,
-} from "lucide-react";
-import PlaceCard from "@/components/guildos/PlaceCard";
+import { getCurrentUser } from "@/libs/council/auth/server";
+import { getQuestsForOwner } from "@/libs/quest";
+import { InnKanban, InnKanbanFooter } from "./InnKanban";
 
-export const metadata = {
-  title: "The Inn — GuildOS",
-};
+const INN_PLACES = [
+  {
+    id: "main-hall",
+    title: "Main hall",
+    text: "Kanban on this page—drag of fate by stage. For a full list, use the quest board.",
+    href: null,
+    anchor: "#inn-quest-board",
+  },
+  {
+    id: "quest-board",
+    title: "Quest board",
+    text: "Dedicated ledger: open any quest by id, stages, assignees, and detail.",
+    href: "/town/inn/quest-board",
+  },
+  {
+    id: "upstairs",
+    title: "Upstairs",
+    text: "Adventurers' rooms—the roster lives above the noise of the hall.",
+    href: "/town/inn/upstairs",
+  },
+  {
+    id: "request-desk",
+    title: "Request desk",
+    text: "New commissions and intake.",
+    href: "/town/inn/request-desk",
+  },
+];
 
-export default function InnPage() {
+export default async function InnPage() {
+  const user = await getCurrentUser();
+
+  let quests = [];
+  let loadError = null;
+
+  if (user) {
+    const { data, error } = await getQuestsForOwner(user.id);
+    if (error) {
+      loadError = error.message || "Could not load quests";
+    } else {
+      quests = data;
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="guildos-title text-3xl font-bold text-amber-950">
-            The Inn
-          </h1>
-          <p className="mt-1 text-sm text-base-content/65">
-            Where quests are born, planned, logged, and sometimes handed to a
-            human.
-          </p>
+    <main className="guild-bg-inn min-h-dvh p-4 md:p-8">
+      <section className="mx-auto max-w-[110rem] rounded-3xl border border-base-300 bg-base-100/88 p-4 shadow-xl backdrop-blur md:p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <img
+            src="/images/guildos/cat.png"
+            alt="Quest Master cat"
+            className="h-14 w-14 rounded-xl border border-base-300"
+          />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold md:text-3xl">The Inn</h1>
+            <p className="text-sm text-base-content/70">
+              Quest operations on the ground floor; rooms upstairs for your adventurers. For human-in-the-loop oversight,
+              see the Guildmaster&apos;s chamber.
+            </p>
+          </div>
+          <Link href="/town/guildmaster-room" className="btn btn-ghost btn-sm">
+            Guildmaster&apos;s chamber
+          </Link>
         </div>
-        <Link href="/town" className="btn btn-ghost btn-sm">
-          ← Town Map
-        </Link>
-      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <PlaceCard
-          href="/town/inn#tavern"
-          title="Tavern"
-          subtitle="Quest management"
-          icon={<Beer className="h-5 w-5" aria-hidden />}
-        >
-          Tracks open, active, and completed quests (
-          <code>quest_board_entries</code>, <code>quest_status_history</code>
-          ). Future: claim / assign flows.
-        </PlaceCard>
-        <PlaceCard
-          href="/town/inn#scribe"
-          title="Scribe’s Desk"
-          subtitle="Logs & artifacts"
-          icon={<ScrollText className="h-5 w-5" aria-hidden />}
-        >
-          Run logs, downloadable artifacts, and quest summaries (
-          <code>scribe_logs</code>, <code>run_artifacts</code>,{" "}
-          <code>quest_reports</code>).
-        </PlaceCard>
-        <PlaceCard
-          href="/town/inn#messenger"
-          title="Messenger’s Desk"
-          subtitle="Outbound comms"
-          icon={<Send className="h-5 w-5" aria-hidden />}
-        >
-          Notifications and delivery attempts (
-          <code>messages</code>, <code>notification_channels</code>,{" "}
-          <code>delivery_attempts</code>).
-        </PlaceCard>
-        <PlaceCard
-          href="/town/inn#request"
-          title="Request Desk"
-          subtitle="Natural-language intake"
-          icon={<Inbox className="h-5 w-5" aria-hidden />}
-        >
-          Captures user requests into the planning pipeline (
-          <code>requests</code> → <code>quests</code>).{" "}
-          {/* TODO: form POST /api/guildos/requests */}
-        </PlaceCard>
-        <PlaceCard
-          href="/town/inn#war-room"
-          title="War Room"
-          subtitle="Planning & strategy"
-          icon={<Swords className="h-5 w-5" aria-hidden />}
-        >
-          Decompose work into plans, steps, and acceptance criteria (
-          <code>quest_plans</code>, <code>quest_steps</code>,{" "}
-          <code>success_criteria</code>).
-        </PlaceCard>
-        <PlaceCard
-          href="/town/inn#quest-board"
-          title="Quest Board"
-          subtitle="Available work"
-          icon={<ClipboardList className="h-5 w-5" aria-hidden />}
-        >
-          Surfaced listings for adventurers; links to{" "}
-          <code>quests</code> and board slots.
-        </PlaceCard>
-        <PlaceCard
-          href="/town/inn#consul"
-          title="Consul’s Chamber"
-          subtitle="Human escalation"
-          icon={<Crown className="h-5 w-5" aria-hidden />}
-        >
-          Escalations and approval queues (
-          <code>escalations</code>, <code>approval_requests</code>).
-        </PlaceCard>
-      </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {INN_PLACES.map((place) => {
+            const inner = (
+              <>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-base-content/60">{place.title}</h2>
+                <p className="mt-1 text-sm text-base-content/75">{place.text}</p>
+                {place.href ? (
+                  <span className="btn btn-ghost btn-sm mt-3 w-fit pointer-events-none">Go</span>
+                ) : (
+                  <span className="btn btn-ghost btn-sm mt-3 w-fit pointer-events-none">Below</span>
+                )}
+              </>
+            );
+            if (place.href) {
+              return (
+                <Link
+                  key={place.id}
+                  href={place.href}
+                  className="rounded-2xl border border-base-300 bg-base-200/60 p-4 transition hover:border-primary/40 hover:bg-base-200"
+                >
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <a
+                key={place.id}
+                href={place.anchor}
+                className="rounded-2xl border border-base-300 bg-base-200/50 p-4 scroll-mt-24"
+              >
+                {inner}
+              </a>
+            );
+          })}
+        </div>
 
-      <p className="text-xs text-base-content/50">
-        Clarification needed: should “Tavern” and “Quest Board” be separate
-        products or one module with two UIs? Current schema supports both;
-        merge or split after product sign-off.
-      </p>
-    </div>
+        <div id="inn-quest-board" className="mt-8 scroll-mt-24">
+          {!user ? (
+            <div className="rounded-2xl border border-base-300 bg-base-200/50 p-8 text-center">
+              <p className="text-base-content/80">Sign in to load your quest board from the guild ledger.</p>
+              <Link href="/signin" className="btn btn-primary mt-4">
+                Sign in
+              </Link>
+            </div>
+          ) : loadError ? (
+            <div className="alert alert-warning">
+              <span>{loadError}</span>
+            </div>
+          ) : (
+            <>
+              <h2 className="mb-3 text-lg font-semibold">Main hall — quest board</h2>
+              <InnKanban quests={quests} />
+              <InnKanbanFooter />
+            </>
+          )}
+        </div>
+      </section>
+    </main>
   );
 }

@@ -1,0 +1,360 @@
+/* Isolate from host page: all rules scoped under #browserclaw-root */
+#browserclaw-root {
+  all: initial;
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+
+#browserclaw-root * {
+  box-sizing: border-box;
+}
+
+#browserclaw-root .browserclaw-fab {
+  pointer-events: auto;
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 50%;
+  padding: 4px;
+  cursor: pointer;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(219, 39, 119, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#browserclaw-root .browserclaw-fab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22), 0 0 0 2px rgba(219, 39, 119, 0.45);
+}
+
+#browserclaw-root .browserclaw-fab img {
+  width: 44px;
+  height: 44px;
+  display: block;
+  object-fit: contain;
+}
+
+#browserclaw-root .browserclaw-fab.browserclaw-fab--flash {
+  animation: browserclaw-flash 0.6s ease;
+}
+
+@keyframes browserclaw-flash {
+  0%,
+  100% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(219, 39, 119, 0.35);
+  }
+  50% {
+    box-shadow: 0 4px 28px rgba(236, 72, 153, 0.65), 0 0 0 3px rgba(236, 72, 153, 0.9);
+  }
+}
+
+#browserclaw-root .browserclaw-modal-backdrop {
+  pointer-events: auto;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: browserclaw-backdrop-in 0.2s ease;
+}
+
+@keyframes browserclaw-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+#browserclaw-root .browserclaw-modal {
+  background: #fff;
+  border-radius: 16px;
+  min-width: min(400px, 100%);
+  max-width: 560px;
+  max-height: min(70vh, 520px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: browserclaw-modal-in 0.22s ease;
+}
+
+#browserclaw-root .browserclaw-modal--wide {
+  max-width: min(720px, 100vw - 32px);
+  max-height: min(90vh, 720px);
+}
+
+@keyframes browserclaw-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+#browserclaw-root .browserclaw-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+#browserclaw-root .browserclaw-modal-close {
+  border: none;
+  background: #f1f5f9;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: #475569;
+}
+
+#browserclaw-root .browserclaw-modal-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+#browserclaw-root .browserclaw-modal-body {
+  padding: 24px;
+  flex: 1;
+  min-height: 120px;
+  color: #64748b;
+  font-size: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#browserclaw-root .browserclaw-modal-body--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+#browserclaw-root .browserclaw-modal-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #db2777, #6366f1);
+  box-shadow: 0 2px 8px rgba(219, 39, 119, 0.35);
+}
+
+#browserclaw-root .browserclaw-modal-settings:hover {
+  filter: brightness(1.06);
+}
+
+#browserclaw-root .browserclaw-modal-settings:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+#browserclaw-root .browserclaw-pigeon-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+#browserclaw-root .browserclaw-pigeon-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+#browserclaw-root .browserclaw-pigeon-hint strong {
+  color: #475569;
+}
+
+#browserclaw-root .browserclaw-pigeon-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#browserclaw-root .browserclaw-pigeon-btn {
+  flex: 1 1 28%;
+  min-width: 100px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+}
+
+#browserclaw-root .browserclaw-pigeon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#browserclaw-root .browserclaw-pigeon-btn--fetch {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+}
+
+#browserclaw-root .browserclaw-pigeon-btn--execute {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 2px solid #6366f1;
+}
+
+#browserclaw-root .browserclaw-pigeon-btn--send {
+  background: linear-gradient(135deg, #0d9488, #059669);
+  color: #fff;
+}
+
+#browserclaw-root .browserclaw-pigeon-progress {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #475569;
+  min-height: 1.4em;
+}
+
+#browserclaw-root .browserclaw-pigeon-status {
+  margin: 0;
+  font-size: 12px;
+  min-height: 1.3em;
+  color: #64748b;
+}
+
+#browserclaw-root .browserclaw-pigeon-status--ok {
+  color: #15803d;
+}
+
+#browserclaw-root .browserclaw-pigeon-status--err {
+  color: #b91c1c;
+}
+
+#browserclaw-root .browserclaw-pigeon-subhead {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+#browserclaw-root .browserclaw-pigeon-steplog {
+  margin: 0;
+  padding: 10px;
+  min-height: 100px;
+  max-height: 160px;
+  overflow: auto;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#browserclaw-root .browserclaw-pigeon-json {
+  margin: 0;
+  padding: 10px;
+  min-height: 72px;
+  max-height: 140px;
+  overflow: auto;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #1e293b;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#browserclaw-root .browserclaw-event-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+#browserclaw-root .browserclaw-event-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#browserclaw-root .browserclaw-event-panel__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.35;
+}
+
+#browserclaw-root .browserclaw-event-panel__clear {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#browserclaw-root .browserclaw-event-panel__clear:hover {
+  background: #e2e8f0;
+}
+
+#browserclaw-root .browserclaw-event-log {
+  margin: 0;
+  padding: 12px;
+  flex: 1;
+  min-height: 180px;
+  max-height: min(42vh, 360px);
+  overflow: auto;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #e2e8f0;
+  background: #0f172a;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

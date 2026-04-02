@@ -1,33 +1,46 @@
-import { getTownLocations } from "@/libs/guildos/queries/server";
-import TownMapCanvas from "@/components/guildos/TownMapCanvas";
+import Link from "next/link";
+import { TOWN_MAP_ELSEWHERE, TOWN_MAP_MAJOR } from "@/libs/council/townNav";
 
-export const metadata = {
-  title: "Town Map — GuildOS",
-};
-
-export default async function TownMapPage() {
-  const locations = await getTownLocations();
-
+export default function TownMapPage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="guildos-title text-3xl font-bold text-amber-950">
-          Town Map
-        </h1>
-        <p className="mt-1 text-sm text-base-content/65">
-          Choose where to go next. Each place is its own route for deep-linking
-          and future state.
+    <main className="guild-bg-town-map min-h-dvh p-8">
+      <div className="mx-auto max-w-5xl rounded-3xl border border-base-300 bg-base-100/85 p-6 shadow-xl backdrop-blur">
+        <h1 className="text-3xl font-bold">Town Map</h1>
+        <p className="text-base-content/70">
+          Three great districts anchor the town—the Inn, the Square, and the Council Hall. The Guildmaster still keeps a
+          chamber for day-to-day operations.
         </p>
+
+        <h2 className="mt-8 text-lg font-semibold text-base-content/80">Major locations</h2>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {TOWN_MAP_MAJOR.map((place) => (
+            <Link
+              key={place.href}
+              href={place.href}
+              className="rounded-2xl border border-base-300 bg-base-200/80 p-4 shadow transition hover:-translate-y-0.5"
+            >
+              <img src={place.icon} alt="" className="h-16 w-16 rounded-xl border border-base-300 bg-base-100/80 p-1" />
+              <h3 className="mt-3 text-xl font-semibold">{place.title}</h3>
+              <p className="text-sm text-base-content/70">{place.text}</p>
+            </Link>
+          ))}
+        </div>
+
+        <h2 className="mt-10 text-lg font-semibold text-base-content/80">Elsewhere</h2>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          {TOWN_MAP_ELSEWHERE.map((place) => (
+            <Link
+              key={place.href}
+              href={place.href}
+              className="rounded-2xl border border-base-300 bg-base-200/60 p-4 shadow transition hover:-translate-y-0.5"
+            >
+              <img src={place.icon} alt="" className="h-14 w-14 rounded-xl border border-base-300" />
+              <h3 className="mt-3 text-lg font-semibold">{place.title}</h3>
+              <p className="text-sm text-base-content/70">{place.text}</p>
+            </Link>
+          ))}
+        </div>
       </div>
-      <TownMapCanvas locations={locations} />
-      <section className="rounded-xl border border-dashed border-amber-800/25 bg-base-100/60 p-4 text-sm text-base-content/70">
-        <p className="font-semibold text-amber-950">Architecture note</p>
-        <p className="mt-1">
-          Location rows live in <code>guildos.locations</code>; edges for future
-          paths belong in <code>guildos.location_routes</code>. Expose the{" "}
-          <code>guildos</code> schema in your hosted API settings after migrating.
-        </p>
-      </section>
-    </div>
+    </main>
   );
 }

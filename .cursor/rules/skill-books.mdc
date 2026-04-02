@@ -1,0 +1,7 @@
+﻿---
+description: Skill book authoring under libs/skill_book (create, register, TOC).
+globs: libs/skill_book/**
+alwaysApply: false
+---
+
+Full guide: **`libs/skill_book/How_To_Develop_New_Skill_Books.md`**. Use it when adding a book under `libs/skill_book/<bookId>/`, wiring `SKILL_BOOKS` / `ADVENTURER_REGISTRY` in `libs/skill_book/index.js`, or extending planner-facing TOC text. Browser automation that flows through pigeon post must stay aligned with `libs/weapon/pigeon` and the Browserclaw extension (step shape + `tabs.sendMessage` payload).

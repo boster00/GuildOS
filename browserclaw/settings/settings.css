@@ -1,0 +1,155 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  color: #0f172a;
+  background: linear-gradient(160deg, #fdf2f8 0%, #f8fafc 45%, #e0e7ff 100%);
+  min-height: 100vh;
+}
+
+code {
+  font-size: 0.9em;
+  background: #f1f5f9;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.bc-settings {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 40px 24px 48px;
+}
+
+.bc-settings__title {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.bc-settings__sub {
+  margin: 0 0 28px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.bc-settings__form {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.bc-fieldset {
+  border: none;
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+.bc-legend {
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.bc-label {
+  display: block;
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.bc-label--row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.bc-label--row input {
+  margin-top: 3px;
+}
+
+.bc-label--top {
+  margin-top: 14px;
+}
+
+.bc-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.bc-input-wide {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.bc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#bunny-bg-color {
+  width: 56px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.bc-hex {
+  flex: 1;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+}
+
+.bc-hex:focus {
+  outline: 2px solid #db2777;
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.bc-save {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #fff;
+  background: linear-gradient(135deg, #db2777, #6366f1);
+  cursor: pointer;
+}
+
+.bc-save:hover {
+  filter: brightness(1.06);
+}
+
+.bc-status {
+  margin: 16px 0 0;
+  font-size: 14px;
+  color: #475569;
+  min-height: 1.4em;
+}
+
+.bc-status--ok {
+  color: #15803d;
+}
+
+.bc-status--err {
+  color: #b91c1c;
+}

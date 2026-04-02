@@ -1,36 +1,54 @@
 # GuildOS - Cursor Rules (Next.js 15 + Tailwind v4 + DaisyUI v5)
 
-**Fork note:** Keep using the inherited stack for sign-in, plans, and payments while prototyping GuildOS. Swap in Guild-owned S‌upabase or Stripe projects before any production launch.
+## Workspace / repo root (path)
 
-Product scope, features, and UX copy for GuildOS will come from your product brief — not from this file.
+- Open **one** folder: the directory whose root contains `package.json` and `app/`. **Do not** use a nested `GuildOS\GuildOS` path (legacy layout).
+- **Recommended:** **File → Open Folder…** and select the clone root, or open **`guildos.code-workspace`** from that directory so the editor root matches the Next.js app.
+- If you previously opened `...\GuildOS\GuildOS` (nested duplicate), close that workspace and open the parent folder that contains `package.json` once, not two `GuildOS` segments deep.
 
----
-
-## Credentials and migration (early phase)
-
-- **OK for now:** Use the fork’s existing S‌upabase, Stripe, and AI-related env vars for development and staging smoke tests.
-- **Later:** Rotate credentials and Stripe catalog when GuildOS is production-ready; keep tier and env config in code (`subscriptionTiers`, `config/`).
+**Fork note:** Shared auth (Supabase) and optional Stripe tooling may remain from the fork; rotate credentials and billing catalog before production. Product scope and UX copy come from the product brief — not from this file.
 
 ---
 
-## Billing and subscriptions (reuse the existing architecture)
+## NEW FILES — STRICTEST RULE (highest priority)
 
-- **Stripe:** Subscription lifecycle, invoices, payment failures, customer portal.
-- **App:** Credit ledger, PAYG wallet, usage metering, concurrency or feature gating as implemented in code.
+**This project is especially prone to accidental file sprawl. Enforce the following with maximum strictness.**
 
-**Patterns to follow (do not bypass):**
+1. **Do not create new files unless that creation is explicitly approved in a Markdown (`.md`) plan file.** If there is no such `.md` plan, **do not create new files** — only edit files that already exist.
 
-- Source of truth for plan limits and tier metadata: `libs/monkey/registry/subscriptionTiers.js` — **update here** when GuildOS defines its own plans (avoid new DB tier tables unless the codebase already uses them).
-- **PlanContext:** Use `getPlanContext(s‌upabase, userId)` once per request in API routes; use `assertPlan(plan, "feature_key")` for gates. Do **not** read `profiles.subscription_plan` or call `getTierById` directly for “current user” limits.
-- **Flow:** Stripe webhook → provisioner → `profiles` (and related tables) → PlanContext. See `docs/BILLING_ARCHITECTURE.md` if present.
-- Client UI that needs plan/limits: prefer `GET /api/plan` rather than duplicating tier logic.
+2. **Do not create new files unless that creation is explicitly approved in a Markdown (`.md`) plan file.** If there is no such `.md` plan, **do not create new files** — only edit files that already exist.
 
-**Monthly credits (if the fork grants on invoice):** Credits typically align with **successful invoice payment**, not subscription creation alone — match existing webhook/provisioner behavior.
+3. **Do not create new files unless that creation is explicitly approved in a Markdown (`.md`) plan file.** If there is no such `.md` plan, **do not create new files** — only edit files that already exist.
+
+4. **Do not create new files unless that creation is explicitly approved in a Markdown (`.md`) plan file.** If there is no such `.md` plan, **do not create new files** — only edit files that already exist.
+
+5. **Do not create new files unless that creation is explicitly approved in a Markdown (`.md`) plan file.** If there is no such `.md` plan, **do not create new files** — only edit files that already exist.
+
+**Procedure:**
+
+- **With a plan:** The plan `.md` must **list every new file path** you are allowed to add (or explicitly say “new files under `path/` as needed”). Do **not** add files that are not mentioned or clearly covered.
+- **Agentic / autonomous mode with no referenced `.md` plan:** **Only** edit existing files. **Do not** create new files, scripts, stubs, or “temporary” helpers.
+- **End of each turn (before responding done):** Review what changed. If **any** new file was created that is **not** named in the referenced plan `.md`, that is a **violation** — remove it, or do not create it in the first place. The intended state is **zero** surprise new files.
+
+---
+
+## Credentials (early phase)
+
+- **OK for now:** Use existing Supabase and AI-related env vars for development.
+- **Later:** Rotate credentials when GuildOS is production-ready; keep branding and env fallbacks in `libs/council/site.js`.
+
+---
+
+## Billing and Stripe (current tree)
+
+- **In this repo today:** There is **no** `libs/monkey/`, **no** `getPlanContext` / `assertPlan`, and **no** `app/api/plan` or `app/api/webhook/stripe` under `app/api/`. Do **not** assume those paths exist.
+- **Still present:** `stripe` in `package.json`, scripts such as `dev:stripe` / `stripe:listen` (forwarding to `localhost:3002`), and **`libs/council/site.js`** (`stripe.plans`, trial credits placeholder).
+- **When adding billing back:** Prefer new modules under **`libs/council/`** (or an approved `libs/<pkg>/`) plus thin `app/api/*` routes; align with **`.cursor/rules/billing-stripe.mdc`** once that file matches the implementation.
 
 ### Database and migrations
 
 - Prefer `ADD COLUMN IF NOT EXISTS` for new columns; use `DO $$` blocks only for renames or conditional logic.
-- See `docs/DATABASE_CONVENTIONS.md` if present.
+- Follow **`.cursor/rules/database-migrations.mdc`**; schema reference: **`.cursor/database_reference/SCHEMA.md`** when present.
 
 ---
 
@@ -38,29 +56,44 @@ You are an expert full-stack developer working on **GuildOS**, built on the stac
 
 ## Current tech stack
 
-- **Next.js** 15.x with React 19 and Turbopack
+- **Next.js** 15.x with React 19 and Turbopack (`next dev --turbo`)
 - **Tailwind CSS** 4.x (CSS-based configuration)
 - **DaisyUI** 5.x
-- **S‌upabase** — SSR package with async cookies
-- **Stripe** — current API version as pinned in the project
+- **Supabase** — SSR package with async cookies
+- **Stripe** — dependency present; webhook/plan routes not in the current `app/api` tree
 
-If the codebase includes **Eden AI** or other routed gateways (e.g. under `libs/ai/eden`), use those integration points instead of calling the same providers ad hoc elsewhere.
+**Primary app surfaces:** **`app/town/**`** (guild UI), **`app/signin`**, **`app/opening`**, **`app/api/*`** aligned with **`libs/`** (see **`.cursor/rules/guildos-libs-layout.mdc`**). Legacy Shipfast-style private app routes live under **`_archive/legacy-shipfast-root/`** — do not treat them as the active product unless the task says to port or fix them.
+
+**AI and assistants:** Prefer **`libs/cat/`** + **`app/api/cat`**, **`libs/council/ai/`** + **`app/api/ai`** where those patterns already exist, over new ad hoc provider clients. **`@openai/agents`** is in dependencies — follow existing usage in the tree.
 
 ## Critical rules (warnings and correctness)
 
-### 1. S‌upabase client usage
+### 1. Database / Supabase (GuildOS standard)
+
+Use the **`database`** facade from **`@/libs/council/database`** only. Do **not** import `createServerClient`, `createBrowserClient`, or `createServiceClient` from the barrel.
 
 ```javascript
-// ❌ WRONG — async cookies warning in server components
-const s‌upabase = createClient();
+import { database } from "@/libs/council/database";
 
-// ✅ CORRECT — server components / server code
-const s‌upabase = await createClient();
+// Server — user-scoped SSR client (cookies). Not cached: call once per route/page invocation,
+// typically as the first line inside `export async function POST` / `GET` / the server component.
+const db = await database.init("server");
 
-// ✅ CORRECT — imports
-import { createClient } from "@/libs/s‌upabase/client";   // client components
-import { createClient } from "@/libs/s‌upabase/server";   // server (async)
+// Service role — same variable name per scope (`db`); cached after first `init` in the process:
+const db = await database.init("service");
+
+// Browser client — same `db` naming in its own scope (rare; prefer server data fetching):
+const db = await database.init("client");
+
+// wrong example:
+const serviceDb = await database.init("service");
+const svc = await database.init("service");
+// anything that is not const db = is wrong never deviate from this naming, strict.
 ```
+
+The return value is the Supabase client (`db.from`, `db.auth`, …). Do **not** put `await database.init("server")` only at **module** top level in route files: modules are long-lived, but each `"server"` init must see the current request’s cookies. The `database` proxy forwards only to cached **`client` / `service`** clients (not `server`).
+
+Middleware may keep **`createServerClient` from `@supabase/ssr`** where the stack requires it; new app code should still prefer **`database.init`** everywhere else.
 
 ### 2. Next.js 15 `headers()` / `cookies()`
 
@@ -93,42 +126,51 @@ Use v5 class names (e.g. `card-border`, `card-sm`). See DaisyUI v5 docs for comp
 
 ### 7. Environment variables
 
-Check required vars before use (especially Stripe, S‌upabase, and public site URL in production).
+Check required vars before use (especially Supabase, Stripe when wired, and public site URL in production).
 
 ### 8. Site URL (do not hardcode a single host/port)
 
+Default dev server port in **`package.json`** is **3002** (`next dev ... -p 3002`).
+
 ```javascript
+// import site from "@/libs/council/site";
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ||
   process.env.SITE_URL ||
   (process.env.NODE_ENV === "development"
-    ? `http://localhost:${process.env.PORT || 3000}`
-    : `https://${config.domainName}`);
+    ? `http://localhost:${process.env.PORT || 3002}`
+    : `https://${site.domainName}`);
 ```
 
 **Commonly required:**
 
 - `NEXT_PUBLIC_SITE_URL` — full URL with protocol (client-facing)
 - `SITE_URL` — server-side alternative
-- `PORT` — optional; defaults to 3000 in dev patterns above
+- `PORT` — optional; align with `package.json` dev script when overriding
 
-In production, fail fast if neither public nor server site URL is set, if that matches existing `config` patterns.
+In production, fail fast if neither public nor server site URL is set, if that matches existing `libs/council/site` patterns. Import `site` from `@/libs/council/site` when a production domain fallback is needed.
 
 ## File structure and API routes
 
 ```
-app/api/<your-endpoint>/route.js
+app/api/<domain>/route.js
 ```
 
 - Use `async`/`await` for DB and external calls.
-- `await createClient()` for S‌upabase on the server.
+- `await database.init("server")` (or `"service"`) for Supabase on the server via `@/libs/council/database`.
 - `await headers()` where applicable.
 - Return appropriate HTTP status codes and JSON error shapes consistent with the rest of the app.
 
-### PlanContext in API routes (summary)
+Domain layout for `libs/` vs `app/api` is documented in **`.cursor/rules/guildos-libs-layout.mdc`**.
 
-- **Do:** `getPlanContext(s‌upabase, user.id)` once, then pass `plan` down; `assertPlan` for feature checks.
-- **Don’t:** `profiles.subscription_plan` or `getTierById` for ad hoc “what plan am I?” logic in routes.
+## UI copy: Guild voice and Merchant Guild Explain
+
+- **Default voice:** Guild / fantasy flavor is fine for headings, buttons, and atmosphere.
+- **Explanatory blocks** (page intros, “what is this?” descriptions, teaching copy—not labels on single fields): pair **fantasy** wording with a **plain “Merchant Guild”** version using **`MerchantGuildExplain`** from `@/components/MerchantGuildExplain`.
+- **Control:** An **info-style icon** plus the word **Explain** (toggle shows **Story** when the merchant text is visible). **Hover** must expose the exact phrase (use `title` and DaisyUI `tooltip` / `data-tip`): **Explain to me again, this time in the Merchant Guild's language** (export `MERCHANT_GUILD_EXPLAIN_TOOLTIP` from the same module for consistency).
+- **Click:** Toggles between fantasy and merchant copy; click again restores fantasy.
+- **Merchant text:** Professional, concise, no fantasy metaphors. **Do not** tie generic integration screens to a single vendor (e.g. Zoho) unless that screen is vendor-specific.
+- When adding new explanatory UI, **default to this pattern** unless the copy is a single word or a button label with no teaching role.
 
 ## Styling
 
@@ -138,9 +180,30 @@ app/api/<your-endpoint>/route.js
 ## Performance and patterns
 
 - **Default:** async server components for data fetching.
-- **Interactive UI:** `"use client"` and the browser S‌upabase client from `@/libs/s‌upabase/client`.
-- Prefer `@/config` for app-wide settings.
+- **Interactive UI:** `"use client"`; if a Supabase client is required in the browser, `await database.init("client")` from `@/libs/council/database`.
+- Prefer `@/libs/council/site` for app-wide branding/theme settings (not root `config.js`).
 - Use `@/` absolute imports.
+
+## Browserclaw (Chrome extension, MV3)
+
+- **Path:** `browserclaw/` at the **repo root** (sibling of `libs/`, `app/`). It is **not** bundled by Next.js — load **`browserclaw/manifest.json`** via **Load unpacked** in `chrome://extensions` (Developer mode).
+- **Layout:** `manifest.json` includes **`options_ui`** (`settings/settings.html`, **`open_in_tab`: true** — same as most extensions’ Options); `background/service-worker.js`; `popup/`; `settings/`; `content/`; `shared/constants.js`; **`shared/domCaptureEvents.js`** (DOM capture type list + **`BROWSERCLAW_DOM_EVENT_LOG_MAX`**); `assets/`.
+- **Behavior (current):** Floating bunny FAB on `<all_urls>`; fab color from **`chrome.storage.local`**. Bunny **modal** (FAB click) shows a **scrollable DOM event log** (~common capture listeners on **`window`**, **`BROWSERCLAW_DOM_CAPTURE_EVENT_TYPES`**) — **newest first**, **max `BROWSERCLAW_DOM_EVENT_LOG_MAX` (200)** with oldest dropped; events targeting **`#browserclaw-root`** are ignored so the log isn’t flooded by the panel. **Clear** resets entries. **Extension options** → **`OPEN_OPTIONS_PAGE`**. Toolbar popup demo + **Broadcast open tabs** unchanged.
+- **Do not** import Next/Node-only code from `libs/` or `app/` into extension scripts unless it is deliberately browser-safe and duplicated or built for the extension. Prefer keeping Browserclaw self-contained.
+
+## GuildOS `libs/` packages
+
+- Full layout, domain boundaries, and carve-outs: **`.cursor/rules/guildos-libs-layout.mdc`** (applies under `libs/**`).
+- **Default for new code:** add to that package’s **`index.js`** (or its established main entry). **Do not** create a new file under `libs/<pkg>/` for every new function until modularity is clear or the user asks for a split — and **never** without an approved `.md` plan; see **NEW FILES — STRICTEST RULE** above.
+
+## Skill books (agent actions / planner TOC)
+
+- **Authoring guide:** `libs/skill_book/How_To_Develop_New_Skill_Books.md` — create `libs/skill_book/<bookId>/`, export `skillBook` + actions, register in `libs/skill_book/index.js` (`SKILL_BOOKS`, `ADVENTURER_REGISTRY`).
+- **Cursor rule pointer:** `.cursor/rules/skill-books.mdc` (applies under `libs/skill_book/**`).
+
+## Planning new features
+
+- When proposing plans for new features or major refactors, follow **`.cursor/rules/planning-new-features.mdc`** (domain objects, modules, surfaces, migrations/RLS).
 
 ## Common mistakes to avoid
 
@@ -148,10 +211,10 @@ app/api/<your-endpoint>/route.js
 2. Unused imports and dead code
 3. Tailwind v3 `@tailwind` directives in a v4 project
 4. Old DaisyUI v4 theme import paths
-5. `createClient()` without `await` on the server
+5. Raw `createServerClient` / `createServiceClient` imports from `@/libs/council/database` instead of `database.init`
 6. Mixing server-only APIs into client components
 7. Deprecated `images.domains` in `next.config` — use `remotePatterns` if configuring images
-8. Hardcoded `localhost:3000` or production URLs — use env + config
+8. Hardcoded `localhost:3000` or production URLs — use env + `site` (note dev default **3002** from scripts)
 
 ## Debugging
 
@@ -161,7 +224,7 @@ When the failure path is unclear:
 2. Log at branches and around awaits; include request/task ids where safe.
 3. Use a consistent prefix, e.g. `[Feature] [step] message`, `{ context }`.
 4. Guard or remove verbose logs in production (`NODE_ENV === "development"` or a logger).
-5. If the repo has `.self-diagnose` or `server.log`, check those first.
+5. If archived diagnostics or legacy app code exist under **`_archive/`**, consult them only when the task involves history or porting.
 
 ## Commits and quality gate
 
@@ -178,20 +241,11 @@ After user-visible changes, if IDE browser tools are available: open the app, ch
 ## Development commands
 
 ```bash
-npm run dev       # dev with Turbopack
+npm run dev       # dev with Turbopack (port 3002)
 npm run build     # production build
 npm run lint      # ESLint
 npm run lint:fix  # auto-fix
 ```
-
-## AI and external APIs (generic)
-
-The fork may centralize AI and third-party calls under **`libs/monkey/`** (or similar). **Prefer those entry points** over new direct SDK calls, so billing, logging, and provider switches stay consistent.
-
-- **Do not hardcode model names** in source — use `process.env.*` and any shared `config/ai-models.js` (or equivalent) the project already uses.
-- When adding features, follow existing patterns for `runTask`, `initMonkey`, or other wrappers already in the tree; **do not** invent parallel OpenAI/Anthropic/Tavily clients unless the product brief requires it and the codebase has no abstraction.
-
-**Task types and domain modules** (SEO editor, content pipelines, etc.) are **legacy from the fork**. New GuildOS work should follow **your** spec; remove or ignore fork-only routes and rules as you replace them.
 
 ---
 

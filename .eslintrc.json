@@ -1,4 +1,5 @@
 {
+  "root": true,
   "extends": ["next/core-web-vitals", "eslint:recommended"],
   "env": {
     "browser": true,
@@ -7,16 +8,6 @@
   },
   "rules": {
     // Your specific rules.
-    "no-unused-vars": "warn",
-    
-    // Prevent direct fetch calls to save-assets endpoint outside Monkey
-    // All asset saves MUST go through monkey.articleAssets.savePatch/saveReplace
-    "no-restricted-syntax": [
-      "error",
-      {
-        "selector": "CallExpression[callee.name='fetch'] > Literal[value=/\\/api\\/content-magic\\/save-assets/]",
-        "message": "Direct fetch to /api/content-magic/save-assets is forbidden. Use monkey.articleAssets.savePatch() or saveReplace() instead."
-      }
-    ]
+    "no-unused-vars": "warn"
   }
 }

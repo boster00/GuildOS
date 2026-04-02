@@ -1,0 +1,26 @@
+---
+description: Required sections when planning new features or refactors
+alwaysApply: true
+---
+
+# Planning new work
+
+When proposing a plan that **builds something new** (features, major refactors, new integrations), include all of the following.
+
+## 1. New domain objects
+
+For each object: **role** (quest, adventurer, weapon, skill_book, item, etc.), **code home** (exact path pattern under `libs/` / `app/`), **data home** (DB tables vs code-only).
+
+## 2. Modules to add or reuse
+
+Files to create or extend (JavaScript/TypeScript modules — not the in-world “class” concept). Name exports and dependencies.
+
+## 3. Surfaces
+
+API routes, server actions, UI, env vars, auth.
+
+## 4. Migrations and RLS
+
+Whether the schema changes; follow `database-migrations.mdc` (`.cursor/rules/`) and put SQL in `supabase/migrations/` (Supabase CLI).
+
+Optional: short mermaid diagram for multi-step flows.

@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Browserclaw",
+  "version": "0.1.0",
+  "description": "GuildOS browser companion — floating chibi launcher (placeholder UI).",
+  "action": {
+    "default_title": "Browserclaw",
+    "default_popup": "popup/popup.html"
+  },
+  "options_ui": {
+    "page": "settings/settings.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": ["tabs", "storage", "windows"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content/content.css"],
+      "js": ["shared/constants.js", "shared/domCaptureEvents.js", "content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/bunny-fab.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

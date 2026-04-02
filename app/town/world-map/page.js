@@ -1,39 +1,23 @@
-import Link from "next/link";
-import { Map } from "lucide-react";
-
-export const metadata = {
-  title: "World Map — GuildOS",
-};
-
 export default function WorldMapPage() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6 text-center">
-      <div className="flex justify-center">
-        <div className="rounded-full border-2 border-amber-800/30 bg-base-100 p-6 shadow-inner">
-          <Map className="h-16 w-16 text-amber-800/70" aria-hidden />
-        </div>
-      </div>
-      <div>
-        <h1 className="guildos-title text-3xl font-bold text-amber-950">
-          World Map
-        </h1>
-        <p className="mt-3 text-base text-base-content/70">
-          Uncharted territory. Future modules, partner integrations, or regional
-          deployments can appear here as new <code>guildos.locations</code> and{" "}
-          <code>location_routes</code> edges.
+    <main className="guild-bg-world-map min-h-dvh p-8">
+      <section className="mx-auto max-w-5xl rounded-3xl border border-base-300 bg-base-100/85 p-6 shadow-xl backdrop-blur">
+        <h1 className="text-3xl font-bold">World Map</h1>
+        <p className="text-sm text-base-content/70">
+          Future territories and modules will appear here as the guild expands.
         </p>
-      </div>
-      <div className="rounded-xl border border-dashed border-amber-800/30 bg-base-100/80 p-6 text-left text-sm text-base-content/65">
-        <p className="font-semibold text-amber-950">Placeholder roadmap</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>Region nodes (e.g. “Data Peaks”, “API Isles”)</li>
-          <li>Cross-town travel animations</li>
-          <li>Unlockable buildings tied to plan tier</li>
-        </ul>
-      </div>
-      <Link href="/town" className="btn btn-outline btn-sm">
-        ← Back to Town Map
-      </Link>
-    </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {["Northern Keep", "Eastern Port", "Moonlight Library"].map((zone) => (
+            <div
+              key={zone}
+              className="rounded-2xl border-2 border-dashed border-base-300 bg-base-200/60 p-6 text-center opacity-80"
+            >
+              <p className="font-semibold">{zone}</p>
+              <p className="text-xs text-base-content/70">Undiscovered</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }

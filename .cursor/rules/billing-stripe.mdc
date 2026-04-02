@@ -1,25 +1,22 @@
 ---
-description: Billing and Stripe provisioning conventions
-globs: app/api/webhook/stripe/**,app/api/stripe/**,libs/monkey/subscriptionProvisioner.js,libs/monkey/planContext.js,libs/monkey/registry/subscriptionTiers.js,app/api/credits/**,app/api/plan/**
+description: Billing and Stripe — current repo state and conventions when reintroducing
+globs: libs/council/site.js,package.json,scripts/dev-with-stripe.js
 alwaysApply: false
 ---
 
 # Billing & Stripe
 
-## Source of truth
+## Current repo state
 
-- **Tier definitions**: `libs/monkey/registry/subscriptionTiers.js` — not the database.
+- **No active implementation in-tree:** There is no `libs/monkey/`, no `app/api/webhook/stripe`, no `app/api/plan`, and no `getPlanContext` / `assertPlan` in this codebase.
+- **Present:** `stripe` dependency and npm scripts (`stripe:listen` → `localhost:3002/api/webhook/stripe` when that route exists), plus **`libs/council/site.js`** (`stripe.freeTrial`, `stripe.plans` placeholder).
 
-## Provisioning flow
+## When you add billing back
 
-- **Webhook** → `provisionSubscription` / `cancelSubscription` (in `libs/monkey/subscriptionProvisioner.js`)
+- Put tier definitions and provisioning logic in **`libs/council/`** (or a user-approved `libs/<pkg>/`), not a revived ad hoc `monkey` dump.
+- Keep **webhook and plan API routes** thin: parse request → call library → return JSON.
+- Document the flow in-repo (e.g. a short `docs/` note or comment block on the webhook route) once implemented; do not reference removed `docs/BILLING_ARCHITECTURE.md` paths.
 
-## PlanContext
+## Avoid
 
-- Use `getPlanContext(supabase, userId)` to obtain plan context.
-- **Avoid** direct `profiles.subscription_plan` queries in API routes.
-- Pass PlanContext down; use `assertPlan(plan, feature)` for feature checks.
-
-## Reference
-
-See `docs/BILLING_ARCHITECTURE.md` for flow, webhook events, and schema details.
+- Copy-pasting old fork patterns (`subscriptionTiers.js`, `planContext.js`) unless those files exist again in the tree.

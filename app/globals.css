@@ -4,8 +4,10 @@
 }
 
 @theme {
-  --font-display: "Satoshi", "sans-serif";
-  
+  --color-parchment: #f5f0e8;
+  --color-guild-purple: #570df8;
+  --color-guild-gold: #c9a84c;
+
   --animate-shimmer: shimmer 3s ease-out infinite alternate;
   --animate-opacity: opacity 0.25s ease-in-out;
   --animate-appearFromRight: appearFromRight 300ms ease-in-out;
@@ -46,6 +48,13 @@
 html,
 body {
   scroll-behavior: smooth !important;
+  background: var(--color-parchment);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-fantasy), serif;
 }
 
 progress::-webkit-progress-value {
@@ -74,7 +83,38 @@ progress::-webkit-progress-value {
 .btn {
   text-transform: capitalize !important;
 }
-/* Smooth Transitions */
+
 * {
   transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.guild-bg-opening {
+  background:
+    linear-gradient(rgba(245, 240, 232, 0.78), rgba(245, 240, 232, 0.9)),
+    radial-gradient(circle at 20% 20%, rgba(87, 13, 248, 0.15), transparent 35%),
+    radial-gradient(circle at 85% 75%, rgba(201, 168, 76, 0.15), transparent 30%);
+}
+
+.guild-bg-town-map {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(245, 240, 232, 0.88)),
+    linear-gradient(135deg, rgba(87, 13, 248, 0.1), rgba(201, 168, 76, 0.12));
+}
+
+.guild-bg-inn {
+  background:
+    linear-gradient(rgba(60, 37, 20, 0.3), rgba(245, 240, 232, 0.92)),
+    linear-gradient(125deg, rgba(126, 84, 48, 0.4), rgba(201, 168, 76, 0.25));
+}
+
+.guild-bg-town-square {
+  background:
+    linear-gradient(rgba(245, 240, 232, 0.85), rgba(245, 240, 232, 0.9)),
+    linear-gradient(135deg, rgba(103, 148, 116, 0.2), rgba(87, 13, 248, 0.12));
+}
+
+.guild-bg-world-map {
+  background:
+    linear-gradient(rgba(245, 240, 232, 0.9), rgba(245, 240, 232, 0.95)),
+    linear-gradient(45deg, rgba(201, 168, 76, 0.2), rgba(87, 13, 248, 0.1));
 }

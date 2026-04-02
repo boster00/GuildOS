@@ -1,0 +1,79 @@
+body {
+  margin: 0;
+  min-width: 280px;
+  max-width: 360px;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.bc-popup {
+  padding: 14px;
+}
+
+.bc-popup__lead {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.bc-popup__section {
+  margin-bottom: 14px;
+}
+
+.bc-popup__section--divider {
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.bc-popup__h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.bc-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #db2777, #ec4899);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.bc-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.bc-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.bc-btn--secondary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.bc-popup__status {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #475569;
+  min-height: 1.2em;
+  line-height: 1.4;
+}
+
+.bc-popup__status--ok {
+  color: #15803d;
+}
+
+.bc-popup__status--err {
+  color: #b91c1c;
+}

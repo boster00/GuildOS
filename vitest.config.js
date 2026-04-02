@@ -6,6 +6,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.js'],
+    /** Legacy Shipfast / content-magic tests live under _archive and reference removed paths. */
+    exclude: ['**/node_modules/**', '**/dist/**', '**/_archive/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

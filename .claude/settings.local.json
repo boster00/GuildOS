@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat /c/Users/xsj70/GuildOS/supabase/migrations/*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(node -e \"require\\('@modelcontextprotocol/sdk'\\)\")",
+      "Bash(node --input-type=module -e \"import\\('@modelcontextprotocol/sdk/server/index.js'\\).then\\(\\(\\)=>console.log\\('ok'\\)\\)\")"
+    ],
+    "defaultMode": "bypassPermissions"
+  }
+}

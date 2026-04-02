@@ -2,8 +2,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@libs-db/client": ["./libs/sb/client.js"],
-      "@libs-db/server": ["./libs/sb/server.js"]
+      "@libs-db/client": ["./libs/council/database/supabase/client.js"],
+      "@libs-db/server": ["./libs/council/database/supabase/server.js"]
     }
   }
 }

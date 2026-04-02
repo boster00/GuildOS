@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browserclaw — Settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div class="bc-settings">
+      <header class="bc-settings__header">
+        <h1 class="bc-settings__title">Browserclaw settings</h1>
+        <p class="bc-settings__sub">
+          Standard MV3 pattern: this page is registered as <code>options_ui</code> in the manifest. Preferences are read and written with <code>chrome.storage.local</code>. Content scripts listen to
+          <code>chrome.storage.onChanged</code> so open tabs update without extra messaging.
+        </p>
+      </header>
+
+      <form id="bc-settings-form" class="bc-settings__form">
+        <fieldset class="bc-fieldset">
+          <legend class="bc-legend">Floating bunny button</legend>
+          <label class="bc-label" for="bunny-bg-color">Background color</label>
+          <div class="bc-row">
+            <input type="color" id="bunny-bg-color" name="bunnyBg" value="#ffffff" />
+            <input
+              type="text"
+              id="bunny-bg-hex"
+              class="bc-hex"
+              maxlength="7"
+              placeholder="#ffffff"
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Background color as hex"
+            />
+          </div>
+        </fieldset>
+
+        <fieldset class="bc-fieldset">
+          <legend class="bc-legend">DOM event logging</legend>
+          <label class="bc-label bc-label--row">
+            <input type="checkbox" id="bc-event-log-enabled" name="eventLog" />
+            <span>Enable DOM event capture (off by default; can be noisy)</span>
+          </label>
+        </fieldset>
+
+        <fieldset class="bc-fieldset">
+          <legend class="bc-legend">Pigeon Post (GuildOS)</legend>
+          <label class="bc-label" for="bc-guildos-base-url">GuildOS base URL</label>
+          <input
+            type="text"
+            id="bc-guildos-base-url"
+            class="bc-hex bc-input-wide"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="http://localhost:3002"
+            aria-label="GuildOS base URL"
+          />
+          <label class="bc-label bc-label--top" for="bc-pigeon-api-key"
+            >Pigeon API key (must match server <code>PIGEON_API_KEY</code>; used to call <code>GET/POST /api/pigeon-post</code>)</label
+          >
+          <p class="bc-hint">
+            On the server, set <code>PIGEON_POST_OWNER_ID</code> to your GuildOS user UUID so pending letters can be listed for the extension.
+          </p>
+          <input
+            type="password"
+            id="bc-pigeon-api-key"
+            class="bc-hex bc-input-wide"
+            spellcheck="false"
+            autocomplete="off"
+            aria-label="Pigeon API key"
+          />
+        </fieldset>
+
+        <button type="submit" class="bc-save">Save</button>
+      </form>
+      <p id="bc-settings-status" class="bc-status" aria-live="polite"></p>
+    </div>
+    <script src="../shared/constants.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

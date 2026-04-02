@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Browserclaw</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="bc-popup">
+      <p class="bc-popup__lead">
+        <strong>Pigeon post</strong> and step-by-step controls live in the <strong>bunny menu</strong> on each page (click the floating bunny, bottom-left).
+      </p>
+      <button type="button" id="bc-open-options" class="bc-btn bc-btn--secondary">Extension options</button>
+      <section class="bc-popup__section bc-popup__section--divider" aria-labelledby="bc-demo-heading">
+        <h2 id="bc-demo-heading" class="bc-popup__h2">Demo</h2>
+        <button type="button" id="bc-broadcast" class="bc-btn">Signal open tabs</button>
+      </section>
+      <p id="bc-status" class="bc-popup__status" aria-live="polite"></p>
+    </main>
+    <script src="../shared/constants.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

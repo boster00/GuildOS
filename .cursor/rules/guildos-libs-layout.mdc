@@ -1,0 +1,100 @@
+---
+description: GuildOS libs layout — quest, weapons, skill books, adventurers, council (incl. database)
+globs: libs/**/*,app/api/**/route.js,app/town/inn/**,app/town/proving-grounds/**
+alwaysApply: false
+---
+
+# GuildOS `libs/` layout
+
+## Domain boundaries
+
+| Area | Rule |
+|------|------|
+| **Quest** | One interpreter under `libs/quest/*`. Quest detail in DB. No `chapter` table. |
+| **Adventurer** | **`libs/adventurer/index.js` only** (roster CRUD, avatar storage, quest execution/normalization, `Adventurer`, `advance`, `processQuests`). **Drafts / class registry / global assignees:** **`libs/proving_grounds/ui.js`** (sketch-first; `"use client"` may import it — no server-only deps at top level). **`libs/council/adventurerExecutionContext.js`** — `runWithAdventurerExecutionContext` / `getAdventurerExecutionContext` (AsyncLocalStorage). **Do not add** sibling files under `libs/adventurer/`. |
+| **Action** | Not a package. Actions are **functions** exported from `libs/skill_book/<name>/`. |
+| **Weapon** | `libs/weapon/<name>/index.js` — **single file per weapon** (e.g. `libs/weapon/zoho/index.js` holds OAuth helpers, `getAccessToken`, `getList`, status helpers). |
+| **Skill book** | Hub: `libs/skill_book/index.js` (catalog, `getSkillBook`, plan-step helpers). Per-book modules: `libs/skill_book/<name>/index.js`; may import weapons. |
+| **Database** | Lives under **`libs/council/database/`**. App and **`libs/*`** import **`{ database }` from `@/libs/council/database`** only; obtain a client with **`await database.init("server"|"client"|"service")`** (never import `createServerClient` / `createServiceClient` from the barrel). Low-level Supabase helpers stay under **`libs/council/database/supabase/`** and **`serverQuest.js` / `serverAdventurer.js`** (inject `{ client }` from callers). |
+| **Council** | Auth, billing, DB clients/facades, shared concerns — **not** Zoho (Zoho is a weapon). |
+| **Proving grounds** | `libs/proving_grounds/` — dev/QA shell for skill-book actions under execution context. **Spirit:** sketch **quick and inline** (new helpers live in this module first); **after** something is proven, **package** it into the right permanent module (`libs/adventurer`, `libs/council/*`, `libs/quest`, etc.). Do not treat proving grounds as the long-term home for production abstractions. |
+| **Site constants** | `libs/council/site.js` — branding/theme fallbacks (not root `config.js`). |
+
+## Where to put new code in `libs/<pkg>/`
+
+**Default:** For any package, **always add new functions to that package’s `index.js` first.**
+
+**When to move out of `index.js`:** After **usage scenarios are clear**, move functions that belong to a **single** scenario into a **scenario helper** in the same folder (name the file for that scenario). Functions **shared by multiple scenarios** stay in `index.js`.
+
+**Carve-outs (not the default single-`index.js` pattern):** `libs/weapon/<name>/` (one file per integration); `libs/skill_book/<name>/` per book; `libs/council/*` subfolders as already structured; **`libs/cat/`** (prefer workflow-sized modules under `libs/cat/` rather than one megaclass).
+
+## HTTP API vs `libs/` top level
+
+`app/api/` direct children must match **top-level folders under `libs/`** (e.g. `council`, `quest`, `weapon`, `skill_book`, `mascot`, `adventurer`, `item`, **`cat`**). One route file per domain object is typical; use `?action=` to branch. Nested route segments are allowed when they stay thin (e.g. `app/api/adventurer/avatar/route.js` delegates to `libs/adventurer/*`). Routes may import **`@/libs/council/database`** for persistence where appropriate (database is not a skill book).
+
+**`app/api/cat/*`** — **thin transport only**: auth, parse body, call **`libs/cat`**, return JSON. No heavy orchestration in route files.
+
+**`app/town/proving-grounds`** + **`libs/proving_grounds`** + **`/api/proving_grounds`** — **sketch first, package later.** Implement new behavior **inline** in `libs/proving_grounds/index.js` (and thin route handlers) until the idea is validated; **do not** prematurely split files or add new `libs/*` packages from here without user approval. Once stable, **move** shared helpers to the owning domain (`libs/council`, `libs/quest`, `libs/adventurer`, etc.) and keep proving grounds as a thin caller.
+
+**`app/api/ai`** — **legacy** generic chat completion; prefer **`/api/cat`** for Cat assistant workflows and `libs/council/ai` for dev-only generic completion until folded.
+
+Zoho OAuth and status: **`GET /api/weapon/zoho?action=connect|callback|status`** — handlers must **only** call exports from `libs/weapon/zoho/`. Do **not** read or write Zoho tokens from Council or duplicate persistence outside the weapon.
+
+## Whitelist: top-level `libs/` packages
+
+Approved top-level folders: **`quest`**, **`adventurer`**, **`weapon`**, **`skill_book`**, **`council`**, **`mascot`**, **`item`**, **`pigeon_post`**, **`cat`** (built-in Cat assistant runtime — identity, prompts, workflows under `libs/cat/`), **`proving_grounds`** (dev/QA sketch pad — see Proving grounds row above). **Database** code is a **subfolder** of council: **`libs/council/database/`** (not a top-level `libs/database`).
+
+**Table name constants:** **`libs/council/publicTables.js`** — shared PostgREST table identifiers; do not duplicate table name strings across `libs/` without reason.
+
+**Council submodules** (not top-level): **`libs/council/database/`** (`database` facade + `init`); **`libs/council/ai/`** for generic chat completion used by `app/api/ai`; **`libs/council/storageEnv.js`** for `SUPABASE_BUCKET` and storage conventions.
+
+## Red list / incidents
+
+- **No** ad-hoc top-level packages (e.g. past `monkey`-style dumping grounds). New `libs/<name>/` requires **explicit user approval** in the conversation.
+- If a PR introduces an unapproved `libs/` folder, treat it as a **process incident**: revert or relocate before merge.
+
+## Weapon vs Skill Book vs Action
+
+- **Weapon** — raw external integration: API client code, auth, HTTP calls, response parsing. No business logic. Standalone; never imports from skill_book. Example: `libs/weapon/zoho/index.js` wraps Zoho Books REST + OAuth persistence.
+- **Action** — a single exported async function inside a skill book folder (`libs/skill_book/<name>/`). It calls a weapon with specific parameters and returns a normalized `{ data, error }` result.
+- **Skill book** — groups related actions and exports a **definition object** describing ordered steps, parameter defaults, and expected outputs. Contains business-logic sequencing but NOT integration plumbing (that is the weapon) and NOT quest runtime infrastructure (no item handoffs — the quest engine handles persistence after the skill book's actions finish).
+
+## Adventurer step JSON (machine contract)
+
+- Quest **execution_plan** steps are `{ skillbook, action }` only; each action’s inputs/outputs are defined in that skill book’s TOC (`summary`, `input` / `output` field specs). Optional legacy stored `input` / `output` string arrays are still read for inventory when present.
+- Each **action** in code is an async function `(userId, payload) => { data, error }` where **payload** is a **single object** (multiple keys allowed). Skill books export actions by name; adventurers map NL to this payload with minimal extra strategy.
+
+## Adventurer classes
+
+An adventurer's "class" is the same as their **`name`** (case-insensitive preset key). **`CLASS_REGISTRY`** in **`libs/proving_grounds/ui.js`** holds **optional presets** (tools, default model, base prompt) for well-known names; any other string is valid and resolves via **`resolveClassForRuntime`**. Synthetic global assignees may set **`presetKey`** when the assignee label differs from the preset (see **`GLOBAL_QUEST_ASSIGNEES`** in the same file).
+
+Documented built-in presets (examples, not an exhaustive enum):
+
+| name (preset key) | Role | Scope |
+|----------|------|-------|
+| `guildmaster` | Recruiter / orchestrator — reads quest requirements, creates adventurer profiles, assigns to parties | v2 (seeded manually for now) |
+| `questmaster` | PM — transitions quest stages, breaks ideas into tasks, assigns work, reviews deliverables | Manages quest lifecycle |
+| `scribe` | Data worker — follows skill book steps, calls actions/weapons, produces item payloads | Executes assigned work |
+
+## Quest stage lifecycle
+
+Every quest row has a `stage` column (text, default `'idea'`). Valid stages in order:
+
+| Stage | Owner | Description |
+|-------|-------|-------------|
+| `idea` | anyone | A pool of ideas. Raw requests not yet refined. |
+| `plan` | questmaster | PM develops ideas into SMART tasks, decides who executes. |
+| `assign` | questmaster | PM communicates with assignee to commit to due date and deliverables. |
+| `execute` | scribe | Assignee executes the task following their skill book. |
+| `review` | questmaster | PM reviews submissions; sends back to `execute` or advances to `closing`. |
+| `closing` | questmaster | Create tasks for next steps, archive assets produced, link to follow-up quests. |
+
+Transitions: `idea` → `plan` → `assign` → `execute` → `review` → `closing`. The `review` → `execute` loop is allowed for rework.
+
+## New folders under `libs/`
+
+**Do not create a new top-level directory under `libs/`** (e.g. `libs/foo/`) unless the user has **explicitly approved** the folder name and purpose in the conversation. If a new folder seems necessary, **stop and ask** the user first. The whitelist above (`quest`, `adventurer`, `weapon`, `skill_book`, `council`, `mascot`, `item`, `cat`, plus `publicTables` and `libs/council/database` as documented) is the default; anything else needs approval.
+
+## Cat (`libs/cat`)
+
+**Cat** is the first-party assistant for non-quest, administrative flows (commission adventurers, guided setup, drafts, checklists). Core logic lives only in **`libs/cat/`**; **`app/api/cat`** is transport. Cat is **not** an adventurer row. Keep **`libs/cat`** modular by workflow (files per feature), not a single megaclass.
