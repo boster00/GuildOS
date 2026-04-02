@@ -195,12 +195,46 @@ export async function POST(request) {
 
   if (action === "seedGuildAdventurers") {
     const serviceDb = await database.init("service");
-    const { data, error } = await serviceDb.rpc("seed_guild_adventurers", { p_owner_id: user.id });
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+    const guildAdventurers = [
+      {
+        id: "a1000000-0000-0000-0000-000000000001", owner_id: user.id, name: "Cat",
+        skill_books: ["questmaster"],
+        capabilities: "Triages incoming quests. Matches quests to adventurers by capability. Spawns recruiting quests when no match exists.",
+        backstory: "The Cat is the Questmaster of the guild — sharp-eyed, decisive, and always scanning the roster for the right fit.",
+        system_prompt: `You are Cat, the Questmaster of the guild. You triage quests at the idea stage.\n\nExamine the quest title and description alongside the provided roster of adventurers and their capabilities.\n\nIf an adventurer on the roster is a good match for the quest, respond with ONLY this JSON:\n{"action":"assign","adventurer_id":"<exact uuid from roster>","msg":"<brief rationale>"}\n\nIf NO adventurer is a good match, respond with ONLY this JSON:\n{"action":"recruit","child_title":"Recruit adventurer for: <original quest title>","next_steps":["<original quest description>"],"msg":"<brief rationale why no one fits>"}\n\nRules:\n- Respond with ONLY one JSON object. No prose, no markdown.\n- "msg" must be a non-empty string.`,
+      },
+      {
+        id: "a2000000-0000-0000-0000-000000000002", owner_id: user.id, name: "Pig",
+        skill_books: ["guildmaster"],
+        capabilities: "Plans quests. Checks skill book availability. Spawns skill book creation quests when capability gaps exist.",
+        backstory: "Pig is the Guildmaster — methodical, well-connected, and knows every skill book in the library by heart.",
+        system_prompt: `You are Pig, the Guildmaster. You plan quests at the plan stage.\n\nYou will be given a quest title and description, plus a list of available skill books.\n\nIf an existing skill book covers what is needed, build an execution_plan and respond with ONLY this JSON:\n{"action":"plan","execution_plan":[{"skillbook":"<id>","action":"<actionName>"}],"msg":"<rationale>"}\n\nIf NO skill book covers the domain, respond with ONLY this JSON:\n{"action":"create_skillbook","child_title":"Design skill book for: <domain>","weapon_spec":{"name":"<WeaponName>","description":"<one sentence>","codeGoal":"<what the weapon code should do>","actions":["<actionName>"]},"setup_steps":["Step 1: <instruction>","Step 2: <next step>"],"next_steps":["<current quest description>"],"msg":"<rationale>"}\n\nRules:\n- Respond with ONLY one JSON object. No prose, no markdown.\n- weapon_spec.name should be PascalCase.`,
+      },
+      {
+        id: "a3000000-0000-0000-0000-000000000003", owner_id: user.id, name: "Runesmith",
+        skill_books: ["guildmaster", "blacksmith"],
+        capabilities: "Designs skill book structures. Assesses weapon needs. Delegates code generation to Blacksmith.",
+        backstory: "The Runesmith inscribes the blueprints — turning vague capability gaps into precise weapon specifications.",
+        system_prompt: `You are the Runesmith. You design skill books and delegate weapon forging to the Blacksmith.\n\nRespond with ONLY this JSON:\n{"action":"plan","execution_plan":[{"skillbook":"blacksmith","action":"forgeWeapon"},{"skillbook":"blacksmith","action":"updateProvingGrounds"}],"weapon_spec":{"name":"<WeaponName>","description":"<one sentence>","codeGoal":"<precise description of what the weapon code should do>","actions":["<action1>"]},"setup_steps":["Step 1: <human setup instruction>"],"msg":"<rationale>"}\n\nRules:\n- Respond with ONLY one JSON object. No prose, no markdown.\n- execution_plan is always exactly the two blacksmith steps shown above.`,
+      },
+      {
+        id: "a4000000-0000-0000-0000-000000000004", owner_id: user.id, name: "Blacksmith",
+        skill_books: ["blacksmith"],
+        capabilities: "Forges weapons by invoking Claude CLI to write weapon code files and register them.",
+        backstory: "The Blacksmith strikes true — given a spec, the weapon is forged and the proving grounds updated.",
+        system_prompt: `You are the Blacksmith. You forge weapons by running the claudeCLI tool.\n\nYour execution_plan is ALWAYS exactly these two steps:\n1. blacksmith.forgeWeapon\n2. blacksmith.updateProvingGrounds\n\nRespond with ONLY this JSON:\n{"action":"plan","execution_plan":[{"skillbook":"blacksmith","action":"forgeWeapon"},{"skillbook":"blacksmith","action":"updateProvingGrounds"}],"msg":"Ready to forge."}`,
+      },
+    ];
+    const results = [];
+    for (const adv of guildAdventurers) {
+      const { data, error } = await serviceDb.from(publicTables.adventurers).upsert(adv, { onConflict: "id" }).select("id, name");
+      if (error) {
+        results.push({ name: adv.name, error: error.message });
+      } else {
+        results.push({ name: adv.name, id: data?.[0]?.id });
+      }
     }
-    const rows = Array.isArray(data) ? data : [];
-    return Response.json({ ok: true, count: rows.length, adventurers: rows });
+    return Response.json({ ok: true, count: results.length, adventurers: results });
   }
 
   if (action === "runTestQuest") {

@@ -127,18 +127,19 @@ export async function advanceQuest(quest, opts) {
       return { ok: true, advanced: true, stage: "plan", action: "idea:assign", detail: { adventurerId: match.id, adventurerName: match.name } };
     }
 
-    // No match — spawn recruiting quest, set next_steps with original description, close this one
+    // No match — spawn recruiting quest assigned to Pig at plan stage (skip Cat re-triage to avoid loop)
     const childTitle = `Recruit adventurer for: ${String(quest.title ?? "").trim()}`;
     const originalDescription = String(quest.description ?? "").trim();
+    const PIG_ID = "a2000000-0000-0000-0000-000000000002";
     const { data: childQuest, error: childErr } = await createSubQuest(
-      { userId: ownerId, parentQuestId: questId, title: childTitle, description: originalDescription, stage: "idea", nextSteps: [originalDescription] },
+      { userId: ownerId, parentQuestId: questId, title: childTitle, description: originalDescription, stage: "plan", assigneeId: PIG_ID, assignedTo: "Pig", nextSteps: [originalDescription] },
       { client }
     );
     if (childErr) {
       return { ok: false, advanced: false, stage, action: "idea:spawnRecruit", error: childErr.message };
     }
     await updateQuest(questId, { stage: "closing" }, { client });
-    await recordQuestComment(questId, { source: "Cat", action: "triage", summary: `No match — spawned recruiting quest. ${msg}`, detail: { childQuestId: childQuest?.id } }, { client });
+    await recordQuestComment(questId, { source: "Cat", action: "triage", summary: `No match — spawned recruiting quest assigned to Pig. ${msg}`, detail: { childQuestId: childQuest?.id } }, { client });
     return { ok: true, advanced: true, stage: "closing", action: "idea:recruit", detail: { childQuestId: childQuest?.id, msg } };
   }
 
@@ -358,42 +359,69 @@ export async function advanceQuest(quest, opts) {
  * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient, maxSteps?: number }} opts
  * @returns {Promise<{ ok: boolean, finalStage: string, logs: Array<Record<string, unknown>>, html: string }>}
  */
-export async function runQuestToCompletion(questId, { client, maxSteps = 20 }) {
+export async function runQuestToCompletion(questId, { client, maxSteps = 40 }) {
   const { getQuest } = await import("@/libs/quest/index.js");
   const { inventoryRawToMap } = await import("@/libs/quest/inventoryMap.js");
   /** @type {Array<Record<string, unknown>>} */
   const logs = [];
-  let finalStage = "";
   let ok = true;
+  let html = "";
 
-  for (let i = 0; i < maxSteps; i++) {
-    const { data: quest, error: loadErr } = await getQuest(questId, { client });
+  // Queue of quest IDs to advance (parent first, then children as they appear)
+  const queue = [questId];
+  let totalSteps = 0;
+
+  while (queue.length > 0 && totalSteps < maxSteps) {
+    const currentQuestId = queue[0];
+
+    const { data: quest, error: loadErr } = await getQuest(currentQuestId, { client });
     if (loadErr || !quest) {
-      logs.push({ step: i, error: loadErr?.message || "Quest not found" });
+      logs.push({ step: totalSteps, questId: currentQuestId, error: loadErr?.message || "Quest not found" });
       ok = false;
-      break;
+      queue.shift();
+      continue;
     }
 
-    finalStage = String(quest.stage ?? "");
-
-    if (finalStage === "completed") break;
+    const stage = String(quest.stage ?? "");
+    if (stage === "completed") {
+      queue.shift();
+      continue;
+    }
 
     const result = await advanceQuest(quest, { client });
-    logs.push({ step: i, ...result });
+    logs.push({ step: totalSteps, questId: currentQuestId, questTitle: String(quest.title ?? "").slice(0, 60), ...result });
+    totalSteps++;
 
     if (!result.ok) {
       ok = false;
       break;
     }
 
-    finalStage = result.stage;
-    if (finalStage === "completed") break;
+    // If this advance spawned a child quest, add it to the front of the queue
+    // so we resolve dependencies before continuing the parent
+    const childId = result.detail?.childQuestId;
+    if (childId && typeof childId === "string") {
+      queue.unshift(childId);
+    }
   }
 
-  // Extract HTML report from inventory if present
-  const { data: finalQuest } = await (await import("@/libs/quest/index.js")).getQuest(questId, { client });
-  const inventoryMap = finalQuest ? inventoryRawToMap(finalQuest.inventory) : {};
-  const html = typeof inventoryMap.report_html === "string" ? inventoryMap.report_html : "";
+  // Scan all completed quests for the HTML report (deepest child likely has it)
+  for (const qid of [questId, ...queue]) {
+    const { data: q } = await getQuest(qid, { client });
+    if (!q) continue;
+    const inv = inventoryRawToMap(q.inventory);
+    if (typeof inv.report_html === "string" && inv.report_html) {
+      html = inv.report_html;
+      break;
+    }
+    if (typeof inv.html === "string" && inv.html) {
+      html = inv.html;
+      break;
+    }
+  }
+
+  const { data: rootQuest } = await getQuest(questId, { client });
+  const finalStage = String(rootQuest?.stage ?? "");
 
   return { ok, finalStage, logs, html };
 }
