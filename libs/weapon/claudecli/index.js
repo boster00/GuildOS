@@ -1,12 +1,23 @@
 /**
- * claudeCLI weapon — spawns `claude --print --dangerously-skip-permissions` as a child
+ * claudeCLI weapon — invokes `claude --print --dangerously-skip-permissions` as a child
  * process and returns stdout as an HTML report. Used exclusively by the Blacksmith.
  *
- * Requires `claude` CLI to be installed and on PATH where the Next.js dev server runs.
+ * Requires `claude` CLI to be installed. Resolves the full path via `where` (Windows)
+ * or `which` (Unix) so that execFile works without shell interpolation issues.
  */
-import { spawn } from "child_process";
+import { execFile, execSync } from "child_process";
 
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/** Resolve full path to `claude` binary once (cached). */
+let _claudePath = null;
+function getClaudePath() {
+  if (_claudePath) return _claudePath;
+  const cmd = process.platform === "win32" ? "where claude" : "which claude";
+  const raw = execSync(cmd, { encoding: "utf8" }).trim();
+  _claudePath = raw.split(/\r?\n/)[0]; // first match
+  return _claudePath;
+}
 
 /**
  * Invoke the Claude CLI with a task prompt. Expects Claude to output a complete HTML document.
@@ -19,64 +30,41 @@ export async function invoke(taskPrompt) {
     return { ok: false, html: "", rawOutput: "", error: "taskPrompt is required" };
   }
 
+  let claudeBin;
+  try {
+    claudeBin = getClaudePath();
+  } catch (e) {
+    const msg = `Could not find claude CLI on PATH: ${e.message || e}`;
+    return { ok: false, html: buildErrorHtml(msg, ""), rawOutput: "", error: msg };
+  }
+
   return new Promise((resolve) => {
-    let rawOutput = "";
-    let timedOut = false;
+    execFile(
+      claudeBin,
+      ["--print", "--dangerously-skip-permissions", taskPrompt.trim()],
+      { cwd: process.cwd(), timeout: TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (process.env.NODE_ENV === "development" && stderr) {
+          process.stderr.write(`[claudecli:stderr] ${stderr}`);
+        }
 
-    const proc = spawn("claude", ["--print", "--dangerously-skip-permissions", taskPrompt.trim()], {
-      cwd: process.cwd(),
-      shell: true,
-    });
+        const rawOutput = stdout || "";
 
-    const timer = setTimeout(() => {
-      timedOut = true;
-      proc.kill("SIGTERM");
-    }, TIMEOUT_MS);
+        if (err) {
+          const isTimeout = err.killed || err.code === "ETIMEDOUT";
+          const msg = isTimeout ? "Claude CLI timed out after 5 minutes." : `Claude CLI error: ${err.message}`;
+          resolve({
+            ok: false,
+            html: buildErrorHtml(msg, rawOutput),
+            rawOutput,
+            error: isTimeout ? "timeout" : err.message,
+          });
+          return;
+        }
 
-    proc.stdout.on("data", (chunk) => {
-      rawOutput += chunk.toString();
-    });
-
-    proc.stderr.on("data", (chunk) => {
-      // Log stderr but don't treat as failure — claude CLI may write status lines there
-      if (process.env.NODE_ENV === "development") {
-        process.stderr.write(`[claudecli:stderr] ${chunk.toString()}`);
-      }
-    });
-
-    proc.on("close", (code) => {
-      clearTimeout(timer);
-      if (timedOut) {
-        resolve({
-          ok: false,
-          html: buildErrorHtml("Claude CLI timed out after 5 minutes.", rawOutput),
-          rawOutput,
-          error: "timeout",
-        });
-        return;
-      }
-      if (code !== 0) {
-        resolve({
-          ok: false,
-          html: buildErrorHtml(`Claude CLI exited with code ${code}.`, rawOutput),
-          rawOutput,
-          error: `exit_code_${code}`,
-        });
-        return;
-      }
-      resolve({ ok: true, html: rawOutput.trim(), rawOutput });
-    });
-
-    proc.on("error", (err) => {
-      clearTimeout(timer);
-      const msg = err.message || String(err);
-      resolve({
-        ok: false,
-        html: buildErrorHtml(`Failed to spawn claude CLI: ${msg}`, ""),
-        rawOutput: "",
-        error: msg,
-      });
-    });
+        resolve({ ok: true, html: rawOutput.trim(), rawOutput });
+      },
+    );
   });
 }
 
