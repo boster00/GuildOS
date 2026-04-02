@@ -52,25 +52,36 @@ export async function forgeWeapon(a, b) {
 
   const codeGoal = typeof s.codeGoal === "string" ? s.codeGoal : typeof s.description === "string" ? s.description : "";
   const actions = Array.isArray(s.actions) ? s.actions.map((x) => String(x)).join(", ") : "";
-  const safeName = weaponName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  const targetSkillBook = typeof s.targetSkillBook === "string" ? s.targetSkillBook.trim() : "";
 
   const prompt = `You are writing production-quality JavaScript for a Next.js 15 project called GuildOS.
 The project root is the current working directory. Use ES module syntax (import/export). No TypeScript.
 
-Your task: Create a new weapon module and wire it into an existing skill book action.
+## Task
+${codeGoal}
 
-## Weapon spec
+## Project conventions
+- Skill books live at libs/skill_book/<name>/index.js
+- Weapons live at libs/weapon/<name>/index.js
+- Skill book actions return { ok, msg, items } via skillActionOk/skillActionErr from @/libs/skill_book/actionResult.js
+- TOC entries use inputExample and outputExample objects for UI field generation
+- New skill books must be registered in libs/skill_book/index.js (SKILL_BOOKS and ADVENTURER_REGISTRY)
+- New weapons must be registered in libs/weapon/registry.js (WEAPONS array)
+- IMPORTANT: When adding a new action to an existing skill book, you must ALSO update libs/skill_book/index.js:
+  1. Add the new function name to the import statement for that skill book
+  2. Add it to that skill book's adventurerActions object (follow the pattern of existing entries)
+- Follow the patterns in existing files exactly (e.g. testskillbook/index.js for action patterns)
+
+## Spec
 Name: ${weaponName}
-File to create: libs/weapon/${safeName}/index.js
-Goal: ${codeGoal}
-Actions to export: ${actions || "inferred from goal"}
+${targetSkillBook ? `Target skill book: libs/skill_book/${targetSkillBook}/index.js` : ""}
+Actions: ${actions || "inferred from goal"}
 
-## Instructions
-1. Create libs/weapon/${safeName}/index.js — export one named async function per action. Each function accepts an input object and returns { ok, data?, error? }.
-2. Add the weapon to libs/weapon/registry.js — append to the WEAPONS array: { id: "${safeName}", title: "${weaponName}", description: "<one sentence>", requiresActivation: false }
-3. If the spec mentions wiring into an existing skill book action (e.g. testskillbook "test" action), update that skill book file to import and call the weapon. Keep the update minimal — do not rewrite the whole file.
-4. Do NOT create helper functions for logic used only once — inline it.
-5. Do NOT create additional files beyond what is listed above.
+## Rules
+- Do NOT create helper functions for logic used only once — inline it.
+- Do NOT create files beyond what is needed.
+- If modifying an existing file, keep changes minimal — add only, do not rewrite.
+- Match the code style of the file you are editing.
 
 ## Output format
 Your ENTIRE output must be a single valid HTML document. No markdown. No prose outside the HTML tags.
