@@ -466,18 +466,15 @@ export function classDisplayLabel(presetKey) {
 
 // --- globalAssignees (was globalAssignees.js) ---
 
-export const GLOBAL_QUEST_ASSIGNEES = {
-  cat: {
-    name: "cat",
-    presetKey: "questmaster",
-    skill_books: ["questmaster"],
-  },
-  pig: {
-    name: "pig",
-    presetKey: "guildmaster",
-    skill_books: ["guildmaster"],
-  },
-};
+// Derive from canonical NPC registry
+import { NPC_REGISTRY } from "@/libs/npcs";
+
+export const GLOBAL_QUEST_ASSIGNEES = Object.fromEntries(
+  Object.entries(NPC_REGISTRY).map(([key, npc]) => [
+    key,
+    { name: npc.name, presetKey: npc.slug, skill_books: npc.skill_books },
+  ]),
+);
 
 export function getGlobalAssigneeMeta(assignedTo) {
   if (assignedTo == null || assignedTo === "") return null;

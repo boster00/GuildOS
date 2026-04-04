@@ -662,6 +662,44 @@
           text = el.innerText != null ? String(el.innerText) : String(el.textContent || "");
         }
         sendResponse({ ok: !!el, value: el ? text.trim() : null });
+      } else if (actionName === "typeText") {
+        const el = document.querySelector(message.selector || "");
+        if (el) {
+          el.focus();
+          el.value = "";
+          el.dispatchEvent(new Event("focus", { bubbles: true }));
+          const text = String(message.text || "");
+          for (const ch of text) {
+            el.value += ch;
+            el.dispatchEvent(new InputEvent("input", { bubbles: true, data: ch, inputType: "insertText" }));
+          }
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          sendResponse({ ok: true, value: text });
+        } else {
+          sendResponse({ ok: false, error: "Element not found: " + (message.selector || "") });
+        }
+      } else if (actionName === "click") {
+        const el = document.querySelector(message.selector || "");
+        if (el) {
+          el.click();
+          sendResponse({ ok: true, value: "clicked" });
+        } else {
+          sendResponse({ ok: false, error: "Element not found: " + (message.selector || "") });
+        }
+      } else if (actionName === "pressKey") {
+        const key = String(message.key || "Enter");
+        const target = message.selector ? document.querySelector(message.selector) : document.activeElement;
+        if (target) {
+          target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+          target.dispatchEvent(new KeyboardEvent("keypress", { key, bubbles: true }));
+          target.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
+          if (key === "Enter" && target.form) target.form.submit();
+          sendResponse({ ok: true, value: "pressed:" + key });
+        } else {
+          sendResponse({ ok: false, error: "No target for key press" });
+        }
+      } else if (actionName === "getPageInfo") {
+        sendResponse({ ok: true, value: { title: document.title, url: location.href } });
       } else {
         sendResponse({ ok: false, error: `Unknown action: ${actionName}` });
       }

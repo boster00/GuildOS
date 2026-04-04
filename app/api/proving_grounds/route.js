@@ -14,6 +14,39 @@ import { publicTables } from "@/libs/council/publicTables";
 
 export const maxDuration = 300;
 
+function formatTestResultsDoc(transport, metrics, result) {
+  const ts = new Date().toISOString();
+  const steps = result?.steps || [];
+  const stepLines = steps.map((s) =>
+    `| ${s.index} | ${s.action} | ${s.elapsed}ms | ${s.ok ? "OK" : "FAIL"} | ${s.error || s.value || ""} |`
+  ).join("\n");
+  return `## Browserclaw Transport Test: ${transport}
+
+**Date:** ${ts}
+**Command ID:** ${metrics.commandId}
+
+### Timing Metrics
+
+| Metric | Value |
+|--------|-------|
+| TCP/WS Connect | ${metrics.connectMs ?? "N/A"}ms |
+| Command Sent → Result Received | ${metrics.totalRoundTripMs ?? "N/A"}ms |
+| Extension Execution Time | ${metrics.extensionExecMs ?? "N/A"}ms |
+| Transport Overhead | ${metrics.transportOverheadMs ?? "N/A"}ms |
+
+### Step Breakdown
+
+| # | Action | Duration | Status | Detail |
+|---|--------|----------|--------|--------|
+${stepLines}
+
+### Raw Metrics
+\`\`\`json
+${JSON.stringify(metrics, null, 2)}
+\`\`\`
+`;
+}
+
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -72,6 +105,30 @@ export async function GET(request) {
     const skillBookId = request.nextUrl.searchParams.get("skillBookId")?.trim();
     if (!skillBookId) {
       return Response.json({ error: "skillBookId is required" }, { status: 400 });
+    }
+    // innate_actions — collect unique action names across all NPCs + adventurer
+    if (skillBookId === "innate_actions") {
+      const npcs = ["questmaster", "guildmaster", "blacksmith", "runesmith"];
+      const combined = {};
+      for (const name of npcs) {
+        try {
+          const mod = await import(`@/libs/npcs/${name}/index.js`);
+          if (mod.toc) {
+            for (const [k, v] of Object.entries(mod.toc)) {
+              if (!combined[k]) combined[k] = { ...v, summary: v.description || "" };
+            }
+          }
+        } catch { /* npc module not found */ }
+      }
+      try {
+        const advMod = await import("@/libs/adventurer/index.js");
+        if (advMod.toc) {
+          for (const [k, v] of Object.entries(advMod.toc)) {
+            if (!combined[k]) combined[k] = { ...v, summary: v.description || "" };
+          }
+        }
+      } catch { /* */ }
+      return Response.json({ ok: true, toc: combined });
     }
     const { getSkillBook } = await import("@/libs/skill_book");
     const book = getSkillBook(skillBookId);
@@ -152,50 +209,88 @@ export async function POST(request) {
   }
 
   if (action === "runAction") {
-    const adventurerId = body?.adventurerId != null ? String(body.adventurerId).trim() : "";
     const skillBookId = body?.skillBookId != null ? String(body.skillBookId).trim() : "";
     const actionName = body?.actionName != null ? String(body.actionName).trim() : "";
     const payload = body?.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload : {};
-    const draft =
-      body?.draft && typeof body.draft === "object" && !Array.isArray(body.draft) ? body.draft : undefined;
     const questIdRaw = body?.questId != null ? String(body.questId).trim() : "";
 
-    if (!adventurerId) {
-      return Response.json({ error: "adventurerId is required" }, { status: 400 });
-    }
     if (!skillBookId) {
       return Response.json({ error: "skillBookId is required" }, { status: 400 });
     }
     if (!actionName) {
       return Response.json({ error: "actionName is required" }, { status: 400 });
     }
-
-    const { data: advRow, error: loadErr } = await getAdventurerDraftForOwner({
-      adventurerId,
-      ownerId: user.id,
-      client: db,
-    });
-    if (loadErr || !advRow?.row) {
-      return Response.json({ error: loadErr?.message || "Adventurer not found." }, { status: 404 });
+    if (!questIdRaw) {
+      return Response.json({ error: "questId is required" }, { status: 400 });
     }
 
-    let questRow = null;
-    if (questIdRaw) {
-      const { data: q, error: qErr } = await getQuestForOwner(questIdRaw, user.id, { client: db });
-      if (qErr || !q) {
-        return Response.json({ error: qErr?.message || "Quest not found." }, { status: 404 });
+    // 1. Load quest (assignee resolved automatically as quest.assignee)
+    const { loadQuest } = await import("@/libs/quest");
+    const { data: quest, error: loadErr } = await loadQuest(questIdRaw, user.id, { client: db });
+    if (loadErr || !quest) {
+      return Response.json({ error: loadErr?.message || "Quest not found." }, { status: 404 });
+    }
+
+    if (!quest.assignee || quest.assignee.type === "unassigned") {
+      return Response.json({ error: `Quest has no assignee (assigned_to: "${quest.assigned_to || ""}"). Assign someone first.` }, { status: 400 });
+    }
+
+    // innate_actions — call doNextAction directly on the NPC/adventurer module
+    if (skillBookId === "innate_actions") {
+      const assignee = quest.assignee;
+      const ctx = { client: db, userId: user.id };
+      let mod;
+      try {
+        if (assignee.type === "npc") {
+          mod = await import(`@/libs/npcs/${assignee.profile.slug || assignee.profile.role}/index.js`);
+        } else {
+          mod = await import("@/libs/adventurer/index.js");
+        }
+      } catch (e) {
+        return Response.json({ error: `Could not load module for assignee: ${e.message}` }, { status: 500 });
       }
-      questRow = q;
+      // Parse the action name (e.g. "blacksmith.doNextAction" → "doNextAction")
+      const fnName = actionName.includes(".") ? actionName.split(".").pop() : actionName;
+      if (typeof mod[fnName] !== "function") {
+        return Response.json({ error: `No innate action "${fnName}" on ${assignee.type} module.` }, { status: 400 });
+      }
+      const { runWithAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
+      let result;
+      try {
+        result = await runWithAdventurerExecutionContext(ctx, () => mod[fnName](quest, ctx));
+      } catch (e) {
+        return Response.json({ ok: false, error: e.message, stack: e.stack?.split("\n").slice(0, 5) }, { status: 500 });
+      }
+      return Response.json({ ok: result?.ok ?? true, items: result || {} });
     }
 
+    // 2. Build adventurer row from quest.assignee
+    const questRow = quest;
+    const assignee = quest.assignee;
+    let adventurerRow;
+    if (assignee.type === "adventurer") {
+      adventurerRow = assignee.profile;
+    } else {
+      // NPC — build a minimal adventurer-shaped row from NPC profile
+      adventurerRow = {
+        id: null,
+        name: assignee.profile.name,
+        slug: assignee.profile.slug,
+        role: assignee.profile.role,
+        capabilities: `NPC: ${assignee.profile.role}`,
+        skill_books: [assignee.profile.role === "questmaster" ? "questmaster" : assignee.profile.role === "guildmaster" ? "guildmaster" : "blacksmith"],
+        system_prompt: "",
+      };
+    }
+
+    // 3. Run action through the resolved assignee
     const result = await runProvingGroundsAction({
       userId: user.id,
       client: db,
       skillBookId,
       actionName,
       payload,
-      adventurerRow: advRow.row,
-      draft,
+      adventurerRow,
       questRow,
     });
 
@@ -248,6 +343,165 @@ export async function POST(request) {
       }
     }
     return Response.json({ ok: true, count: results.length, adventurers: results });
+  }
+
+  // ── Browserclaw transport tests ───────────────────────────────────
+  const GOOGLE_SEARCH_STEPS = [
+    { action: "navigate", url: "https://www.google.com" },
+    { action: "wait", seconds: 1 },
+    { action: "typeText", selector: "textarea[name='q'], input[name='q']", text: "dog videos" },
+    { action: "wait", seconds: 0.5 },
+    { action: "pressKey", selector: "textarea[name='q'], input[name='q']", key: "Enter" },
+    { action: "wait", seconds: 2 },
+    { action: "getPageInfo" },
+  ];
+
+  if (action === "testBrowserclawWs") {
+    const { default: WebSocket } = await import("ws");
+    const wsUrl = body?.wsUrl || "ws://localhost:3003";
+    const customSteps = Array.isArray(body?.steps) ? body.steps : GOOGLE_SEARCH_STEPS;
+    const commandId = `ws-test-${Date.now()}`;
+    const metrics = { transport: "websocket", commandId, wsUrl };
+    const t0 = Date.now();
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => { ws.close(); reject(new Error("WebSocket test timed out (30s)")); }, 30000);
+        const ws = new WebSocket(wsUrl);
+
+        ws.on("error", (err) => { clearTimeout(timeout); reject(err); });
+
+        ws.on("open", () => {
+          metrics.connectMs = Date.now() - t0;
+          ws.send(JSON.stringify({ type: "identify", role: "controller" }));
+        });
+
+        ws.on("message", (raw) => {
+          const msg = JSON.parse(String(raw));
+          if (msg.type === "identified") {
+            metrics.identifyMs = Date.now() - t0;
+            const cmdSentAt = Date.now();
+            metrics.commandSentAt = cmdSentAt;
+            ws.send(JSON.stringify({
+              type: "command",
+              id: commandId,
+              command: { steps: customSteps },
+            }));
+          }
+          if (msg.type === "result" && msg.id === commandId) {
+            clearTimeout(timeout);
+            metrics.resultReceivedMs = Date.now() - t0;
+            metrics.totalRoundTripMs = Date.now() - t0;
+            ws.close();
+            resolve(msg.result);
+          }
+        });
+      });
+
+      metrics.extensionExecMs = result.totalElapsed || null;
+      metrics.transportOverheadMs = metrics.totalRoundTripMs - (result.totalElapsed || 0);
+
+      const fs = await import("fs");
+      const resultDoc = formatTestResultsDoc("websocket", metrics, result);
+      fs.writeFileSync("docs/browserclaw-testing-results.md", resultDoc, "utf-8");
+
+      return Response.json({ ok: true, metrics, result });
+    } catch (err) {
+      metrics.error = err.message;
+      metrics.totalRoundTripMs = Date.now() - t0;
+      return Response.json({ ok: false, metrics, error: err.message }, { status: 500 });
+    }
+  }
+
+  if (action === "testBrowserclawNative") {
+    const net = await import("net");
+    const tcpPort = body?.tcpPort || 3004;
+    const commandId = `native-test-${Date.now()}`;
+    const metrics = { transport: "native-messaging", commandId, tcpPort };
+    const t0 = Date.now();
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => { socket.destroy(); reject(new Error("Native messaging test timed out (30s)")); }, 30000);
+        const socket = net.connect(tcpPort, "127.0.0.1");
+
+        socket.on("error", (err) => { clearTimeout(timeout); reject(err); });
+
+        socket.on("connect", () => {
+          metrics.connectMs = Date.now() - t0;
+          metrics.commandSentAt = Date.now();
+          socket.write(JSON.stringify({
+            type: "command",
+            id: commandId,
+            command: { steps: GOOGLE_SEARCH_STEPS },
+          }) + "\n");
+        });
+
+        let buf = "";
+        socket.on("data", (chunk) => {
+          buf += chunk.toString("utf-8");
+          const lines = buf.split("\n");
+          buf = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const msg = JSON.parse(line);
+            if (msg.type === "result" && msg.id === commandId) {
+              clearTimeout(timeout);
+              metrics.resultReceivedMs = Date.now() - t0;
+              metrics.totalRoundTripMs = Date.now() - t0;
+              socket.destroy();
+              resolve(msg.result);
+            }
+          }
+        });
+      });
+
+      metrics.extensionExecMs = result.totalElapsed || null;
+      metrics.transportOverheadMs = metrics.totalRoundTripMs - (result.totalElapsed || 0);
+
+      const fs = await import("fs");
+      const existing = fs.existsSync("docs/browserclaw-testing-results.md")
+        ? fs.readFileSync("docs/browserclaw-testing-results.md", "utf-8")
+        : "";
+      const resultDoc = formatTestResultsDoc("native-messaging", metrics, result);
+      fs.writeFileSync("docs/browserclaw-testing-results.md", existing + "\n\n" + resultDoc, "utf-8");
+
+      return Response.json({ ok: true, metrics, result });
+    } catch (err) {
+      metrics.error = err.message;
+      metrics.totalRoundTripMs = Date.now() - t0;
+      return Response.json({ ok: false, metrics, error: err.message }, { status: 500 });
+    }
+  }
+
+  if (action === "testBrowserclawCdp") {
+    const { executeSteps } = await import("@/libs/weapon/browserclaw/cdp.js");
+    const customSteps = Array.isArray(body?.steps) ? body.steps : GOOGLE_SEARCH_STEPS;
+    const cdpUrl = body?.cdpUrl || "http://localhost:9222";
+    const commandId = `cdp-test-${Date.now()}`;
+    const metrics = { transport: "cdp", commandId, cdpUrl };
+    const t0 = Date.now();
+
+    try {
+      const result = await executeSteps(customSteps, { cdpUrl });
+      metrics.totalRoundTripMs = Date.now() - t0;
+      metrics.extensionExecMs = result.totalElapsed || null;
+      metrics.transportOverheadMs = metrics.totalRoundTripMs - (result.totalElapsed || 0);
+      metrics.connectMs = result.steps?.[0]?.elapsed != null ? 0 : null;
+
+      const fs = await import("fs");
+      const existing = fs.existsSync("docs/browserclaw-testing-results.md")
+        ? fs.readFileSync("docs/browserclaw-testing-results.md", "utf-8")
+        : "";
+      const resultDoc = formatTestResultsDoc("cdp (Chrome DevTools Protocol)", metrics, result);
+      fs.writeFileSync("docs/browserclaw-testing-results.md", existing + "\n\n" + resultDoc, "utf-8");
+
+      return Response.json({ ok: result.ok, metrics, result });
+    } catch (err) {
+      metrics.error = err.message;
+      metrics.totalRoundTripMs = Date.now() - t0;
+      return Response.json({ ok: false, metrics, error: err.message }, { status: 500 });
+    }
   }
 
   if (action === "cliSmoke") {

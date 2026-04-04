@@ -9,6 +9,7 @@ import {
   removePigeonLetterInventoryEntries,
 } from "@/libs/quest/index.js";
 import { PIGEON_LETTERS_KEY } from "@/libs/quest/inventoryMap.js";
+import { database } from "@/libs/council/database";
 
 export const PIGEON_LETTERS_ITEM_KEY = PIGEON_LETTERS_KEY;
 
@@ -177,6 +178,24 @@ export async function deliverPigeonResult(questId, items, { client: injected, le
       questId,
       results,
     });
+  }
+
+  // Mark the pigeon_letters table row as completed (if letterId matches a row)
+  if (lid && allAppendsOk) {
+    try {
+      const db = injected ?? await database.init("service");
+      const { error: plErr } = await db
+        .from("pigeon_letters")
+        .update({ status: "completed", result: items })
+        .eq("id", lid);
+      if (plErr) {
+        console.warn(`${DELIVER_LOG} pigeon_letters table update failed (non-fatal)`, { letterId: lid, message: plErr.message });
+      } else {
+        console.info(`${DELIVER_LOG} pigeon_letters table row marked completed`, { letterId: lid });
+      }
+    } catch (e) {
+      console.warn(`${DELIVER_LOG} pigeon_letters table update error (non-fatal)`, { letterId: lid, message: e?.message });
+    }
   }
 
   await recordQuestComment(

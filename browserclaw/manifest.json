@@ -14,7 +14,7 @@
   "background": {
     "service_worker": "background/service-worker.js"
   },
-  "permissions": ["tabs", "storage", "windows"],
+  "permissions": ["tabs", "storage", "windows", "nativeMessaging"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {

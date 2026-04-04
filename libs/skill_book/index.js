@@ -6,7 +6,7 @@
  * (`listSkillBookIdsForRosterUI`, `filterValidSkillBookNames`, etc.). Do not duplicate
  * skill book lists elsewhere; clients load ids via `/api/skill_book?action=listRosterIds`.
  */
-import { definition as defaultDef } from "./default/index.js";
+import { definition as defaultDef, escalate as defaultEscalate } from "./default/index.js";
 
 export { skillActionOk, skillActionErr } from "./actionResult.js";
 import { skillBook as zohoSkillBook, getRecentOrders } from "./zoho/index.js";
@@ -26,9 +26,10 @@ import {
   findAdventurerForQUest,
   interpretIdea,
   selectAdventurer as runSelectAdventurer,
+  assign as runAssign,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
-import { skillBook as blacksmithSkillBook, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
+import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
 
 // --- planStepUtils (inlined) ---
 
@@ -385,15 +386,30 @@ const questmasterAdventurerActions = {
       client,
     });
   },
+  assign: async (userId, input) => {
+    const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
+    const client = getAdventurerExecutionContext()?.client;
+    if (!client) {
+      return Promise.reject(new Error("assign requires client in adventurer execution context."));
+    }
+    const inObj = /** @type {Record<string, unknown>} */ (input || {});
+    const guildos = inObj.guildos && typeof inObj.guildos === "object" ? inObj.guildos : null;
+    const questId = String(inObj.questId || guildos?.quest?.id || "").trim();
+    return runAssign(userId, { questId, guildos, client });
+  },
 };
 
 const blacksmithAdventurerActions = {
+  plan: (_userId, input) => blacksmithPlan(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  review: (_userId, input) => blacksmithReview(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   forgeWeapon: (_userId, input) => forgeWeapon(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   updateProvingGrounds: (_userId, input) => updateProvingGrounds(_userId, /** @type {Record<string, unknown>} */ (input || {})),
 };
 
 const ADVENTURER_REGISTRY = {
-  default: { definition: defaultDef, adventurerActions: {} },
+  default: { definition: defaultDef, adventurerActions: {
+    escalate: (userId, input) => defaultEscalate(userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
   zoho: { definition: zohoSkillBook, adventurerActions: zohoAdventurerActions },
   questmaster: { definition: questmasterDef, adventurerActions: questmasterAdventurerActions },
   guildmaster: { definition: guildmasterSkillBook, adventurerActions: guildmasterAdventurerActions },

@@ -18,6 +18,7 @@ import {
   selectQuestsByAssignee,
   updateQuestAssignee,
   insertSubQuest,
+  selectQuestCommentsForQuest,
 } from "@/libs/council/database/serverQuest.js";
 import { listAdventurers } from "@/libs/proving_grounds/server.js";
 import { getGlobalAssigneeMeta } from "@/libs/proving_grounds/ui.js";
@@ -135,6 +136,38 @@ export async function recordQuestComment(questId, payload, { client: injected } 
   if (error) {
     console.warn("[recordQuestComment]", questId, error.message || String(error));
   }
+}
+
+/**
+ * Get the recent comment thread since the last NPC/system comment.
+ * Returns { lastSystemComment, userReplies, hasUserReply }.
+ * Used by NPCs to check if the user has responded to an escalation.
+ */
+export async function readRecentCommentThread(questId, { client: injected } = {}) {
+  const { data, error } = await selectQuestCommentsForQuest(questId, { limit: 50, client: injected });
+  if (error || !data || data.length === 0) return { lastSystemComment: null, userReplies: [], hasUserReply: false };
+
+  // Comments come newest-first. Find the last NPC/system comment, collect user replies after it.
+  const userReplies = [];
+  let lastSystemComment = null;
+
+  for (const c of data) {
+    const isSystem = c.source === "system" || c.source === "npc" || c.detail?.escalated;
+    if (isSystem) {
+      lastSystemComment = c;
+      break;
+    }
+    userReplies.push(c);
+  }
+
+  // userReplies are newest-first, reverse to chronological
+  userReplies.reverse();
+
+  return {
+    lastSystemComment,
+    userReplies,
+    hasUserReply: userReplies.length > 0,
+  };
 }
 
 export async function updateQuest(
@@ -321,6 +354,165 @@ export function childQuestFromNextStep(step) {
     }
   }
   return { title: "Next step", description: null };
+}
+
+// ---------------------------------------------------------------------------
+// loadNextStep — pop first next_step, replace quest title/description, reset to assign
+// ---------------------------------------------------------------------------
+
+/**
+ * Pop the first entry from `next_steps`, replace the quest's title/description/stage,
+ * merge inventory (current quest items take priority), and persist.
+ *
+ * @param {string} questId
+ * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
+ */
+export async function advanceToNextStep(questId, { client }) {
+  const { data: quest, error } = await getQuest(questId, { client });
+  if (error || !quest) return { error: error || new Error("Quest not found") };
+
+  let steps = quest.next_steps;
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return { data: null, done: true };
+  }
+
+  const [next, ...rest] = steps;
+  const nextObj = typeof next === "string" ? { title: next } : (next && typeof next === "object" ? next : {});
+
+  // Merge inventory: current quest items take priority
+  let mergedInventory = quest.inventory;
+  if (nextObj.inventory && typeof nextObj.inventory === "object") {
+    mergedInventory = { ...nextObj.inventory, ...(quest.inventory || {}) };
+  }
+
+  const { error: upErr } = await updateQuest(questId, {
+    title: nextObj.title || quest.title,
+    description: nextObj.description || quest.description,
+    nextSteps: rest,
+    stage: nextObj.stage || "assign",
+    assigneeId: null,
+    inventory: mergedInventory,
+  }, { client });
+
+  if (upErr) return { error: upErr };
+
+  // Route to the correct NPC based on prep type, default to Cat
+  const { PREP_NPC_ROUTING, getNpc } = await import("@/libs/npcs");
+  const npcKey = PREP_NPC_ROUTING[nextObj.type] || "cat";
+  const npc = getNpc(npcKey);
+  const assignedTo = npc?.name || "Cat";
+  await updateQuestAssignee(questId, { assigneeId: null, assignedTo }, { client });
+
+  return {
+    data: {
+      loaded: nextObj,
+      remaining: rest.length,
+      newTitle: nextObj.title || quest.title,
+    },
+    done: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Preparation cascade — prepend weapon/skillbook/adventurer prep when assign finds no match
+// ---------------------------------------------------------------------------
+
+/**
+ * When assign() finds no fitting adventurer, prepend 3 preparation steps + the original quest
+ * to next_steps, then call loadNextStep to start the first prep.
+ *
+ * @param {Record<string, unknown>} quest — the current quest row
+ * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
+ */
+export async function triggerPreparationCascade(quest, { client }) {
+  const domain = String(quest.description || quest.title || "unknown domain").slice(0, 80);
+
+  // Build the 4 next_steps entries (3 preps + original quest)
+  const prepSteps = [
+    { title: "Prepare weapon", type: "prepare_weapon", stage: "plan", description: `Forge a weapon/connector for: ${domain}` },
+    { title: "Prepare skill book", type: "prepare_skillbook", stage: "plan", description: `Create skill book actions for: ${domain}` },
+    { title: "Prepare adventurer", type: "prepare_adventurer", stage: "plan", description: `Recruit and configure an adventurer for: ${domain}` },
+    { title: quest.title, description: quest.description, stage: "assign", inventory: quest.inventory },
+  ];
+
+  // Overwrite next_steps with prep cascade + any existing next_steps
+  const existingSteps = Array.isArray(quest.next_steps) ? quest.next_steps : [];
+  const allSteps = [...prepSteps, ...existingSteps];
+
+  const { error: upErr } = await updateQuest(quest.id, { nextSteps: allSteps }, { client });
+  if (upErr) return { error: upErr };
+
+  // loadNextStep pops "Prepare weapon" and resets quest to assign stage
+  return advanceToNextStep(quest.id, { client });
+}
+
+// ---------------------------------------------------------------------------
+// Assignee resolution — derives NPC or adventurer from quest.assigned_to
+// ---------------------------------------------------------------------------
+
+/** Known NPC slugs → metadata. */
+// Re-export from canonical source
+export { NPC_REGISTRY as NPC_ROSTER } from "@/libs/npcs";
+
+/**
+ * Resolve an `assigned_to` string to either an NPC or an adventurer DB row.
+ * @param {string} assignedTo
+ * @param {import("@/libs/council/database/types.js").DatabaseClient} client
+ * @returns {Promise<{ type: "npc", profile: object } | { type: "adventurer", profile: object } | { type: "unassigned" }>}
+ */
+export async function resolveAssignee(assignedTo, client) {
+  const key = String(assignedTo ?? "").trim().toLowerCase();
+  if (!key) return { type: "unassigned" };
+
+  const { getNpc } = await import("@/libs/npcs");
+  const npc = getNpc(key);
+  if (npc) {
+    return { type: "npc", profile: { ...npc, id: null } };
+  }
+
+  const { publicTables } = await import("@/libs/council/publicTables");
+  // Try by name (case-insensitive)
+  const { data: byName } = await client
+    .from(publicTables.adventurers)
+    .select("id, name, capabilities, skill_books, system_prompt, backstory")
+    .ilike("name", key)
+    .limit(1)
+    .maybeSingle();
+  if (byName) return { type: "adventurer", profile: byName };
+
+  // Try by UUID
+  const { data: byId } = await client
+    .from(publicTables.adventurers)
+    .select("id, name, capabilities, skill_books, system_prompt, backstory")
+    .eq("id", assignedTo)
+    .maybeSingle();
+  if (byId) return { type: "adventurer", profile: byId };
+
+  return { type: "unassigned" };
+}
+
+/**
+ * Load a quest and auto-resolve its assignee from `assigned_to`.
+ * Returns `{ quest, assignee }` where assignee has `.type` and `.profile`.
+ *
+ * @param {string} questId
+ * @param {string} ownerId
+ * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
+ */
+/**
+ * Load a quest and auto-resolve its assignee. Returns a quest object with `.assignee` attached.
+ * @param {string} questId
+ * @param {string} ownerId
+ * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
+ * @returns {Promise<{ data: (Record<string, unknown> & { assignee: object }) | null, error: Error | null }>}
+ */
+export async function loadQuest(questId, ownerId, { client }) {
+  const { data: quest, error } = await selectQuestForOwner(questId, ownerId, { client });
+  if (error || !quest) {
+    return { data: null, error: error || new Error("Quest not found.") };
+  }
+  quest.assignee = await resolveAssignee(quest.assigned_to, client);
+  return { data: quest, error: null };
 }
 
 // ---------------------------------------------------------------------------

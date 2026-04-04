@@ -204,7 +204,7 @@ export default function QuestActivityCommentsPanel({ questId, initialComments })
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     <span className="font-mono text-[10px] text-base-content/45">
-                      {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
+                      {row.created_at ? new Date(row.created_at).toISOString().replace("T", " ").slice(0, 19) : "—"}
                     </span>
                     <span className="text-xs font-semibold text-primary">{row.source}</span>
                     <span className="font-mono text-xs text-base-content/60">{row.action}</span>

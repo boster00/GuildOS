@@ -22,10 +22,12 @@
     "db:push": "supabase db push",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:reference": "node scripts/pull-database-reference.js"
+    "db:reference": "node scripts/pull-database-reference.js",
+    "dev:browserclaw-ws": "node libs/proving_grounds/browserclaw-ws-relay.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@openai/agents": "^0.3.7",
     "@sparticuz/chromium": "^131.0.1",
     "@supabase/ssr": "^0.5.2",
@@ -64,6 +66,7 @@
     "stripe": "^17.3.1",
     "unified": "^11.0.5",
     "v0-sdk": "^0.16.1",
+    "ws": "^8.20.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -86,6 +86,13 @@ export const definition = {
       output: { result: { type: "object" }, msg: { type: "string" } },
     },
     {
+      id: "assign",
+      summary:
+        "Assign stage: load quest by ID, scan adventurer roster, pick best-fit or return no-match. Returns full debug: API payload, prompt, model response.",
+      input: { questId: { type: "string", required: true } },
+      output: { result: { type: "object" }, msg: { type: "string" }, meta: { type: "object" } },
+    },
+    {
       id: "interpretIdea",
       summary:
         "Turn a raw user request into a structured quest for a chosen adventurer (title, description with deliverable clarity, deliverables).",
@@ -596,12 +603,98 @@ Rules:
   };
 }
 
+/**
+ * Assign stage action — uses the quest from pipeline context (guildos.quest),
+ * scans adventurer roster via AI, writes the assignment back to the quest.
+ * Returns full debug trace (prompt, model response, quest context).
+ *
+ * @param {string} userId
+ * @param {{
+ *   questId?: string,
+ *   guildos?: { quest?: Record<string, unknown> },
+ *   client: import("@/libs/council/database/types.js").DatabaseClient
+ * }} opts
+ */
+export async function assign(userId, { questId, guildos, client }) {
+  // Quest comes from pipeline context (loaded by the trigger), or fall back to questId
+  let questRow = guildos?.quest ?? null;
+  if (!questRow && questId) {
+    const { getQuestForOwner } = await import("@/libs/quest");
+    const { data, error } = await getQuestForOwner(questId, userId, { client });
+    if (error || !data) return { data: null, error: error || new Error("Quest not found.") };
+    questRow = data;
+  }
+  if (!questRow || !questRow.id) {
+    return { data: null, error: new Error("assign: quest is required (via pipeline context or questId)") };
+  }
+
+  // Run selectAdventurer — AI scans the roster
+  const result = await selectAdventurer(userId, { quest: questRow, client });
+  if (result.error) {
+    return {
+      data: {
+        result: false,
+        msg: result.error.message,
+        meta: { quest: { id: questRow.id, title: questRow.title, stage: questRow.stage } },
+      },
+      error: null,
+    };
+  }
+
+  const questMeta = { id: questRow.id, title: questRow.title, description: questRow.description, stage: questRow.stage };
+
+  // If a match was found, write the assignment back to the quest
+  if (result.data && result.data.result && result.data.result !== false) {
+    const match = result.data.result;
+    const assignedTo = match.name || "";
+
+    // Use quest module's resolveAssignee to confirm NPC vs adventurer
+    const { resolveAssignee } = await import("@/libs/quest");
+    const resolved = await resolveAssignee(assignedTo, client);
+
+    const { updateQuestAssignee } = await import("@/libs/council/database/serverQuest.js");
+    await updateQuestAssignee(questRow.id, {
+      assigneeId: resolved.type === "adventurer" ? resolved.profile.id : null,
+      assignedTo,
+    }, { client });
+
+    return {
+      data: {
+        result: match,
+        msg: result.data.msg,
+        assigneeType: resolved.type,
+        resolved: resolved.profile,
+        meta: { ...result.data.meta, quest: questMeta },
+      },
+      error: null,
+    };
+  }
+
+  // No match — trigger preparation cascade
+  const { triggerPreparationCascade } = await import("@/libs/quest");
+  const cascadeResult = await triggerPreparationCascade(questRow, { client });
+
+  return {
+    data: {
+      result: false,
+      msg: result.data.msg,
+      assigneeType: "none",
+      cascade: cascadeResult.error
+        ? { ok: false, error: cascadeResult.error.message }
+        : { ok: true, ...cascadeResult.data },
+      meta: { ...result.data.meta, quest: questMeta },
+    },
+    error: null,
+  };
+}
+
 const questmaster = {
   definition,
   planRequestToQuest,
   findAdventurerForQUest,
   selectAdventurer,
   interpretIdea,
+  assign,
 };
 
 export default questmaster;

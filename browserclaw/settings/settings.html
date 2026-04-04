@@ -71,6 +71,35 @@
           />
         </fieldset>
 
+        <fieldset class="bc-fieldset">
+          <legend class="bc-legend">WebSocket Relay (Option 1)</legend>
+          <label class="bc-label bc-label--row">
+            <input type="checkbox" id="bc-ws-enabled" name="wsEnabled" />
+            <span>Enable WebSocket connection to relay server</span>
+          </label>
+          <label class="bc-label bc-label--top" for="bc-ws-url">Relay URL</label>
+          <input
+            type="text"
+            id="bc-ws-url"
+            class="bc-hex bc-input-wide"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="ws://localhost:3003"
+            aria-label="WebSocket relay URL"
+          />
+        </fieldset>
+
+        <fieldset class="bc-fieldset">
+          <legend class="bc-legend">Native Messaging (Option 2)</legend>
+          <label class="bc-label bc-label--row">
+            <input type="checkbox" id="bc-native-enabled" name="nativeEnabled" />
+            <span>Enable native messaging host connection</span>
+          </label>
+          <p class="bc-hint">
+            Requires one-time setup: run <code>browserclaw/native-host/install-windows.bat &lt;extension-id&gt;</code> then restart Chrome.
+          </p>
+        </fieldset>
+
         <button type="submit" class="bc-save">Save</button>
       </form>
       <p id="bc-settings-status" class="bc-status" aria-live="polite"></p>

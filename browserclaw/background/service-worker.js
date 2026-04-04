@@ -9,6 +9,192 @@ const K_EXEC = SETTINGS.STORAGE_KEY_PIGEON_EXECUTION;
 /** @type {boolean} */
 let pigeonRunLock = false;
 
+// ── WebSocket relay connection ─────────────────────────────────────
+/** @type {WebSocket | null} */
+let wsRelay = null;
+let wsReconnectTimer = null;
+let wsEnabled = false;
+
+async function connectWsRelay() {
+  if (wsRelay && (wsRelay.readyState === WebSocket.OPEN || wsRelay.readyState === WebSocket.CONNECTING)) return;
+  const stored = await chrome.storage.local.get([SETTINGS.STORAGE_KEY_WS_URL, SETTINGS.STORAGE_KEY_WS_ENABLED]);
+  wsEnabled = !!stored[SETTINGS.STORAGE_KEY_WS_ENABLED];
+  if (!wsEnabled) return;
+  const url = stored[SETTINGS.STORAGE_KEY_WS_URL] || SETTINGS.DEFAULT_WS_URL;
+  try {
+    wsRelay = new WebSocket(url);
+  } catch (e) {
+    console.error("[Browserclaw WS] Failed to create WebSocket:", e);
+    scheduleWsReconnect();
+    return;
+  }
+  wsRelay.onopen = () => {
+    console.log("[Browserclaw WS] Connected to relay");
+    wsRelay.send(JSON.stringify({ type: "identify", role: "extension" }));
+  };
+  wsRelay.onmessage = async (event) => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { return; }
+    if (msg.type === "command" && msg.id) {
+      console.log("[Browserclaw WS] Received command", msg.id);
+      const t0 = Date.now();
+      const result = await executeDirectCommandSequence(msg.command?.steps || []);
+      result.transportReceiveTs = t0;
+      result.transportRespondTs = Date.now();
+      wsRelay.send(JSON.stringify({ type: "result", id: msg.id, result }));
+    }
+  };
+  wsRelay.onclose = () => {
+    console.log("[Browserclaw WS] Disconnected");
+    wsRelay = null;
+    scheduleWsReconnect();
+  };
+  wsRelay.onerror = (err) => {
+    console.error("[Browserclaw WS] Error:", err);
+  };
+}
+
+function scheduleWsReconnect() {
+  if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+  if (!wsEnabled) return;
+  wsReconnectTimer = setTimeout(() => connectWsRelay(), 5000);
+}
+
+function disconnectWsRelay() {
+  wsEnabled = false;
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (wsRelay) { wsRelay.close(); wsRelay = null; }
+}
+
+// ── Native messaging connection ────────────────────────────────────
+/** @type {chrome.runtime.Port | null} */
+let nativePort = null;
+let nativeEnabled = false;
+
+async function connectNativeHost() {
+  if (nativePort) return;
+  const stored = await chrome.storage.local.get([SETTINGS.STORAGE_KEY_NATIVE_ENABLED]);
+  nativeEnabled = !!stored[SETTINGS.STORAGE_KEY_NATIVE_ENABLED];
+  if (!nativeEnabled) return;
+  try {
+    nativePort = chrome.runtime.connectNative(SETTINGS.NATIVE_HOST_NAME);
+  } catch (e) {
+    console.error("[Browserclaw Native] connectNative failed:", e);
+    nativePort = null;
+    return;
+  }
+  console.log("[Browserclaw Native] Connected to host");
+  nativePort.onMessage.addListener(async (msg) => {
+    console.log("[Browserclaw Native] Message from host:", JSON.stringify(msg).slice(0, 200));
+    if (msg.type === "command" && msg.id) {
+      const t0 = Date.now();
+      const result = await executeDirectCommandSequence(msg.command?.steps || []);
+      result.transportReceiveTs = t0;
+      result.transportRespondTs = Date.now();
+      nativePort.postMessage({ type: "result", id: msg.id, result });
+    }
+  });
+  nativePort.onDisconnect.addListener(() => {
+    const err = chrome.runtime.lastError;
+    console.log("[Browserclaw Native] Disconnected", err?.message || "");
+    nativePort = null;
+  });
+}
+
+function disconnectNativeHost() {
+  nativeEnabled = false;
+  if (nativePort) { nativePort.disconnect(); nativePort = null; }
+}
+
+// ── Direct command sequence execution ──────────────────────────────
+/**
+ * Execute a sequence of steps on the active tab and return results with timing.
+ * Steps: { action: "navigate"|"typeText"|"click"|"pressKey"|"wait"|"obtainText"|"getPageInfo", ... }
+ */
+async function executeDirectCommandSequence(steps) {
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return { ok: false, error: "No steps provided" };
+  }
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tab?.id;
+  if (tabId == null) {
+    return { ok: false, error: "No active tab" };
+  }
+
+  const stepResults = [];
+  const overallStart = Date.now();
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const stepStart = Date.now();
+    let result;
+
+    try {
+      if (step.action === "navigate") {
+        await chrome.tabs.update(tabId, { url: step.url });
+        await waitForTabComplete(tabId, 25000);
+        await new Promise((r) => setTimeout(r, 500));
+        result = { ok: true, value: step.url };
+      } else if (step.action === "wait") {
+        const sec = Math.min(30, Math.max(0, Number(step.seconds) || 1));
+        await new Promise((r) => setTimeout(r, sec * 1000));
+        result = { ok: true, value: `waited ${sec}s` };
+      } else {
+        // Content script action
+        const ready = await pingContentReady(tabId, 8);
+        if (!ready) {
+          result = { ok: false, error: "Content script not ready" };
+        } else {
+          result = await chrome.tabs.sendMessage(tabId, {
+            type: MSG.PIGEON_EXECUTE_ACTION,
+            ...step,
+          });
+        }
+      }
+    } catch (e) {
+      result = { ok: false, error: String(e?.message || e) };
+    }
+
+    const elapsed = Date.now() - stepStart;
+    stepResults.push({
+      index: i,
+      action: step.action,
+      elapsed,
+      ok: result?.ok ?? false,
+      value: result?.value ?? null,
+      error: result?.error ?? null,
+    });
+
+    if (!result?.ok) break;
+  }
+
+  return {
+    ok: stepResults.every((r) => r.ok),
+    totalElapsed: Date.now() - overallStart,
+    steps: stepResults,
+  };
+}
+
+// React to storage changes (enable/disable WS/native)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  if (SETTINGS.STORAGE_KEY_WS_ENABLED in changes || SETTINGS.STORAGE_KEY_WS_URL in changes) {
+    const enabled = changes[SETTINGS.STORAGE_KEY_WS_ENABLED]?.newValue;
+    if (enabled === false) disconnectWsRelay();
+    else connectWsRelay();
+  }
+  if (SETTINGS.STORAGE_KEY_NATIVE_ENABLED in changes) {
+    const enabled = changes[SETTINGS.STORAGE_KEY_NATIVE_ENABLED]?.newValue;
+    if (enabled === false) disconnectNativeHost();
+    else connectNativeHost();
+  }
+});
+
+// Initialize connections on service worker startup
+connectWsRelay();
+connectNativeHost();
+
 function logTabEvent(label, details) {
   console.log(`[Browserclaw background] ${label}`, details);
 }
@@ -645,6 +831,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === MSG.PIGEON_SEND_PIGEON_RESULT) {
     sendPigeonResultToApi().then((r) => sendResponse(r));
+    return true;
+  }
+
+  if (message.type === MSG.DIRECT_EXECUTE) {
+    executeDirectCommandSequence(message.steps || []).then((r) => sendResponse(r));
     return true;
   }
 

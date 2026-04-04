@@ -7,8 +7,17 @@ import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js
 export const definition = {
   id: "default",
   title: "Default",
-  description: "Built-in helpers: JSON extraction, inventory bridging between action steps.",
+  description: "Built-in helpers: JSON extraction, inventory bridging, escalation.",
   toc: [
+    {
+      id: "escalate",
+      summary: "Escalate the quest to review. Sets stage to review, assigns to Guildmaster (Pig), posts the comment. Returns { escalated: true }.",
+      input: {
+        questId: { type: "string", required: true },
+        comment: { type: "string", required: true, description: "Non-empty reason for escalation." },
+      },
+      output: { escalated: { type: "boolean" } },
+    },
     {
       id: "organizeInventory",
       summary: "Bridge between actions: given quest context and current inventory, produce the input items needed by the next action.",
@@ -98,6 +107,45 @@ Respond with ONLY the JSON object.`;
   }
 
   return skillActionOk(parsed);
+}
+
+/**
+ * Escalate a quest to review — sets stage, assigns to Pig, posts comment.
+ * Any NPC or adventurer can call this.
+ *
+ * @param {string} _userId
+ * @param {Record<string, unknown>} input
+ */
+export async function escalate(_userId, input) {
+  const questId = String(input?.questId || input?.guildos?.quest?.id || "").trim();
+  const comment = String(input?.comment || "").trim();
+
+  if (!questId) return skillActionErr("escalate: questId is required.");
+  if (!comment) return skillActionErr("escalate: comment is required (reason for escalation).");
+
+  const { updateQuest, recordQuestComment } = await import("@/libs/quest");
+  const { updateQuestAssignee } = await import("@/libs/council/database/serverQuest.js");
+  const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
+  const client = getAdventurerExecutionContext()?.client;
+  if (!client) return skillActionErr("escalate: no execution context client.");
+
+  // Read current assignee before overwriting
+  const previousAssignee = input?.previousAssignee || input?.guildos?.quest?.assigned_to || null;
+
+  // Set stage to review
+  const { error: stageErr } = await updateQuest(questId, { stage: "review" }, { client });
+  if (stageErr) return skillActionErr(`escalate: failed to set review stage — ${stageErr.message}`);
+
+  // Assign to Pig (Guildmaster)
+  await updateQuestAssignee(questId, { assigneeId: null, assignedTo: "Pig" }, { client });
+
+  // Post comment with previous assignee stored for reassignment after review
+  await recordQuestComment(questId, {
+    summary: comment,
+    detail: { escalated: true, previousAssignee },
+  }, { client });
+
+  return skillActionOk({ escalated: true, questId, assignedTo: "Pig" });
 }
 
 /** Alias for dispatch / pipelines that expect the `run*` naming convention. */
