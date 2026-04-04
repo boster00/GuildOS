@@ -181,24 +181,7 @@ async function executeDirectCommandSequence(steps) {
   };
 }
 
-// React to storage changes (enable/disable WS/native)
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== "local") return;
-  if (SETTINGS.STORAGE_KEY_WS_ENABLED in changes || SETTINGS.STORAGE_KEY_WS_URL in changes) {
-    const enabled = changes[SETTINGS.STORAGE_KEY_WS_ENABLED]?.newValue;
-    if (enabled === false) disconnectWsRelay();
-    else connectWsRelay();
-  }
-  if (SETTINGS.STORAGE_KEY_NATIVE_ENABLED in changes) {
-    const enabled = changes[SETTINGS.STORAGE_KEY_NATIVE_ENABLED]?.newValue;
-    if (enabled === false) disconnectNativeHost();
-    else connectNativeHost();
-  }
-});
-
-// Initialize connections on service worker startup
-connectWsRelay();
-connectNativeHost();
+// WS relay and native messaging are not auto-started; they were removed from the settings UI.
 
 function logTabEvent(label, details) {
   console.log(`[Browserclaw background] ${label}`, details);
@@ -1035,4 +1018,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onInstalled.addListener((details) => {
   logTabEvent("runtime.onInstalled", { reason: details.reason });
+  // Clear stale WS/native flags that auto-connected in previous versions
+  chrome.storage.local.remove([
+    SETTINGS.STORAGE_KEY_WS_ENABLED,
+    SETTINGS.STORAGE_KEY_WS_URL,
+    SETTINGS.STORAGE_KEY_NATIVE_ENABLED,
+  ]);
 });
