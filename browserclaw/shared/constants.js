@@ -13,6 +13,9 @@ globalThis.BROWSERCLAW_MSG = Object.freeze({
   // Direct command execution (WebSocket / Native Messaging tests)
   DIRECT_EXECUTE: "browserclaw:direct_execute",
   DIRECT_EXECUTE_RESULT: "browserclaw:direct_execute_result",
+  // Auto-pilot (tab-scoped executing toggle)
+  AUTO_PILOT_SET: "browserclaw:auto_pilot_set",
+  AUTO_PILOT_GET: "browserclaw:auto_pilot_get",
 });
 
 /**
@@ -34,6 +37,9 @@ globalThis.BROWSERCLAW_SETTINGS = Object.freeze({
   // Native messaging
   STORAGE_KEY_NATIVE_ENABLED: "browserclaw_nativeEnabled",
   NATIVE_HOST_NAME: "com.guildos.browserclaw",
+  // Auto-pilot
+  STORAGE_KEY_AUTO_PILOT_ENABLED: "browserclaw_autoPilotEnabled",
+  STORAGE_KEY_AUTO_PILOT_STATUS: "browserclaw_autoPilotStatus",
 });
 
 /**
