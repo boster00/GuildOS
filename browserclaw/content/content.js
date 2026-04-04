@@ -201,41 +201,41 @@
   function openModal() {
     closeModal();
 
-    modalBackdrop = document.createElement(“div”);
-    modalBackdrop.className = “browserclaw-modal-backdrop”;
-    modalBackdrop.setAttribute(“role”, “presentation”);
-    modalBackdrop.addEventListener(“click”, (e) => {
+    modalBackdrop = document.createElement("div");
+    modalBackdrop.className = "browserclaw-modal-backdrop";
+    modalBackdrop.setAttribute("role", "presentation");
+    modalBackdrop.addEventListener("click", (e) => {
       if (e.target === modalBackdrop) closeModal();
     });
 
-    const modal = document.createElement(“div”);
-    modal.className = “browserclaw-modal”;
-    modal.setAttribute(“role”, “dialog”);
-    modal.setAttribute(“aria-modal”, “true”);
-    modal.setAttribute(“aria-labelledby”, “browserclaw-modal-title”);
+    const modal = document.createElement("div");
+    modal.className = "browserclaw-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "browserclaw-modal-title");
 
-    const header = document.createElement(“div”);
-    header.className = “browserclaw-modal-header”;
-    const title = document.createElement(“span”);
-    title.id = “browserclaw-modal-title”;
-    title.textContent = “Browserclaw”;
-    const closeBtn = document.createElement(“button”);
-    closeBtn.type = “button”;
-    closeBtn.className = “browserclaw-modal-close”;
-    closeBtn.setAttribute(“aria-label”, “Close”);
-    closeBtn.textContent = “×”;
-    closeBtn.addEventListener(“click”, closeModal);
+    const header = document.createElement("div");
+    header.className = "browserclaw-modal-header";
+    const title = document.createElement("span");
+    title.id = "browserclaw-modal-title";
+    title.textContent = "Browserclaw";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "browserclaw-modal-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.textContent = "×";
+    closeBtn.addEventListener("click", closeModal);
     header.appendChild(title);
     header.appendChild(closeBtn);
 
-    const body = document.createElement(“div”);
-    body.className = “browserclaw-modal-body”;
+    const body = document.createElement("div");
+    body.className = "browserclaw-modal-body";
 
-    const settingsBtn = document.createElement(“button”);
-    settingsBtn.type = “button”;
-    settingsBtn.className = “browserclaw-modal-settings”;
-    settingsBtn.textContent = “Extension options”;
-    settingsBtn.addEventListener(“click”, () => {
+    const settingsBtn = document.createElement("button");
+    settingsBtn.type = "button";
+    settingsBtn.className = "browserclaw-modal-settings";
+    settingsBtn.textContent = "Extension options";
+    settingsBtn.addEventListener("click", () => {
       chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS_PAGE }, () => {
         void chrome.runtime.lastError;
       });
@@ -247,7 +247,7 @@
     modal.appendChild(body);
     modalBackdrop.appendChild(modal);
     root.appendChild(modalBackdrop);
-    document.addEventListener(“keydown”, onEscapeKey, true);
+    document.addEventListener("keydown", onEscapeKey, true);
   }
 
   fab.addEventListener("click", (e) => {
