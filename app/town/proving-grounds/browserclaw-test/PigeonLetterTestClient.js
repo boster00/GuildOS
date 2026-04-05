@@ -14,7 +14,10 @@ const DEFAULT_PAYLOAD = JSON.stringify(
 
 export default function PigeonLetterTestClient({ quests }) {
   const DEFAULT_QUEST_ID = "acdf9b82-2502-4201-a139-87fd08c1f92e";
-  const [questId, setQuestId] = useState(quests.find((q) => q.id === DEFAULT_QUEST_ID)?.id ?? quests[0]?.id ?? DEFAULT_QUEST_ID);
+  const questList = Array.isArray(quests) ? quests : [];
+  const [questId, setQuestId] = useState(
+    questList.find((q) => q.id === DEFAULT_QUEST_ID)?.id ?? questList[0]?.id ?? DEFAULT_QUEST_ID
+  );
   const [channel, setChannel] = useState("browserclaw");
   const [payloadText, setPayloadText] = useState(DEFAULT_PAYLOAD);
   const [result, setResult] = useState(null);
@@ -59,14 +62,14 @@ export default function PigeonLetterTestClient({ quests }) {
       {/* Quest */}
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium">Quest</label>
-        {quests.length > 0 ? (
+        {questList.length > 0 ? (
           <select
             className="select select-bordered w-full"
             value={questId}
             onChange={(e) => setQuestId(e.target.value)}
             required
           >
-            {quests.map((q) => (
+            {questList.map((q) => (
               <option key={q.id} value={q.id}>
                 {q.title || q.id} ({q.stage})
               </option>
