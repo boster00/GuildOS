@@ -5,9 +5,15 @@ const SETTINGS = globalThis.BROWSERCLAW_SETTINGS;
 
 const K_PENDING = SETTINGS.STORAGE_KEY_PIGEON_PENDING_LIST;
 const K_EXEC = SETTINGS.STORAGE_KEY_PIGEON_EXECUTION;
+const K_AUTO_PILOT = SETTINGS.STORAGE_KEY_AUTO_PILOT_ENABLED;
+const K_AUTO_PILOT_STATUS = SETTINGS.STORAGE_KEY_AUTO_PILOT_STATUS;
+const ALARM_NAME = "bc_auto_pilot";
 
 /** @type {boolean} */
 let pigeonRunLock = false;
+
+/** @type {boolean} */
+let autoPilotRunning = false;
 
 function logTabEvent(label, details) {
   console.log(`[Browserclaw background] ${label}`, details);
@@ -648,9 +654,181 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === MSG.AUTO_PILOT_SET) {
+    const enabled = Boolean(message.enabled);
+    chrome.storage.local.set({ [K_AUTO_PILOT]: enabled }, () => {
+      syncAutoPilotAlarm(enabled).then(() => {
+        if (enabled) autoPilotTick();
+        sendResponse({ ok: true });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === MSG.AUTO_PILOT_GET) {
+    chrome.storage.local.get([K_AUTO_PILOT, K_AUTO_PILOT_STATUS], (data) => {
+      sendResponse({
+        ok: true,
+        enabled: data[K_AUTO_PILOT] === true,
+        status: data[K_AUTO_PILOT_STATUS] ?? "idle",
+      });
+    });
+    return true;
+  }
+
   return undefined;
 });
 
+// ── Auto-pilot ────────────────────────────────────────────────────────────────
+
+/**
+ * Like normalizeLetterSteps but does not require `item` key — allows
+ * navigation-only steps.
+ * @param {unknown} letter
+ * @returns {Array<Record<string, unknown>>}
+ */
+function normalizeStepsForAutoPilot(letter) {
+  if (!letter || typeof letter !== "object" || Array.isArray(letter)) return [];
+  const L = /** @type {Record<string, unknown>} */ (letter);
+  const src = Array.isArray(L.steps) && L.steps.length > 0 ? L.steps : [L];
+  const out = [];
+  for (const s of src) {
+    if (!s || typeof s !== "object" || Array.isArray(s)) continue;
+    const step = /** @type {Record<string, unknown>} */ (s);
+    if (!step.action) continue;
+    out.push({ ...step });
+  }
+  return out;
+}
+
+/**
+ * Open a background tab, run all steps, collect items, close tab.
+ * @param {object} letter
+ * @returns {Promise<{ok: boolean, items: Record<string, unknown>, error?: string}>}
+ */
+async function executeLetterInNewTab(letter) {
+  const steps = normalizeStepsForAutoPilot(letter);
+  if (!steps.length) return { ok: false, items: {}, error: "No steps in letter." };
+
+  let tab;
+  try {
+    tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  } catch (e) {
+    return { ok: false, items: {}, error: `Could not open tab: ${e.message}` };
+  }
+
+  const tabId = tab.id;
+  const items = {};
+
+  try {
+    for (const step of steps) {
+      const url = step.url != null ? String(step.url).trim() : "";
+      if (url) {
+        await chrome.tabs.update(tabId, { url });
+        await waitForTabComplete(tabId, 25000);
+        await new Promise((r) => setTimeout(r, 400));
+      }
+
+      const action = String(step.action ?? "navigate");
+      if (action === "navigate") continue;
+      if (action === "wait") {
+        const sec = Math.min(120, Math.max(0, Number(step.seconds) || 0));
+        await new Promise((r) => setTimeout(r, sec * 1000));
+        if (step.item) items[String(step.item)] = { waitedSeconds: sec };
+        continue;
+      }
+
+      const ready = await pingContentReady(tabId);
+      if (!ready) {
+        return { ok: false, items, error: "Content script not ready in auto-pilot tab." };
+      }
+
+      const tabPayload = { ...step };
+      delete tabPayload.type;
+      let execR;
+      try {
+        execR = await chrome.tabs.sendMessage(tabId, { ...tabPayload, type: MSG.PIGEON_EXECUTE_ACTION });
+      } catch (e) {
+        return { ok: false, items, error: `sendMessage failed: ${e.message}` };
+      }
+      if (!execR || execR.ok === false) {
+        return { ok: false, items, error: execR?.error || "Step action failed." };
+      }
+      if (step.item) items[String(step.item)] = execR.value ?? null;
+    }
+    return { ok: true, items };
+  } finally {
+    chrome.tabs.remove(tabId).catch(() => {});
+  }
+}
+
+/**
+ * @param {boolean} enabled
+ */
+async function syncAutoPilotAlarm(enabled) {
+  if (enabled) {
+    const existing = await chrome.alarms.get(ALARM_NAME);
+    if (!existing) {
+      chrome.alarms.create(ALARM_NAME, { delayInMinutes: 0.017, periodInMinutes: 1 });
+    }
+  } else {
+    await chrome.alarms.clear(ALARM_NAME);
+  }
+}
+
+async function autoPilotTick() {
+  if (autoPilotRunning) return;
+  autoPilotRunning = true;
+  await chrome.storage.local.set({ [K_AUTO_PILOT_STATUS]: "running" });
+  try {
+    const letters = await fetchPendingLettersFromApi();
+    await savePendingAndPruneExecution(letters);
+    console.log(`[Browserclaw auto-pilot] tick — ${letters.length} pending letters`);
+
+    for (const letter of letters) {
+      const questId = String(letter.questId ?? "");
+      const letterId = String(letter.letterId ?? "");
+      if (!questId || !letterId) continue;
+      console.log(`[Browserclaw auto-pilot] executing letter ${letterId}`);
+      const result = await executeLetterInNewTab(letter);
+      if (!result.ok) {
+        console.warn(`[Browserclaw auto-pilot] letter ${letterId} failed:`, result.error);
+        continue;
+      }
+      if (Object.keys(result.items).length > 0) {
+        try {
+          await postDeliverToPigeonApi(questId, letterId, result.items);
+          await removeLetterFromPendingStorage(letterId);
+          console.log(`[Browserclaw auto-pilot] letter ${letterId} delivered`);
+        } catch (e) {
+          console.error(`[Browserclaw auto-pilot] deliver failed for ${letterId}:`, e.message);
+        }
+      }
+    }
+    await chrome.storage.local.set({ [K_AUTO_PILOT_STATUS]: "idle" });
+  } catch (e) {
+    console.error("[Browserclaw auto-pilot] tick error", e);
+    await chrome.storage.local.set({ [K_AUTO_PILOT_STATUS]: "error" });
+  } finally {
+    autoPilotRunning = false;
+  }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM_NAME) autoPilotTick();
+});
+
+// Resume alarm if SW was killed while auto-pilot was enabled
+chrome.storage.local.get(K_AUTO_PILOT, (data) => {
+  if (data[K_AUTO_PILOT] === true) {
+    syncAutoPilotAlarm(true);
+    autoPilotTick();
+  }
+});
+
+
 chrome.runtime.onInstalled.addListener((details) => {
   logTabEvent("runtime.onInstalled", { reason: details.reason });
+  // Clean up stale keys from old WS/native host storage
+  chrome.storage.local.remove(["bcWsEnabled", "bcNativeEnabled"]);
 });

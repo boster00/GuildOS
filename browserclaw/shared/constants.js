@@ -10,6 +10,8 @@ globalThis.BROWSERCLAW_MSG = Object.freeze({
   PIGEON_SEND_PIGEON_RESULT: "browserclaw:pigeon_send_pigeon_result",
   PIGEON_GET_EXECUTION: "browserclaw:pigeon_get_execution",
   PIGEON_EXECUTE_ACTION: "browserclaw:pigeon_execute_action",
+  AUTO_PILOT_SET: "browserclaw:auto_pilot_set",
+  AUTO_PILOT_GET: "browserclaw:auto_pilot_get",
 });
 
 /**
@@ -24,6 +26,8 @@ globalThis.BROWSERCLAW_SETTINGS = Object.freeze({
   STORAGE_KEY_PIGEON_API_KEY: "browserclaw_pigeonApiKey",
   STORAGE_KEY_PIGEON_PENDING_LIST: "browserclaw_pigeonPendingList",
   STORAGE_KEY_PIGEON_EXECUTION: "browserclaw_pigeonExecution",
+  STORAGE_KEY_AUTO_PILOT_ENABLED: "browserclaw_autoPilotEnabled",
+  STORAGE_KEY_AUTO_PILOT_STATUS: "browserclaw_autoPilotStatus",
 });
 
 /**

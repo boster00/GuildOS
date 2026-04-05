@@ -153,3 +153,86 @@ code {
 .bc-status--err {
   color: #b91c1c;
 }
+
+/* ── Pending letters panel ────────────────────────────────────── */
+
+.bc-letters-section {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.bc-letters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.bc-letters-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.bc-refresh-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  color: #475569;
+}
+
+.bc-refresh-btn:hover {
+  background: #f1f5f9;
+}
+
+.bc-letters-list {
+  font-size: 13px;
+  color: #475569;
+  min-height: 32px;
+}
+
+.bc-letter-row {
+  border-top: 1px solid #f1f5f9;
+  padding: 10px 0;
+}
+
+.bc-letter-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.bc-letter-meta {
+  font-weight: 500;
+  color: #0f172a;
+  margin-bottom: 4px;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.bc-letter-steps {
+  font-size: 12px;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+}
+
+/* ── Spinner ──────────────────────────────────────────────────── */
+
+@keyframes bc-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bc-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #db2777;
+  border-radius: 50%;
+  animation: bc-spin 0.7s linear infinite;
+  vertical-align: middle;
+}
