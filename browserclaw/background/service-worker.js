@@ -616,6 +616,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === MSG.PIGEON_EXEC_STEP) {
+    const { letter, stepIndex, tabId } = message;
+    executeOneStep(letter, stepIndex, tabId ?? null).then((r) => sendResponse(r));
+    return true;
+  }
+
+  if (message.type === MSG.PIGEON_DELIVER_LETTER) {
+    const { questId, letterId, items } = message;
+    postDeliverToPigeonApi(questId, letterId, items || {})
+      .then(() => removeLetterFromPendingStorage(letterId))
+      .then(() => sendResponse({ ok: true }))
+      .catch((e) => sendResponse({ ok: false, error: String(e.message) }));
+    return true;
+  }
+
+  if (message.type === MSG.PIGEON_CLOSE_TAB) {
+    if (message.tabId != null) chrome.tabs.remove(message.tabId).catch(() => {});
+    sendResponse({ ok: true });
+    return true;
+  }
+
   if (message.type === MSG.AUTO_PILOT_SET) {
     const enabled = Boolean(message.enabled);
     chrome.storage.local.set({ [K_AUTO_PILOT]: enabled }, () => {
@@ -782,6 +803,59 @@ chrome.storage.local.get(K_AUTO_PILOT, (data) => {
   }
 });
 
+
+// ── Step-by-step execution (settings page manual / auto mode) ─────────────────
+
+/**
+ * Execute a single step in a tab (creating one if needed). Tab stays open.
+ * @param {object} letter
+ * @param {number} stepIndex
+ * @param {number|null} existingTabId
+ * @returns {Promise<{ok: boolean, value: unknown, tabId: number, error?: string}>}
+ */
+async function executeOneStep(letter, stepIndex, existingTabId) {
+  const steps = normalizeStepsForAutoPilot(letter);
+  const step = steps[stepIndex];
+  if (!step) {
+    return { ok: false, value: null, tabId: existingTabId ?? null, error: "Step index out of range" };
+  }
+
+  let tabId = existingTabId ?? null;
+  if (tabId != null) {
+    try { await chrome.tabs.get(tabId); } catch { tabId = null; }
+  }
+  if (tabId == null) {
+    const tab = await chrome.tabs.create({ url: "about:blank", active: false });
+    tabId = tab.id;
+  }
+
+  const url = step.url != null ? String(step.url).trim() : "";
+  if (url) {
+    await chrome.tabs.update(tabId, { url });
+    await waitForTabComplete(tabId, 25000);
+    await new Promise((r) => setTimeout(r, 400));
+  }
+
+  const action = String(step.action ?? "navigate");
+  if (action === "navigate") return { ok: true, value: null, tabId };
+
+  const ready = await pingContentReady(tabId);
+  if (!ready) {
+    return { ok: false, value: null, tabId, error: "Content script not responding in tab." };
+  }
+
+  const payload = { ...step };
+  delete payload.type;
+  try {
+    const r = await chrome.tabs.sendMessage(tabId, { ...payload, type: MSG.PIGEON_EXECUTE_ACTION });
+    if (!r || r.ok === false) {
+      return { ok: false, value: null, tabId, error: r?.error || "Action failed." };
+    }
+    return { ok: true, value: r.value ?? null, tabId };
+  } catch (e) {
+    return { ok: false, value: null, tabId, error: String(e.message) };
+  }
+}
 
 chrome.runtime.onInstalled.addListener((details) => {
   logTabEvent("runtime.onInstalled", { reason: details.reason });

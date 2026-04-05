@@ -53,6 +53,17 @@
           <button type="button" id="bc-letters-refresh" class="bc-refresh-btn">Refresh</button>
         </div>
         <div id="bc-letters-list" class="bc-letters-list" aria-live="polite">Loading…</div>
+
+        <div id="bc-exec-controls" class="bc-exec-controls" style="display:none">
+          <div class="bc-exec-toolbar">
+            <button type="button" id="bc-do-next" class="bc-do-next-btn">&#9654; Do next step</button>
+            <label class="bc-label bc-label--row bc-auto-exec-label">
+              <input type="checkbox" id="bc-auto-exec" />
+              <span>Auto execute</span>
+            </label>
+          </div>
+          <p id="bc-exec-status" class="bc-exec-status" aria-live="polite"></p>
+        </div>
       </section>
     </div>
     <script src="../shared/constants.js"></script>

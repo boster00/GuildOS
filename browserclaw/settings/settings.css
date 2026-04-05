@@ -220,6 +220,129 @@ code {
   font-family: ui-monospace, monospace;
 }
 
+/* ── Step checklist ───────────────────────────────────────────── */
+
+.bc-step-group {
+  margin-bottom: 16px;
+}
+
+.bc-step-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+
+.bc-step-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+  color: #64748b;
+}
+
+.bc-step-item--current {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.bc-step-item--done {
+  color: #94a3b8;
+}
+
+.bc-step-item--error {
+  color: #b91c1c;
+}
+
+.bc-step-icon {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  font-style: normal;
+}
+
+.bc-step-item--current .bc-step-icon {
+  color: #db2777;
+}
+
+.bc-step-item--done .bc-step-icon {
+  color: #15803d;
+}
+
+.bc-step-item--error .bc-step-icon {
+  color: #b91c1c;
+}
+
+.bc-step-label {
+  flex: 1;
+}
+
+.bc-step-result {
+  font-size: 11px;
+  color: #64748b;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* ── Execution controls ───────────────────────────────────────── */
+
+.bc-exec-controls {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.bc-exec-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bc-do-next-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #db2777, #6366f1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bc-do-next-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.bc-do-next-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bc-auto-exec-label {
+  font-size: 13px;
+  color: #0f172a;
+  margin: 0;
+}
+
+.bc-exec-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #475569;
+  min-height: 1.3em;
+}
+
+.bc-exec-status--ok { color: #15803d; }
+.bc-exec-status--err { color: #b91c1c; }
+
 /* ── Spinner ──────────────────────────────────────────────────── */
 
 @keyframes bc-spin {

@@ -12,6 +12,9 @@ globalThis.BROWSERCLAW_MSG = Object.freeze({
   PIGEON_EXECUTE_ACTION: "browserclaw:pigeon_execute_action",
   AUTO_PILOT_SET: "browserclaw:auto_pilot_set",
   AUTO_PILOT_GET: "browserclaw:auto_pilot_get",
+  PIGEON_EXEC_STEP: "browserclaw:pigeon_exec_step",
+  PIGEON_DELIVER_LETTER: "browserclaw:pigeon_deliver_letter",
+  PIGEON_CLOSE_TAB: "browserclaw:pigeon_close_tab",
 });
 
 /**
