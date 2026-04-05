@@ -93,3 +93,25 @@ export async function getPendingPigeonLetters(userId) {
 
   return Array.from(byQuest.values()).filter((g) => g.letters.length > 0);
 }
+
+/**
+ * Insert a new pending pigeon letter into the `pigeon_letters` table.
+ * @param {string} userId
+ * @param {{ questId: string, channel: string, payload: object }} opts
+ * @returns {Promise<{ data: object|null, error: object|null }>}
+ */
+export async function createPigeonLetter(userId, { questId, channel, payload }) {
+  const db = await database.init("service");
+  const { data, error } = await db
+    .from("pigeon_letters")
+    .insert({
+      quest_id: questId,
+      owner_id: userId,
+      channel: channel || "browserclaw",
+      payload: payload || {},
+      status: "pending",
+    })
+    .select("id, quest_id, channel, payload, status, created_at")
+    .single();
+  return { data, error };
+}

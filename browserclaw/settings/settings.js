@@ -46,11 +46,76 @@
 
     chrome.storage.local.set(payload, () => {
       if (chrome.runtime.lastError) { setStatus(chrome.runtime.lastError.message, "err"); return; }
-      // Notify background SW to start/stop alarm
       chrome.runtime.sendMessage({ type: MSG.AUTO_PILOT_SET, enabled }, () => {
         void chrome.runtime.lastError;
       });
       setStatus("Saved.", "ok");
+      toggleLettersSection(enabled);
+      if (enabled) loadPendingLetters();
     });
+  });
+
+  // ── Pending letters panel ──────────────────────────────────────────
+
+  const lettersSection = document.getElementById("bc-letters-section");
+  const lettersList = document.getElementById("bc-letters-list");
+  const lettersRefreshBtn = document.getElementById("bc-letters-refresh");
+
+  function toggleLettersSection(visible) {
+    if (lettersSection) lettersSection.style.display = visible ? "" : "none";
+  }
+
+  async function loadPendingLetters() {
+    if (!lettersList) return;
+    lettersList.textContent = "Loading…";
+    try {
+      const stored = await new Promise((res) => chrome.storage.local.get([guildosKey, pigeonKey], res));
+      const base = (stored[guildosKey] || SETTINGS_META.DEFAULT_GUILDOS_BASE_URL).replace(/\/$/, "");
+      const apiKey = stored[pigeonKey] || "";
+      const headers = { Accept: "application/json" };
+      if (apiKey) headers["X-Pigeon-Key"] = apiKey;
+      const res = await fetch(`${base}/api/pigeon-post?action=pending`, { headers });
+      if (!res.ok) { lettersList.textContent = `Error ${res.status}`; return; }
+      const groups = await res.json();
+      renderLetters(groups);
+    } catch (e) {
+      lettersList.textContent = e.message || "Fetch failed";
+    }
+  }
+
+  function renderLetters(groups) {
+    if (!lettersList) return;
+    if (!Array.isArray(groups) || groups.length === 0) {
+      lettersList.textContent = "No pending letters.";
+      return;
+    }
+    lettersList.innerHTML = "";
+    for (const g of groups) {
+      for (const letter of (g.letters || [])) {
+        const row = document.createElement("div");
+        row.className = "bc-letter-row";
+        const meta = document.createElement("div");
+        meta.className = "bc-letter-meta";
+        meta.textContent = `${g.questTitle || g.questId} · ${letter.channel || ""} · ${letter.letterId}`;
+        const steps = letter.steps;
+        const stepSummary = document.createElement("div");
+        stepSummary.className = "bc-letter-steps";
+        stepSummary.textContent = Array.isArray(steps)
+          ? steps.map((s, i) => `${i + 1}. ${s.action}${s.url ? " → " + s.url : ""}${s.selector ? " [" + s.selector + "]" : ""}`).join("  |  ")
+          : "(no steps)";
+        row.appendChild(meta);
+        row.appendChild(stepSummary);
+        lettersList.appendChild(row);
+      }
+    }
+  }
+
+  lettersRefreshBtn?.addEventListener("click", loadPendingLetters);
+
+  // Show panel and load if already enabled on page open
+  chrome.storage.local.get(autoPilotKey, (data) => {
+    const on = data[autoPilotKey] === true;
+    toggleLettersSection(on);
+    if (on) loadPendingLetters();
   });
 })();

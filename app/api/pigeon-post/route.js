@@ -4,12 +4,12 @@
  * POST deliver: session or `X-Pigeon-Key` (see handler for owner checks).
  */
 import { requireUser } from "@/libs/council/auth/server";
-import { getPendingPigeonLetters } from "@/libs/pigeon_post";
+import { getPendingPigeonLetters, createPigeonLetter } from "@/libs/pigeon_post";
 import { deliverPigeonResult } from "@/libs/weapon/pigeon";
 import { getQuest } from "@/libs/quest";
 
 const GET_ACTIONS = ["pending"];
-const POST_ACTIONS = ["deliver"];
+const POST_ACTIONS = ["deliver", "create"];
 
 const LOG = "[pigeon-post]";
 
@@ -182,6 +182,31 @@ export async function POST(request) {
     }
     console.info(`${LOG} POST deliver: success`, { questId, delivered });
     return Response.json({ ok: true, delivered });
+  }
+
+  if (action === "create") {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const { questId, channel, payload } = body;
+    if (!questId || typeof questId !== "string") {
+      return Response.json({ error: "questId is required" }, { status: 400 });
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return Response.json({ error: "payload must be a JSON object" }, { status: 400 });
+    }
+    let user;
+    try {
+      user = await requireUser();
+    } catch {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { data, error } = await createPigeonLetter(user.id, { questId, channel, payload });
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ ok: true, letter: data });
   }
 
   return Response.json({ error: "Unhandled action" }, { status: 500 });

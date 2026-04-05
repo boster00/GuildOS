@@ -46,6 +46,14 @@
         <button type="submit" class="bc-save">Save</button>
       </form>
       <p id="bc-settings-status" class="bc-status" aria-live="polite"></p>
+
+      <section id="bc-letters-section" class="bc-letters-section" style="display:none">
+        <div class="bc-letters-head">
+          <span class="bc-letters-title">Pending letters</span>
+          <button type="button" id="bc-letters-refresh" class="bc-refresh-btn">Refresh</button>
+        </div>
+        <div id="bc-letters-list" class="bc-letters-list" aria-live="polite">Loading…</div>
+      </section>
     </div>
     <script src="../shared/constants.js"></script>
     <script src="settings.js"></script>
