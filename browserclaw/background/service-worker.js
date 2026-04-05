@@ -122,7 +122,7 @@ function normalizeLetterSteps(letter) {
 function normalizeOneStep(step) {
   if (!step || typeof step !== "object" || Array.isArray(step)) return null;
   const s = /** @type {Record<string, unknown>} */ (step);
-  const action = String(s.action ?? "obtainText");
+  const action = String(s.action ?? "get");
   const selector = String(s.selector ?? "");
   const item = String(s.item ?? "").trim();
   if (!item) return null;
@@ -402,44 +402,6 @@ async function executePigeonNextStep() {
       await new Promise((r) => setTimeout(r, 250));
     }
 
-    const stepAction = String(step.action ?? "obtainText");
-    if (stepAction === "wait") {
-      const sec = Math.min(120, Math.max(0, Number(step.seconds) || 0));
-      await new Promise((r) => setTimeout(r, sec * 1000));
-      const val = { waitedSeconds: sec };
-      items[step.item] = val;
-      const valueStr = JSON.stringify(val);
-      const entry = {
-        at: Date.now(),
-        stepIndex,
-        item: step.item,
-        action: step.action,
-        selector: step.selector,
-        ok: true,
-        value: valueStr,
-      };
-      stepLog.push(entry);
-      const nextIndex = stepIndex + 1;
-      const phase = nextIndex >= steps.length ? "ready_to_send" : "active";
-      await persistExecution({
-        phase,
-        questId,
-        letterId,
-        steps,
-        stepIndex: nextIndex,
-        items: { ...items },
-        stepLog,
-        errorMessage: undefined,
-      });
-      return {
-        ok: true,
-        stepLogEntry: entry,
-        readyToSend: phase === "ready_to_send",
-        stepsCompleted: nextIndex,
-        totalSteps: steps.length,
-      };
-    }
-
     const ready = await pingContentReady(tabId);
     if (!ready) {
       const errMsg =
@@ -500,7 +462,7 @@ async function executePigeonNextStep() {
     }
 
     const val = execR.value ?? null;
-    items[step.item] = val;
+    if (step.item) items[step.item] = val;
     const valueStr =
       typeof val === "string" ? val : val != null && typeof val === "object" ? JSON.stringify(val) : val != null ? String(val) : "";
     const entry = {
@@ -731,12 +693,6 @@ async function executeLetterInNewTab(letter) {
 
       const action = String(step.action ?? "navigate");
       if (action === "navigate") continue;
-      if (action === "wait") {
-        const sec = Math.min(120, Math.max(0, Number(step.seconds) || 0));
-        await new Promise((r) => setTimeout(r, sec * 1000));
-        if (step.item) items[String(step.item)] = { waitedSeconds: sec };
-        continue;
-      }
 
       const ready = await pingContentReady(tabId);
       if (!ready) {
