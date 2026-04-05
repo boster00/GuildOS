@@ -50,8 +50,6 @@
         void chrome.runtime.lastError;
       });
       setStatus("Saved.", "ok");
-      toggleLettersSection(enabled);
-      if (enabled) loadPendingLetters();
     });
   });
 
@@ -67,7 +65,7 @@
 
   async function loadPendingLetters() {
     if (!lettersList) return;
-    lettersList.textContent = "Loading…";
+    lettersList.innerHTML = '<span class="bc-spinner"></span>';
     try {
       const stored = await new Promise((res) => chrome.storage.local.get([guildosKey, pigeonKey], res));
       const base = (stored[guildosKey] || SETTINGS_META.DEFAULT_GUILDOS_BASE_URL).replace(/\/$/, "");
@@ -96,12 +94,12 @@
         row.className = "bc-letter-row";
         const meta = document.createElement("div");
         meta.className = "bc-letter-meta";
-        meta.textContent = `${g.questTitle || g.questId} · ${letter.channel || ""} · ${letter.letterId}`;
+        meta.textContent = `${g.questTitle || g.questId} \u00b7 ${letter.channel || ""} \u00b7 ${letter.letterId}`;
         const steps = letter.steps;
         const stepSummary = document.createElement("div");
         stepSummary.className = "bc-letter-steps";
         stepSummary.textContent = Array.isArray(steps)
-          ? steps.map((s, i) => `${i + 1}. ${s.action}${s.url ? " → " + s.url : ""}${s.selector ? " [" + s.selector + "]" : ""}`).join("  |  ")
+          ? steps.map((s, i) => `${i + 1}. ${s.action}${s.url ? " -> " + s.url : ""}${s.selector ? " [" + s.selector + "]" : ""}`).join("  |  ")
           : "(no steps)";
         row.appendChild(meta);
         row.appendChild(stepSummary);
@@ -111,6 +109,16 @@
   }
 
   lettersRefreshBtn?.addEventListener("click", loadPendingLetters);
+
+  // Toggle change: immediately show/hide panel + spinner
+  autoPilotChk?.addEventListener("change", () => {
+    if (autoPilotChk.checked) {
+      toggleLettersSection(true);
+      loadPendingLetters();
+    } else {
+      toggleLettersSection(false);
+    }
+  });
 
   // Show panel and load if already enabled on page open
   chrome.storage.local.get(autoPilotKey, (data) => {

@@ -200,7 +200,6 @@
 
   function openModal() {
     closeModal();
-
     modalBackdrop = document.createElement("div");
     modalBackdrop.className = "browserclaw-modal-backdrop";
     modalBackdrop.setAttribute("role", "presentation");
@@ -216,26 +215,29 @@
 
     const header = document.createElement("div");
     header.className = "browserclaw-modal-header";
+
     const title = document.createElement("span");
     title.id = "browserclaw-modal-title";
     title.textContent = "Browserclaw";
+
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "browserclaw-modal-close";
     closeBtn.setAttribute("aria-label", "Close");
-    closeBtn.textContent = "×";
+    closeBtn.textContent = "\u00d7";
     closeBtn.addEventListener("click", closeModal);
+
     header.appendChild(title);
     header.appendChild(closeBtn);
 
     const body = document.createElement("div");
     body.className = "browserclaw-modal-body";
 
-    const settingsBtn = document.createElement("button");
-    settingsBtn.type = "button";
-    settingsBtn.className = "browserclaw-modal-settings";
-    settingsBtn.textContent = "Extension options";
-    settingsBtn.addEventListener("click", () => {
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'browserclaw-modal-settings';
+    settingsBtn.textContent = 'Extension options';
+    settingsBtn.addEventListener('click', () => {
       chrome.runtime.sendMessage({ type: MSG.OPEN_OPTIONS_PAGE }, () => {
         void chrome.runtime.lastError;
       });
@@ -243,11 +245,12 @@
     });
 
     body.appendChild(settingsBtn);
+
     modal.appendChild(header);
     modal.appendChild(body);
     modalBackdrop.appendChild(modal);
     root.appendChild(modalBackdrop);
-    document.addEventListener("keydown", onEscapeKey, true);
+    document.addEventListener('keydown', onEscapeKey, true);
   }
 
   fab.addEventListener("click", (e) => {
@@ -268,65 +271,27 @@
   }
 
   /**
-   * Poll until a selector matches and/or page text contains targetString (pigeon listenFor).
+   * Dispatch a realistic pointer + mouse + click sequence on an element.
+   * @param {Element} el
    */
-  function runListenFor(message, sendResponse) {
-    const selector = typeof message.selector === "string" ? message.selector.trim() : "";
-    const targetRaw = message.targetString != null ? String(message.targetString) : "";
-    const targetString = targetRaw.trim();
-    if (!selector && !targetString) {
-      sendResponse({ ok: false, error: "listenFor requires a non-empty selector and/or targetString" });
-      return;
-    }
-
-    const intervalMs = Math.min(2000, Math.max(100, Number(message.intervalMs) || 250));
-    const timeoutMs = Math.min(120000, Math.max(500, Number(message.timeoutMs) || 30000));
-    const start = Date.now();
-
-    function check() {
-      let hit = false;
-      if (selector) {
-        const el = document.querySelector(selector);
-        if (!el) {
-          hit = false;
-        } else if (targetString) {
-          const t = el.innerText != null ? String(el.innerText) : String(el.textContent || "");
-          hit = t.includes(targetString);
-        } else {
-          hit = true;
-        }
-      } else {
-        const body = document.body;
-        const hay = body
-          ? body.innerText != null
-            ? String(body.innerText)
-            : String(body.textContent || "")
-          : "";
-        hit = hay.includes(targetString);
-      }
-
-      if (hit) {
-        sendResponse({
-          ok: true,
-          value: {
-            matched: true,
-            ...(selector ? { selector } : {}),
-            ...(targetString ? { targetString } : {}),
-          },
-        });
-        return;
-      }
-      if (Date.now() - start >= timeoutMs) {
-        sendResponse({
-          ok: false,
-          error: `listenFor timed out after ${timeoutMs}ms (selector="${selector}", targetString="${targetString}")`,
-        });
-        return;
-      }
-      setTimeout(check, intervalMs);
-    }
-
-    check();
+  function performClick(el) {
+    const rect = el.getBoundingClientRect();
+    const cx = Math.round(rect.left + rect.width / 2);
+    const cy = Math.round(rect.top + rect.height / 2);
+    const shared = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
+    const ptr = { ...shared, pointerId: 1, isPrimary: true, pointerType: "mouse" };
+    el.dispatchEvent(new PointerEvent("pointerover", ptr));
+    el.dispatchEvent(new PointerEvent("pointerenter", { ...ptr, bubbles: false }));
+    el.dispatchEvent(new MouseEvent("mouseover", shared));
+    el.dispatchEvent(new MouseEvent("mouseenter", { ...shared, bubbles: false }));
+    el.dispatchEvent(new PointerEvent("pointermove", ptr));
+    el.dispatchEvent(new MouseEvent("mousemove", shared));
+    el.dispatchEvent(new PointerEvent("pointerdown", { ...ptr, button: 0, buttons: 1 }));
+    el.dispatchEvent(new MouseEvent("mousedown", { ...shared, button: 0, buttons: 1 }));
+    if (typeof el.focus === "function") el.focus({ preventScroll: true });
+    el.dispatchEvent(new PointerEvent("pointerup", { ...ptr, button: 0, buttons: 0 }));
+    el.dispatchEvent(new MouseEvent("mouseup", { ...shared, button: 0, buttons: 0 }));
+    el.dispatchEvent(new MouseEvent("click", { ...shared, button: 0, buttons: 0 }));
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -343,59 +308,129 @@
     }
 
     if (message?.type === MSG.PIGEON_EXECUTE_ACTION) {
-      const actionName = message.action != null ? String(message.action) : "obtainText";
-      if (actionName === "listenFor") {
-        runListenFor(message, sendResponse);
+      const actionName = message.action != null ? String(message.action) : "get";
+
+      // ── click ────────────────────────────────────────────────────────────────
+      if (actionName === "click") {
+        const el = document.querySelector(message.selector || "");
+        if (!el) {
+          sendResponse({ ok: false, error: `No element for selector: ${message.selector}` });
+          return true;
+        }
+        performClick(el);
+        sendResponse({ ok: true, value: { clicked: true } });
         return true;
       }
-      if (actionName === "obtainText") {
-        const el = document.querySelector(message.selector || "");
-        let text = "";
-        if (el) {
-          text = el.innerText != null ? String(el.innerText) : String(el.textContent || "");
-        }
-        sendResponse({ ok: !!el, value: el ? text.trim() : null });
-      } else if (actionName === "typeText") {
-        const el = document.querySelector(message.selector || "");
-        if (el) {
-          el.focus();
-          el.value = "";
-          el.dispatchEvent(new Event("focus", { bubbles: true }));
-          const text = String(message.text || "");
-          for (const ch of text) {
-            el.value += ch;
-            el.dispatchEvent(new InputEvent("input", { bubbles: true, data: ch, inputType: "insertText" }));
+
+      // ── wait (seconds, then optional selector poll for up to 30s) ────────────
+      if (actionName === "wait") {
+        const seconds = Math.min(120, Math.max(0, Number(message.seconds) || 0));
+        const selector = message.selector != null ? String(message.selector).trim() : "";
+        setTimeout(() => {
+          if (!selector) {
+            sendResponse({ ok: true, value: { waited: seconds } });
+            return;
           }
-          el.dispatchEvent(new Event("change", { bubbles: true }));
-          sendResponse({ ok: true, value: text });
-        } else {
-          sendResponse({ ok: false, error: "Element not found: " + (message.selector || "") });
-        }
-      } else if (actionName === "click") {
-        const el = document.querySelector(message.selector || "");
-        if (el) {
-          el.click();
-          sendResponse({ ok: true, value: "clicked" });
-        } else {
-          sendResponse({ ok: false, error: "Element not found: " + (message.selector || "") });
-        }
-      } else if (actionName === "pressKey") {
-        const key = String(message.key || "Enter");
-        const target = message.selector ? document.querySelector(message.selector) : document.activeElement;
-        if (target) {
-          target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-          target.dispatchEvent(new KeyboardEvent("keypress", { key, bubbles: true }));
-          target.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
-          if (key === "Enter" && target.form) target.form.submit();
-          sendResponse({ ok: true, value: "pressed:" + key });
-        } else {
-          sendResponse({ ok: false, error: "No target for key press" });
-        }
-      } else if (actionName === "getPageInfo") {
-        sendResponse({ ok: true, value: { title: document.title, url: location.href } });
-      } else {
-        sendResponse({ ok: false, error: `Unknown action: ${actionName}` });
+          const pollStart = Date.now();
+          const poll = setInterval(() => {
+            if (document.querySelector(selector)) {
+              clearInterval(poll);
+              sendResponse({ ok: true, value: { waited: seconds, found: selector } });
+            } else if (Date.now() - pollStart >= 30000) {
+              clearInterval(poll);
+              sendResponse({ ok: false, error: `Selector "${selector}" not found within 30s` });
+            }
+          }, 1000);
+        }, seconds * 1000);
+        return true;
       }
+
+      // ── get ──────────────────────────────────────────────────────────────────
+      if (actionName === "get") {
+        const selector = message.selector != null ? String(message.selector).trim() : "";
+        const attr = message.attribute != null ? String(message.attribute) : "";
+        const getAll = Boolean(message.getAll);
+
+        function extractValue(el) {
+          if (!attr) return el.innerText != null ? String(el.innerText).trim() : String(el.textContent || "").trim();
+          if (attr === "innerHTML") return el.innerHTML;
+          if (attr === "outerHTML") return el.outerHTML;
+          if (attr === "value") return el.value != null ? String(el.value) : null;
+          return el.getAttribute(attr);
+        }
+
+        if (getAll) {
+          const els = selector ? Array.from(document.querySelectorAll(selector)) : [];
+          sendResponse({ ok: true, value: els.map(extractValue) });
+        } else {
+          const el = selector ? document.querySelector(selector) : null;
+          if (!el) {
+            sendResponse({ ok: false, error: `No element for selector: ${selector}` });
+          } else {
+            sendResponse({ ok: true, value: extractValue(el) });
+          }
+        }
+        return true;
+      }
+
+      // ── typeText ─────────────────────────────────────────────────────────────
+      if (actionName === "typeText") {
+        const el = document.querySelector(message.selector || "");
+        if (!el) {
+          sendResponse({ ok: false, error: `No element for selector: ${message.selector}` });
+          return true;
+        }
+        const text = message.text != null ? String(message.text) : "";
+        const clearContent = message.clearContent !== false;
+        if (typeof el.focus === "function") el.focus({ preventScroll: true });
+        if (clearContent) {
+          if (el.value !== undefined) {
+            el.value = "";
+          } else if (el.isContentEditable) {
+            el.textContent = "";
+          }
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        for (const char of text) {
+          el.dispatchEvent(new KeyboardEvent("keydown", { key: char, bubbles: true, cancelable: true }));
+          el.dispatchEvent(new KeyboardEvent("keypress", { key: char, bubbles: true, cancelable: true }));
+          if (el.value !== undefined) {
+            el.value += char;
+          } else if (el.isContentEditable) {
+            el.textContent += char;
+          }
+          el.dispatchEvent(new InputEvent("input", { data: char, bubbles: true, inputType: "insertText" }));
+          el.dispatchEvent(new KeyboardEvent("keyup", { key: char, bubbles: true, cancelable: true }));
+        }
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        sendResponse({ ok: true, value: { typed: text.length } });
+        return true;
+      }
+
+      // ── pressKey ─────────────────────────────────────────────────────────────
+      if (actionName === "pressKey") {
+        const selector = message.selector != null ? String(message.selector).trim() : "";
+        const key = message.key != null ? String(message.key) : "";
+        const target = selector ? document.querySelector(selector) : (document.activeElement || document.body);
+        if (!target) {
+          sendResponse({ ok: false, error: "No target element for pressKey" });
+          return true;
+        }
+        const opts = { key, bubbles: true, cancelable: true };
+        target.dispatchEvent(new KeyboardEvent("keydown", opts));
+        target.dispatchEvent(new KeyboardEvent("keypress", opts));
+        target.dispatchEvent(new KeyboardEvent("keyup", opts));
+        sendResponse({ ok: true, value: { key } });
+        return true;
+      }
+
+      // ── getUrl ───────────────────────────────────────────────────────────────
+      if (actionName === "getUrl") {
+        sendResponse({ ok: true, value: window.location.href });
+        return true;
+      }
+
+      sendResponse({ ok: false, error: `Unknown action: ${actionName}` });
       return true;
     }
 

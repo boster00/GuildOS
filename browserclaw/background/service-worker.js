@@ -11,177 +11,9 @@ const ALARM_NAME = "bc_auto_pilot";
 
 /** @type {boolean} */
 let pigeonRunLock = false;
+
 /** @type {boolean} */
 let autoPilotRunning = false;
-
-// ── WebSocket relay connection ─────────────────────────────────────
-/** @type {WebSocket | null} */
-let wsRelay = null;
-let wsReconnectTimer = null;
-let wsEnabled = false;
-
-async function connectWsRelay() {
-  if (wsRelay && (wsRelay.readyState === WebSocket.OPEN || wsRelay.readyState === WebSocket.CONNECTING)) return;
-  const stored = await chrome.storage.local.get([SETTINGS.STORAGE_KEY_WS_URL, SETTINGS.STORAGE_KEY_WS_ENABLED]);
-  wsEnabled = !!stored[SETTINGS.STORAGE_KEY_WS_ENABLED];
-  if (!wsEnabled) return;
-  const url = stored[SETTINGS.STORAGE_KEY_WS_URL] || SETTINGS.DEFAULT_WS_URL;
-  try {
-    wsRelay = new WebSocket(url);
-  } catch (e) {
-    console.error("[Browserclaw WS] Failed to create WebSocket:", e);
-    scheduleWsReconnect();
-    return;
-  }
-  wsRelay.onopen = () => {
-    console.log("[Browserclaw WS] Connected to relay");
-    wsRelay.send(JSON.stringify({ type: "identify", role: "extension" }));
-  };
-  wsRelay.onmessage = async (event) => {
-    let msg;
-    try { msg = JSON.parse(event.data); } catch { return; }
-    if (msg.type === "command" && msg.id) {
-      console.log("[Browserclaw WS] Received command", msg.id);
-      const t0 = Date.now();
-      const result = await executeDirectCommandSequence(msg.command?.steps || []);
-      result.transportReceiveTs = t0;
-      result.transportRespondTs = Date.now();
-      wsRelay.send(JSON.stringify({ type: "result", id: msg.id, result }));
-    }
-  };
-  wsRelay.onclose = () => {
-    console.log("[Browserclaw WS] Disconnected");
-    wsRelay = null;
-    scheduleWsReconnect();
-  };
-  wsRelay.onerror = (err) => {
-    console.error("[Browserclaw WS] Error:", err);
-  };
-}
-
-function scheduleWsReconnect() {
-  if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
-  if (!wsEnabled) return;
-  wsReconnectTimer = setTimeout(() => connectWsRelay(), 5000);
-}
-
-function disconnectWsRelay() {
-  wsEnabled = false;
-  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
-  if (wsRelay) { wsRelay.close(); wsRelay = null; }
-}
-
-// ── Native messaging connection ────────────────────────────────────
-/** @type {chrome.runtime.Port | null} */
-let nativePort = null;
-let nativeEnabled = false;
-
-async function connectNativeHost() {
-  if (nativePort) return;
-  const stored = await chrome.storage.local.get([SETTINGS.STORAGE_KEY_NATIVE_ENABLED]);
-  nativeEnabled = !!stored[SETTINGS.STORAGE_KEY_NATIVE_ENABLED];
-  if (!nativeEnabled) return;
-  try {
-    nativePort = chrome.runtime.connectNative(SETTINGS.NATIVE_HOST_NAME);
-  } catch (e) {
-    console.error("[Browserclaw Native] connectNative failed:", e);
-    nativePort = null;
-    return;
-  }
-  console.log("[Browserclaw Native] Connected to host");
-  nativePort.onMessage.addListener(async (msg) => {
-    console.log("[Browserclaw Native] Message from host:", JSON.stringify(msg).slice(0, 200));
-    if (msg.type === "command" && msg.id) {
-      const t0 = Date.now();
-      const result = await executeDirectCommandSequence(msg.command?.steps || []);
-      result.transportReceiveTs = t0;
-      result.transportRespondTs = Date.now();
-      nativePort.postMessage({ type: "result", id: msg.id, result });
-    }
-  });
-  nativePort.onDisconnect.addListener(() => {
-    const err = chrome.runtime.lastError;
-    console.log("[Browserclaw Native] Disconnected", err?.message || "");
-    nativePort = null;
-  });
-}
-
-function disconnectNativeHost() {
-  nativeEnabled = false;
-  if (nativePort) { nativePort.disconnect(); nativePort = null; }
-}
-
-// ── Direct command sequence execution ──────────────────────────────
-/**
- * Execute a sequence of steps on the active tab and return results with timing.
- * Steps: { action: "navigate"|"typeText"|"click"|"pressKey"|"wait"|"obtainText"|"getPageInfo", ... }
- */
-async function executeDirectCommandSequence(steps) {
-  if (!Array.isArray(steps) || steps.length === 0) {
-    return { ok: false, error: "No steps provided" };
-  }
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const tabId = tab?.id;
-  if (tabId == null) {
-    return { ok: false, error: "No active tab" };
-  }
-
-  const stepResults = [];
-  const overallStart = Date.now();
-
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
-    const stepStart = Date.now();
-    let result;
-
-    try {
-      if (step.action === "navigate") {
-        await chrome.tabs.update(tabId, { url: step.url });
-        await waitForTabComplete(tabId, 25000);
-        await new Promise((r) => setTimeout(r, 500));
-        result = { ok: true, value: step.url };
-      } else if (step.action === "wait") {
-        const sec = Math.min(30, Math.max(0, Number(step.seconds) || 1));
-        await new Promise((r) => setTimeout(r, sec * 1000));
-        result = { ok: true, value: `waited ${sec}s` };
-      } else {
-        // Content script action
-        const ready = await pingContentReady(tabId, 8);
-        if (!ready) {
-          result = { ok: false, error: "Content script not ready" };
-        } else {
-          result = await chrome.tabs.sendMessage(tabId, {
-            type: MSG.PIGEON_EXECUTE_ACTION,
-            ...step,
-          });
-        }
-      }
-    } catch (e) {
-      result = { ok: false, error: String(e?.message || e) };
-    }
-
-    const elapsed = Date.now() - stepStart;
-    stepResults.push({
-      index: i,
-      action: step.action,
-      elapsed,
-      ok: result?.ok ?? false,
-      value: result?.value ?? null,
-      error: result?.error ?? null,
-    });
-
-    if (!result?.ok) break;
-  }
-
-  return {
-    ok: stepResults.every((r) => r.ok),
-    totalElapsed: Date.now() - overallStart,
-    steps: stepResults,
-  };
-}
-
-// WS relay and native messaging are not auto-started; they were removed from the settings UI.
 
 function logTabEvent(label, details) {
   console.log(`[Browserclaw background] ${label}`, details);
@@ -290,7 +122,7 @@ function normalizeLetterSteps(letter) {
 function normalizeOneStep(step) {
   if (!step || typeof step !== "object" || Array.isArray(step)) return null;
   const s = /** @type {Record<string, unknown>} */ (step);
-  const action = String(s.action ?? "obtainText");
+  const action = String(s.action ?? "get");
   const selector = String(s.selector ?? "");
   const item = String(s.item ?? "").trim();
   if (!item) return null;
@@ -570,44 +402,6 @@ async function executePigeonNextStep() {
       await new Promise((r) => setTimeout(r, 250));
     }
 
-    const stepAction = String(step.action ?? "obtainText");
-    if (stepAction === "wait") {
-      const sec = Math.min(120, Math.max(0, Number(step.seconds) || 0));
-      await new Promise((r) => setTimeout(r, sec * 1000));
-      const val = { waitedSeconds: sec };
-      items[step.item] = val;
-      const valueStr = JSON.stringify(val);
-      const entry = {
-        at: Date.now(),
-        stepIndex,
-        item: step.item,
-        action: step.action,
-        selector: step.selector,
-        ok: true,
-        value: valueStr,
-      };
-      stepLog.push(entry);
-      const nextIndex = stepIndex + 1;
-      const phase = nextIndex >= steps.length ? "ready_to_send" : "active";
-      await persistExecution({
-        phase,
-        questId,
-        letterId,
-        steps,
-        stepIndex: nextIndex,
-        items: { ...items },
-        stepLog,
-        errorMessage: undefined,
-      });
-      return {
-        ok: true,
-        stepLogEntry: entry,
-        readyToSend: phase === "ready_to_send",
-        stepsCompleted: nextIndex,
-        totalSteps: steps.length,
-      };
-    }
-
     const ready = await pingContentReady(tabId);
     if (!ready) {
       const errMsg =
@@ -668,7 +462,7 @@ async function executePigeonNextStep() {
     }
 
     const val = execR.value ?? null;
-    items[step.item] = val;
+    if (step.item) items[step.item] = val;
     const valueStr =
       typeof val === "string" ? val : val != null && typeof val === "object" ? JSON.stringify(val) : val != null ? String(val) : "";
     const entry = {
@@ -744,171 +538,6 @@ async function sendPigeonResultToApi() {
   }
 }
 
-// ── Auto-pilot ────────────────────────────────────────────────────
-
-/**
- * Normalize steps from a pigeon letter for auto-pilot execution.
- * Unlike the manual flow, steps without an `item` key are still executed
- * (e.g. navigation-only steps).
- * @param {object} letter
- * @returns {Array<object>}
- */
-function normalizeStepsForAutoPilot(letter) {
-  const raw = Array.isArray(letter.steps) && letter.steps.length > 0 ? letter.steps : [letter];
-  return raw
-    .filter((s) => s && typeof s === "object" && !Array.isArray(s))
-    .map((s) => ({
-      action: String(s.action ?? "obtainText"),
-      selector: s.selector != null ? String(s.selector) : "",
-      item: s.item != null ? String(s.item).trim() : "",
-      url: s.url != null ? String(s.url).trim() : "",
-      seconds: s.seconds,
-      text: s.text,
-      key: s.key,
-      targetString: s.targetString,
-      targetRaw: s.targetRaw,
-    }));
-}
-
-/**
- * Execute all steps of one pigeon letter in a background tab.
- * Opens a new (inactive) tab, runs every step there, then closes the tab.
- * @param {object} letter
- * @returns {Promise<{ok: boolean, items: object, stepLog: object[]}>}
- */
-async function executeLetterInNewTab(letter) {
-  const steps = normalizeStepsForAutoPilot(letter);
-  if (!steps.length) return { ok: false, items: {}, stepLog: [], error: "No steps" };
-
-  const tab = await chrome.tabs.create({ active: false, url: "about:blank" });
-  const tabId = tab.id;
-  const items = {};
-  const stepLog = [];
-
-  try {
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      const stepStart = Date.now();
-
-      // Navigate if the step has a url
-      if (step.url) {
-        await chrome.tabs.update(tabId, { url: step.url });
-        await waitForTabComplete(tabId, 25000);
-        await new Promise((r) => setTimeout(r, 400));
-      }
-
-      let result;
-      if (step.action === "wait") {
-        const sec = Math.min(120, Math.max(0, Number(step.seconds) || 1));
-        await new Promise((r) => setTimeout(r, sec * 1000));
-        result = { ok: true, value: { waitedSeconds: sec } };
-      } else {
-        const ready = await pingContentReady(tabId);
-        if (!ready) {
-          result = { ok: false, error: "Content script not ready in worker tab" };
-        } else {
-          const payload = { ...step };
-          delete payload.type;
-          result = await chrome.tabs.sendMessage(tabId, { ...payload, type: MSG.PIGEON_EXECUTE_ACTION });
-        }
-      }
-
-      const ok = result?.ok ?? false;
-      if (step.item) items[step.item] = result?.value ?? null;
-      stepLog.push({
-        stepIndex: i,
-        item: step.item || null,
-        action: step.action,
-        elapsed: Date.now() - stepStart,
-        ok,
-        value: result?.value ?? null,
-        error: result?.error ?? null,
-      });
-
-      if (!ok) break;
-    }
-  } finally {
-    chrome.tabs.remove(tabId).catch(() => {});
-  }
-
-  return { ok: stepLog.every((s) => s.ok), items, stepLog };
-}
-
-/**
- * Start or stop the alarm based on the global enabled flag.
- * @param {boolean} enabled
- */
-async function syncAutoPilotAlarm(enabled) {
-  if (enabled) {
-    await chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 });
-  } else {
-    await chrome.alarms.clear(ALARM_NAME);
-  }
-}
-
-/**
- * One auto-pilot tick: fetch pending letters, execute each in a background tab, deliver results.
- */
-async function autoPilotTick() {
-  if (autoPilotRunning) return;
-
-  const data = await chrome.storage.local.get(K_AUTO_PILOT);
-  if (!data[K_AUTO_PILOT]) return;
-
-  autoPilotRunning = true;
-  const tickStart = Date.now();
-  let processed = 0;
-  let failed = 0;
-
-  try {
-    const letters = await fetchPendingLettersFromApi();
-    console.log(`[BC auto-pilot] tick — ${letters.length} letter(s) pending`);
-
-    for (const letter of letters) {
-      const questId = String(letter.questId ?? "");
-      const letterId = String(letter.letterId ?? "");
-      if (!questId || !letterId) continue;
-
-      try {
-        const result = await executeLetterInNewTab(letter);
-        if (result.ok) {
-          await postDeliverToPigeonApi(questId, letterId, result.items);
-          processed++;
-          console.log(`[BC auto-pilot] ✓ delivered letter ${letterId}`);
-        } else {
-          failed++;
-          const lastErr = result.stepLog.find((s) => !s.ok)?.error ?? "unknown";
-          console.warn(`[BC auto-pilot] ✗ letter ${letterId} failed:`, lastErr);
-        }
-      } catch (e) {
-        failed++;
-        console.error(`[BC auto-pilot] exception on letter ${letterId}:`, e?.message ?? e);
-      }
-    }
-  } finally {
-    autoPilotRunning = false;
-    await chrome.storage.local.set({
-      [K_AUTO_PILOT_STATUS]: {
-        lastTick: tickStart,
-        elapsed: Date.now() - tickStart,
-        processed,
-        failed,
-      },
-    });
-  }
-}
-
-// Alarm handler
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM_NAME) autoPilotTick();
-});
-
-// Resume alarm on SW startup if auto-pilot was enabled before SW was killed
-chrome.storage.local.get(K_AUTO_PILOT).then((data) => {
-  if (data[K_AUTO_PILOT]) syncAutoPilotAlarm(true);
-});
-
-// ── Message listener ───────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message.type !== "string") return;
 
@@ -987,27 +616,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === MSG.DIRECT_EXECUTE) {
-    executeDirectCommandSequence(message.steps || []).then((r) => sendResponse(r));
-    return true;
-  }
-
   if (message.type === MSG.AUTO_PILOT_SET) {
-    const enabled = !!message.enabled;
-    chrome.storage.local.set({ [K_AUTO_PILOT]: enabled }).then(async () => {
-      await syncAutoPilotAlarm(enabled);
-      if (enabled) autoPilotTick();
-      sendResponse({ ok: true, enabled });
+    const enabled = Boolean(message.enabled);
+    chrome.storage.local.set({ [K_AUTO_PILOT]: enabled }, () => {
+      syncAutoPilotAlarm(enabled).then(() => {
+        if (enabled) autoPilotTick();
+        sendResponse({ ok: true });
+      });
     });
     return true;
   }
 
   if (message.type === MSG.AUTO_PILOT_GET) {
-    chrome.storage.local.get([K_AUTO_PILOT, K_AUTO_PILOT_STATUS]).then((data) => {
+    chrome.storage.local.get([K_AUTO_PILOT, K_AUTO_PILOT_STATUS], (data) => {
       sendResponse({
         ok: true,
-        enabled: !!data[K_AUTO_PILOT],
-        status: data[K_AUTO_PILOT_STATUS] ?? null,
+        enabled: data[K_AUTO_PILOT] === true,
+        status: data[K_AUTO_PILOT_STATUS] ?? "idle",
       });
     });
     return true;
@@ -1016,12 +641,150 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return undefined;
 });
 
+// ── Auto-pilot ────────────────────────────────────────────────────────────────
+
+/**
+ * Like normalizeLetterSteps but does not require `item` key — allows
+ * navigation-only steps.
+ * @param {unknown} letter
+ * @returns {Array<Record<string, unknown>>}
+ */
+function normalizeStepsForAutoPilot(letter) {
+  if (!letter || typeof letter !== "object" || Array.isArray(letter)) return [];
+  const L = /** @type {Record<string, unknown>} */ (letter);
+  const src = Array.isArray(L.steps) && L.steps.length > 0 ? L.steps : [L];
+  const out = [];
+  for (const s of src) {
+    if (!s || typeof s !== "object" || Array.isArray(s)) continue;
+    const step = /** @type {Record<string, unknown>} */ (s);
+    if (!step.action) continue;
+    out.push({ ...step });
+  }
+  return out;
+}
+
+/**
+ * Open a background tab, run all steps, collect items, close tab.
+ * @param {object} letter
+ * @returns {Promise<{ok: boolean, items: Record<string, unknown>, error?: string}>}
+ */
+async function executeLetterInNewTab(letter) {
+  const steps = normalizeStepsForAutoPilot(letter);
+  if (!steps.length) return { ok: false, items: {}, error: "No steps in letter." };
+
+  let tab;
+  try {
+    tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  } catch (e) {
+    return { ok: false, items: {}, error: `Could not open tab: ${e.message}` };
+  }
+
+  const tabId = tab.id;
+  const items = {};
+
+  try {
+    for (const step of steps) {
+      const url = step.url != null ? String(step.url).trim() : "";
+      if (url) {
+        await chrome.tabs.update(tabId, { url });
+        await waitForTabComplete(tabId, 25000);
+        await new Promise((r) => setTimeout(r, 400));
+      }
+
+      const action = String(step.action ?? "navigate");
+      if (action === "navigate") continue;
+
+      const ready = await pingContentReady(tabId);
+      if (!ready) {
+        return { ok: false, items, error: "Content script not ready in auto-pilot tab." };
+      }
+
+      const tabPayload = { ...step };
+      delete tabPayload.type;
+      let execR;
+      try {
+        execR = await chrome.tabs.sendMessage(tabId, { ...tabPayload, type: MSG.PIGEON_EXECUTE_ACTION });
+      } catch (e) {
+        return { ok: false, items, error: `sendMessage failed: ${e.message}` };
+      }
+      if (!execR || execR.ok === false) {
+        return { ok: false, items, error: execR?.error || "Step action failed." };
+      }
+      if (step.item) items[String(step.item)] = execR.value ?? null;
+    }
+    return { ok: true, items };
+  } finally {
+    chrome.tabs.remove(tabId).catch(() => {});
+  }
+}
+
+/**
+ * @param {boolean} enabled
+ */
+async function syncAutoPilotAlarm(enabled) {
+  if (enabled) {
+    const existing = await chrome.alarms.get(ALARM_NAME);
+    if (!existing) {
+      chrome.alarms.create(ALARM_NAME, { delayInMinutes: 0.017, periodInMinutes: 1 });
+    }
+  } else {
+    await chrome.alarms.clear(ALARM_NAME);
+  }
+}
+
+async function autoPilotTick() {
+  if (autoPilotRunning) return;
+  autoPilotRunning = true;
+  await chrome.storage.local.set({ [K_AUTO_PILOT_STATUS]: "running" });
+  try {
+    const letters = await fetchPendingLettersFromApi();
+    await savePendingAndPruneExecution(letters);
+    console.log(`[Browserclaw auto-pilot] tick — ${letters.length} pending letters`);
+
+    for (const letter of letters) {
+      const questId = String(letter.questId ?? "");
+      const letterId = String(letter.letterId ?? "");
+      if (!questId || !letterId) continue;
+      console.log(`[Browserclaw auto-pilot] executing letter ${letterId}`);
+      const result = await executeLetterInNewTab(letter);
+      if (!result.ok) {
+        console.warn(`[Browserclaw auto-pilot] letter ${letterId} failed:`, result.error);
+        continue;
+      }
+      if (Object.keys(result.items).length > 0) {
+        try {
+          await postDeliverToPigeonApi(questId, letterId, result.items);
+          await removeLetterFromPendingStorage(letterId);
+          console.log(`[Browserclaw auto-pilot] letter ${letterId} delivered`);
+        } catch (e) {
+          console.error(`[Browserclaw auto-pilot] deliver failed for ${letterId}:`, e.message);
+        }
+      }
+    }
+    await chrome.storage.local.set({ [K_AUTO_PILOT_STATUS]: "idle" });
+  } catch (e) {
+    console.error("[Browserclaw auto-pilot] tick error", e);
+    await chrome.storage.local.set({ [K_AUTO_PILOT_STATUS]: "error" });
+  } finally {
+    autoPilotRunning = false;
+  }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM_NAME) autoPilotTick();
+});
+
+// Resume alarm if SW was killed while auto-pilot was enabled
+chrome.storage.local.get(K_AUTO_PILOT, (data) => {
+  if (data[K_AUTO_PILOT] === true) {
+    syncAutoPilotAlarm(true);
+    autoPilotTick();
+  }
+});
+
+
 chrome.runtime.onInstalled.addListener((details) => {
   logTabEvent("runtime.onInstalled", { reason: details.reason });
-  // Clear stale WS/native flags that auto-connected in previous versions
-  chrome.storage.local.remove([
-    SETTINGS.STORAGE_KEY_WS_ENABLED,
-    SETTINGS.STORAGE_KEY_WS_URL,
-    SETTINGS.STORAGE_KEY_NATIVE_ENABLED,
-  ]);
+  // Clean up stale keys from old WS/native host storage
+  chrome.storage.local.remove(["bcWsEnabled", "bcNativeEnabled"]);
 });

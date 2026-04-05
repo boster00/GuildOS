@@ -10,10 +10,6 @@ globalThis.BROWSERCLAW_MSG = Object.freeze({
   PIGEON_SEND_PIGEON_RESULT: "browserclaw:pigeon_send_pigeon_result",
   PIGEON_GET_EXECUTION: "browserclaw:pigeon_get_execution",
   PIGEON_EXECUTE_ACTION: "browserclaw:pigeon_execute_action",
-  // Direct command execution (WebSocket / Native Messaging tests)
-  DIRECT_EXECUTE: "browserclaw:direct_execute",
-  DIRECT_EXECUTE_RESULT: "browserclaw:direct_execute_result",
-  // Auto-pilot (tab-scoped executing toggle)
   AUTO_PILOT_SET: "browserclaw:auto_pilot_set",
   AUTO_PILOT_GET: "browserclaw:auto_pilot_get",
 });
@@ -30,14 +26,6 @@ globalThis.BROWSERCLAW_SETTINGS = Object.freeze({
   STORAGE_KEY_PIGEON_API_KEY: "browserclaw_pigeonApiKey",
   STORAGE_KEY_PIGEON_PENDING_LIST: "browserclaw_pigeonPendingList",
   STORAGE_KEY_PIGEON_EXECUTION: "browserclaw_pigeonExecution",
-  // WebSocket relay
-  STORAGE_KEY_WS_URL: "browserclaw_wsRelayUrl",
-  DEFAULT_WS_URL: "ws://localhost:3003",
-  STORAGE_KEY_WS_ENABLED: "browserclaw_wsEnabled",
-  // Native messaging
-  STORAGE_KEY_NATIVE_ENABLED: "browserclaw_nativeEnabled",
-  NATIVE_HOST_NAME: "com.guildos.browserclaw",
-  // Auto-pilot
   STORAGE_KEY_AUTO_PILOT_ENABLED: "browserclaw_autoPilotEnabled",
   STORAGE_KEY_AUTO_PILOT_STATUS: "browserclaw_autoPilotStatus",
 });
