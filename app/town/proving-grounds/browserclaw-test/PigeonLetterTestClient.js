@@ -13,7 +13,8 @@ const DEFAULT_PAYLOAD = JSON.stringify(
 );
 
 export default function PigeonLetterTestClient({ quests }) {
-  const [questId, setQuestId] = useState(quests[0]?.id ?? "");
+  const DEFAULT_QUEST_ID = "acdf9b82-2502-4201-a139-87fd08c1f92e";
+  const [questId, setQuestId] = useState(quests.find((q) => q.id === DEFAULT_QUEST_ID)?.id ?? quests[0]?.id ?? DEFAULT_QUEST_ID);
   const [channel, setChannel] = useState("browserclaw");
   const [payloadText, setPayloadText] = useState(DEFAULT_PAYLOAD);
   const [result, setResult] = useState(null);
