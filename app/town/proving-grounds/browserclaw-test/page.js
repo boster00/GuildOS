@@ -7,7 +7,7 @@ export const metadata = { title: "Pigeon Letter Test · Proving Grounds · Guild
 
 export default async function BrowserclawTestPage() {
   const user = await getCurrentUser();
-  const quests = user ? (await getQuestsForOwner(user.id)) ?? [] : [];
+  const { data: quests = [] } = user ? await getQuestsForOwner(user.id) : {};
 
   return (
     <main className="guild-bg-town-square min-h-dvh p-4 md:p-8">
