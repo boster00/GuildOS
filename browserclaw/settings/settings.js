@@ -19,7 +19,6 @@
     if (kind === "err") statusEl.classList.add("bc-status--err");
   }
 
-  // Load saved values
   chrome.storage.local.get([autoPilotKey, guildosKey, pigeonKey], (data) => {
     if (chrome.runtime.lastError) { setStatus(chrome.runtime.lastError.message, "err"); return; }
     if (autoPilotChk) autoPilotChk.checked = data[autoPilotKey] === true;
@@ -49,15 +48,128 @@
     });
   });
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Step execution helpers ─────────────────────────────────────────────────
 
-  function sendMsg(msg) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(msg, (r) => {
-        if (chrome.runtime.lastError) resolve({ ok: false, error: chrome.runtime.lastError.message });
-        else resolve(r || { ok: false, error: "No response" });
-      });
+  function getStoredBase() {
+    return new Promise((res) => chrome.storage.local.get([guildosKey, pigeonKey], res));
+  }
+
+  /**
+   * Wait for a tab to reach status=complete.
+   */
+  function waitForTabLoad(tabId, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const finish = (ok, err) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        ok ? resolve() : reject(new Error(err));
+      };
+      const timer = setTimeout(() => finish(false, "Navigation timed out"), timeoutMs);
+      function onUpdated(id, info) {
+        if (id === tabId && info.status === "complete") finish(true);
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated);
+      // Already complete?
+      chrome.tabs.get(tabId).then((t) => { if (t.status === "complete") finish(true); }).catch(() => {});
     });
+  }
+
+  /**
+   * Ping content script until ready, retry for ~6 seconds.
+   */
+  async function waitForContentScript(tabId) {
+    for (let i = 0; i < 15; i++) {
+      try {
+        const r = await chrome.tabs.sendMessage(tabId, { type: MSG.PING_FROM_CONTENT });
+        if (r && r.ok) return true;
+      } catch { /* not yet */ }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    return false;
+  }
+
+  /**
+   * Execute one step directly from the settings page (no SW roundtrip).
+   * Tab must already exist (tabId). Returns {ok, value, error?}.
+   */
+  async function executeStepInTab(step, tabId) {
+    // Navigate if step carries a url
+    const url = step.url != null ? String(step.url).trim() : "";
+    if (url) {
+      await chrome.tabs.update(tabId, { url });
+      await waitForTabLoad(tabId, 25000);
+      await new Promise((r) => setTimeout(r, 400));
+    }
+
+    const action = String(step.action ?? "navigate");
+
+    // navigate: nothing more to do after the URL update above
+    if (action === "navigate") return { ok: true, value: null };
+
+    // All other actions need the content script
+    const ready = await waitForContentScript(tabId);
+    if (!ready) {
+      return { ok: false, error: "Content script not ready — is the page a normal http(s) page?" };
+    }
+
+    const payload = { ...step };
+    delete payload.type;
+    try {
+      const r = await chrome.tabs.sendMessage(tabId, { ...payload, type: MSG.PIGEON_EXECUTE_ACTION });
+      if (!r || r.ok === false) return { ok: false, error: r?.error || "Action failed" };
+      return { ok: true, value: r.value ?? null };
+    } catch (e) {
+      return { ok: false, error: String(e.message) };
+    }
+  }
+
+  /**
+   * POST collected items back to GuildOS.
+   */
+  async function deliverLetter(letter, items) {
+    const stored = await getStoredBase();
+    const base = (stored[guildosKey] || SETTINGS_META.DEFAULT_GUILDOS_BASE_URL).replace(/\/$/, "");
+    const apiKey = stored[pigeonKey] || "";
+    const headers = { "Content-Type": "application/json" };
+    if (apiKey) headers["X-Pigeon-Key"] = apiKey;
+    const res = await fetch(`${base}/api/pigeon-post?action=deliver`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ questId: letter.questId, letterId: letter.letterId, items }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `Deliver failed (${res.status})`);
+    return data;
+  }
+
+  // ── Pending letters panel ──────────────────────────────────────────────────
+
+  const lettersSection = document.getElementById("bc-letters-section");
+  const lettersList = document.getElementById("bc-letters-list");
+  const lettersRefreshBtn = document.getElementById("bc-letters-refresh");
+  const execControls = document.getElementById("bc-exec-controls");
+  const doNextBtn = document.getElementById("bc-do-next");
+  const autoExecChk = document.getElementById("bc-auto-exec");
+  const execStatusEl = document.getElementById("bc-exec-status");
+
+  // Execution state
+  let allLetters = [];
+  let exec = { letterIdx: 0, stepIdx: 0, tabId: null, items: {}, stepResults: [], running: false };
+  let autoMode = false;
+  let autoTimer = null;
+
+  function toggleLettersSection(visible) {
+    if (lettersSection) lettersSection.style.display = visible ? "" : "none";
+  }
+
+  function setExecStatus(text, kind) {
+    if (!execStatusEl) return;
+    execStatusEl.textContent = text;
+    execStatusEl.className = "bc-exec-status" +
+      (kind === "ok" ? " bc-exec-status--ok" : kind === "err" ? " bc-exec-status--err" : "");
   }
 
   function describeStep(step) {
@@ -95,36 +207,8 @@
     return out;
   }
 
-  // ── Pending letters panel ──────────────────────────────────────────────────
-
-  const lettersSection = document.getElementById("bc-letters-section");
-  const lettersList = document.getElementById("bc-letters-list");
-  const lettersRefreshBtn = document.getElementById("bc-letters-refresh");
-  const execControls = document.getElementById("bc-exec-controls");
-  const doNextBtn = document.getElementById("bc-do-next");
-  const autoExecChk = document.getElementById("bc-auto-exec");
-  const execStatusEl = document.getElementById("bc-exec-status");
-
-  // Execution state
-  let allLetters = [];
-  let exec = { letterIdx: 0, stepIdx: 0, tabId: null, items: {}, stepResults: [], running: false };
-  let autoMode = false;
-  let autoTimer = null;
-
-  function toggleLettersSection(visible) {
-    if (lettersSection) lettersSection.style.display = visible ? "" : "none";
-  }
-
-  function setExecStatus(text, kind) {
-    if (!execStatusEl) return;
-    execStatusEl.textContent = text;
-    execStatusEl.className = "bc-exec-status" +
-      (kind === "ok" ? " bc-exec-status--ok" : kind === "err" ? " bc-exec-status--err" : "");
-  }
-
   function renderSteps() {
     if (!lettersList) return;
-
     if (allLetters.length === 0) {
       lettersList.textContent = "No pending letters.";
       if (execControls) execControls.style.display = "none";
@@ -144,9 +228,8 @@
         (letter.questTitle || letter.questId) + " \u00b7 " + (letter.channel || "") + " \u00b7 " + letter.letterId;
       group.appendChild(groupTitle);
 
-      const steps = letter.steps;
-      for (let si = 0; si < steps.length; si++) {
-        const step = steps[si];
+      for (let si = 0; si < letter.steps.length; si++) {
+        const step = letter.steps[si];
 
         let state = "pending";
         if (li < exec.letterIdx) {
@@ -165,10 +248,7 @@
 
         const icon = document.createElement("span");
         icon.className = "bc-step-icon";
-        icon.textContent =
-          state === "current" ? "\u25b6" :
-          state === "done"    ? "\u2713" :
-          state === "error"   ? "\u2717" : "\u00b7";
+        icon.textContent = state === "current" ? "\u25b6" : state === "done" ? "\u2713" : state === "error" ? "\u2717" : "\u00b7";
 
         const label = document.createElement("span");
         label.className = "bc-step-label";
@@ -179,7 +259,7 @@
 
         if (li === exec.letterIdx && (state === "done" || state === "error")) {
           const r = exec.stepResults[si];
-          if (r) {
+          if (r && (r.ok ? r.value != null : r.error)) {
             const resultEl = document.createElement("span");
             resultEl.className = "bc-step-result";
             if (r.ok && r.value != null) {
@@ -209,32 +289,19 @@
     doNextBtn.disabled = exec.running || isDone;
     doNextBtn.textContent = exec.running ? "Running\u2026" : isDone ? "All done" : "\u25b6 Do next step";
     if (isDone) setExecStatus("All letters processed.", "ok");
-    else if (!exec.running) setExecStatus("");
   }
 
-  async function deliverCurrentLetter() {
-    const letter = allLetters[exec.letterIdx];
-    if (!letter) return;
+  function stopAutoMode() {
+    autoMode = false;
+    if (autoExecChk) autoExecChk.checked = false;
+    clearTimeout(autoTimer);
+    autoTimer = null;
+    updateExecControls();
+  }
 
-    if (exec.tabId != null) {
-      await sendMsg({ type: MSG.PIGEON_CLOSE_TAB, tabId: exec.tabId });
-      exec.tabId = null;
-    }
-
-    if (Object.keys(exec.items).length > 0) {
-      const r = await sendMsg({
-        type: MSG.PIGEON_DELIVER_LETTER,
-        questId: letter.questId,
-        letterId: letter.letterId,
-        items: exec.items,
-      });
-      if (!r.ok) setExecStatus("Deliver failed: " + (r.error || "unknown"), "err");
-    }
-
-    exec.letterIdx++;
-    exec.stepIdx = 0;
-    exec.items = {};
-    exec.stepResults = [];
+  function scheduleAuto() {
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(doNextStep, 1000);
   }
 
   async function doNextStep() {
@@ -245,11 +312,39 @@
 
     const steps = letter.steps;
 
-    // All steps done for this letter — deliver
+    // Open a new tab for the first step of this letter
+    if (exec.tabId == null) {
+      setExecStatus("Opening tab\u2026");
+      try {
+        const tab = await chrome.tabs.create({ url: "about:blank", active: true });
+        exec.tabId = tab.id;
+      } catch (e) {
+        setExecStatus("Could not open tab: " + e.message, "err");
+        return;
+      }
+    }
+
+    // All steps done — deliver
     if (exec.stepIdx >= steps.length) {
       exec.running = true;
       renderSteps();
-      await deliverCurrentLetter();
+      setExecStatus("Delivering results\u2026");
+      try {
+        if (Object.keys(exec.items).length > 0) {
+          await deliverLetter(letter, exec.items);
+          setExecStatus("Letter delivered.", "ok");
+        } else {
+          setExecStatus("No items to deliver — letter skipped.", "ok");
+        }
+      } catch (e) {
+        setExecStatus("Deliver failed: " + e.message, "err");
+      }
+      chrome.tabs.remove(exec.tabId).catch(() => {});
+      exec.tabId = null;
+      exec.letterIdx++;
+      exec.stepIdx = 0;
+      exec.items = {};
+      exec.stepResults = [];
       exec.running = false;
       renderSteps();
       if (autoMode && allLetters[exec.letterIdx]) scheduleAuto();
@@ -259,17 +354,11 @@
     const step = steps[exec.stepIdx];
     exec.running = true;
     renderSteps();
+    setExecStatus("Running step " + (exec.stepIdx + 1) + " / " + steps.length + "\u2026");
 
-    const res = await sendMsg({
-      type: MSG.PIGEON_EXEC_STEP,
-      letter,
-      stepIndex: exec.stepIdx,
-      tabId: exec.tabId,
-    });
+    const res = await executeStepInTab(step, exec.tabId);
 
-    if (res.tabId != null) exec.tabId = res.tabId;
     exec.stepResults[exec.stepIdx] = res;
-
     if (res.ok && step.item) exec.items[step.item] = res.value;
 
     if (!res.ok) {
@@ -280,36 +369,40 @@
       return;
     }
 
-    // Post-step wait (default 1s)
+    // Post-step wait (default 1s; 0 means no wait)
     const postWait = step.wait != null ? Math.max(0, Number(step.wait)) : 1;
     if (postWait > 0) {
+      setExecStatus("Waiting " + postWait + "s\u2026");
       await new Promise((r) => setTimeout(r, postWait * 1000));
     }
 
     exec.stepIdx++;
 
-    // Deliver if last step
+    // Deliver if last step of this letter
     if (exec.stepIdx >= steps.length) {
-      await deliverCurrentLetter();
+      setExecStatus("Delivering results\u2026");
+      try {
+        if (Object.keys(exec.items).length > 0) {
+          await deliverLetter(letter, exec.items);
+          setExecStatus("Letter delivered.", "ok");
+        } else {
+          setExecStatus("No items to deliver.", "ok");
+        }
+      } catch (e) {
+        setExecStatus("Deliver failed: " + e.message, "err");
+      }
+      chrome.tabs.remove(exec.tabId).catch(() => {});
+      exec.tabId = null;
+      exec.letterIdx++;
+      exec.stepIdx = 0;
+      exec.items = {};
+      exec.stepResults = [];
     }
 
     exec.running = false;
     renderSteps();
 
     if (autoMode && allLetters[exec.letterIdx]) scheduleAuto();
-  }
-
-  function scheduleAuto() {
-    clearTimeout(autoTimer);
-    autoTimer = setTimeout(doNextStep, 1000);
-  }
-
-  function stopAutoMode() {
-    autoMode = false;
-    if (autoExecChk) autoExecChk.checked = false;
-    clearTimeout(autoTimer);
-    autoTimer = null;
-    updateExecControls();
   }
 
   doNextBtn?.addEventListener("click", () => {
@@ -340,7 +433,6 @@
       const res = await fetch(`${base}/api/pigeon-post?action=pending`, { headers });
       if (!res.ok) { lettersList.textContent = "Error " + res.status; return; }
       const groups = await res.json();
-      // Reset exec state on fresh load
       stopAutoMode();
       allLetters = flattenGroups(groups);
       exec = { letterIdx: 0, stepIdx: 0, tabId: null, items: {}, stepResults: [], running: false };
