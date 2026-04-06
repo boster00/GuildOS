@@ -148,7 +148,77 @@ Begin with <!DOCTYPE html> immediately. Do not include any text before it.`;
     return skillActionErr(`forgeWeapon: claudeCLI failed — ${result.error || "unknown error"}`, { html: result.html });
   }
 
-  return skillActionOk({ forge_report: result.html });
+  // ── Post-forge Chrome verification (option 2: same flow, forge + test) ──
+  // After forging, use a second `claude -p` with Chrome Extension MCP tools
+  // to verify the weapon works by navigating to its test page or API endpoint.
+  // The session gets the forge report context so it knows exactly what was built.
+  let verificationResult = null;
+  try {
+    const { execSync } = await import("node:child_process");
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "http://localhost:3002").replace(/\/$/, "");
+    const testPageUrl = `${siteUrl}/town/proving-grounds/weapons/${weaponName}/`;
+
+    const verifyPrompt = [
+      `A weapon named "${weaponName}" was just forged. Verify it works.`,
+      ``,
+      `What was built:`,
+      `- Weapon: libs/weapon/${weaponName}/index.js`,
+      `- Actions: ${actions || "see forge report"}`,
+      ``,
+      `Verification steps:`,
+      `1. Navigate to the weapon test page: ${testPageUrl}`,
+      `2. If the page exists, take a screenshot and check for obvious errors`,
+      `3. If the page doesn't exist (404), navigate to ${siteUrl}/town/town-square/forge and check the weapon appears`,
+      `4. Take a screenshot of whatever you find`,
+      ``,
+      `Respond with ONLY valid JSON:`,
+      `{"verified": true/false, "reason": "one sentence", "screenshotId": "screenshot ID or null"}`,
+    ].join("\\n");
+
+    const cmd = [
+      "claude", "-p",
+      `"${verifyPrompt.replace(/"/g, '\\"')}"`,
+      "--output-format", "json",
+      "--allowedTools", '"mcp__Claude_in_Chrome__navigate,mcp__Claude_in_Chrome__computer,mcp__Claude_in_Chrome__tabs_context_mcp,mcp__Claude_in_Chrome__tabs_create_mcp,mcp__Claude_in_Chrome__get_page_text,mcp__Claude_in_Chrome__read_page"',
+      "--append-system-prompt", '"You are verifying a freshly forged weapon. Use Chrome Extension tools. Return ONLY valid JSON."',
+    ].join(" ");
+
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.log("[Blacksmith:verify] Spawning chrome verification for", weaponName);
+    }
+
+    const stdout = execSync(cmd, {
+      timeout: 90_000,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env },
+    });
+
+    const parsed = JSON.parse(stdout);
+    const resultText = typeof parsed.result === "string" ? parsed.result : stdout;
+    const jsonMatch = resultText.match(/\{[\s\S]*"verified"[\s\S]*\}/);
+    if (jsonMatch) {
+      verificationResult = JSON.parse(jsonMatch[0]);
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.log("[Blacksmith:verify] Chrome verification skipped:", err.message?.slice(0, 200));
+    }
+  }
+
+  const items = { forge_report: result.html };
+  if (verificationResult) {
+    items.forge_verification = {
+      verified: Boolean(verificationResult.verified),
+      reason: String(verificationResult.reason || ""),
+      screenshotId: verificationResult.screenshotId || null,
+      verifiedAt: new Date().toISOString(),
+    };
+  }
+
+  return skillActionOk(items);
 }
 
 /**

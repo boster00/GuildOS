@@ -349,28 +349,8 @@ export async function advanceQuest(quest, opts) {
     return { ok: true, advanced: true, stage: newStage, action: `execute:${step.skillbook}.${step.action}`, detail: { remainingSteps: remainingSteps.length } };
   }
 
-  // ── review: attempt Chrome verification, then advance to closing ──
+  // ── review: auto-advance to closing (Cat/Pig self-review is an NPC path above) ──
   if (stage === "review") {
-    const { inventoryRawToMap } = await import("@/libs/quest/inventoryMap.js");
-    const { getQuest: reloadQuest } = await import("@/libs/quest/index.js");
-    const { data: freshForReview } = await reloadQuest(questId, { client });
-    const invMap = inventoryRawToMap(freshForReview?.inventory);
-    const verificationPrompt = buildVerificationPrompt(freshForReview || quest, invMap);
-
-    if (verificationPrompt) {
-      const vResult = await runChromeVerification(verificationPrompt);
-      if (vResult) {
-        await recordQuestComment(questId, {
-          source: "system",
-          action: "review:verification",
-          summary: vResult.verified
-            ? `Automated verification passed: ${vResult.reason}`
-            : `Automated verification failed: ${vResult.reason}`,
-          detail: { ...vResult, verifiedAt: new Date().toISOString() },
-        }, { client });
-      }
-    }
-
     await updateQuest(questId, { stage: "closing" }, { client });
     return { ok: true, advanced: true, stage: "closing", action: "review:autoClose" };
   }
