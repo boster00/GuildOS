@@ -6,84 +6,101 @@ export * from "./advance.js";
 
 export const toc = {
   doNextAction: {
-    description: "Execute the next step in the quest's execution_plan. Pops the current step, calls the skill book action, stores result in inventory.",
+    description: "Advance the quest one step for the assigned adventurer. Handles plan (generate execution_plan), execute (run next skill book step), and review (advance to closing).",
+  },
+  boast: {
+    description: "Report this adventurer's capabilities by listing every skill book action available to them. Used by the Questmaster at assign time to decide who fits a quest.",
   },
 };
 
 /**
- * Execute the next step in the execution_plan.
- * @param {Record<string, unknown>} quest — quest row
+ * Advance the quest by one step for an adventurer assignee.
+ *
+ * Delegates to advanceQuest (server.js) so plan / execute / review share
+ * a single authoritative implementation.
+ *
+ * - plan:    AI generates execution_plan from system_prompt + skill book context → execute
+ * - execute: pop one step, run skill book action, store output in inventory → review when done
+ * - review:  auto-advance to closing
+ *
+ * @param {Record<string, unknown>} quest — full quest row
  * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient, userId: string }} ctx
  */
 export async function doNextAction(quest, ctx) {
   const stage = String(quest.stage || "");
-  const questId = String(quest.id || "");
 
-  if (stage !== "execute") {
-    return { action: "noop", ok: false, msg: `Adventurer doNextAction only runs in execute stage, got: ${stage}` };
+  if (!["plan", "execute", "review"].includes(stage)) {
+    return {
+      action: "noop",
+      ok: false,
+      msg: `Adventurer doNextAction: stage "${stage}" is not an adventurer stage. Expected plan, execute, or review.`,
+    };
   }
 
-  const plan = Array.isArray(quest.execution_plan) ? quest.execution_plan : [];
-  if (plan.length === 0) {
-    // No more steps — advance to review
-    const { updateQuest } = await import("@/libs/quest");
-    await updateQuest(questId, { stage: "review" }, { client: ctx.client });
-    return { action: "plan_complete", ok: true, stage: "review", msg: "All execution plan steps completed." };
-  }
+  const { advanceQuest } = await import("@/libs/proving_grounds/server.js");
+  return advanceQuest(quest, ctx);
+}
 
-  // Pop the first step
-  const [step, ...remaining] = plan;
-  const skillBookId = String(step?.skillbook || step?.skillBook || "");
-  const actionName = String(step?.action || "");
+/**
+ * Boast — an adventurer's self-report of capabilities.
+ *
+ * In guild tradition, an adventurer boasts their prowess before accepting a
+ * quest. This loads the TOC (table of contents) of every skill book the
+ * adventurer wields and returns a structured briefing.
+ *
+ * The Questmaster (Cat) calls this at assign time to decide who fits a quest.
+ * The skill book TOC is the single source of truth — boast is always current,
+ * never stale, no static text to drift out of date.
+ *
+ * The returned briefing lists each skill book and its actions with descriptions.
+ * It does NOT include input/output examples — those are the planning stage's
+ * concern, not the assignment stage's.
+ *
+ * @param {{ name?: string, skill_books?: string[] }} adventurerRow — needs at least name + skill_books
+ * @returns {Promise<{ name: string, skillBooks: Array<{ id: string, title: string, actions: Array<{ name: string, description: string }> }> }>}
+ */
+export async function buildBoast(adventurerRow) {
+  const { getSkillBook } = await import("@/libs/skill_book/index.js");
+  const bookIds = Array.isArray(adventurerRow.skill_books) ? adventurerRow.skill_books : [];
 
-  if (!skillBookId || !actionName) {
-    return { action: "execute_step", ok: false, msg: `Invalid plan step: missing skillbook or action. Got: ${JSON.stringify(step)}` };
-  }
+  const skillBooks = bookIds.map((bookId) => {
+    const book = getSkillBook(bookId);
+    if (!book) return { id: bookId, title: bookId, actions: [] };
 
-  // Load and run the action
-  const { getSkillBook } = await import("@/libs/skill_book");
-  const book = getSkillBook(skillBookId);
-  if (!book) {
-    return { action: "execute_step", ok: false, msg: `Skill book not found: ${skillBookId}` };
-  }
+    const tocEntries = book.toc && typeof book.toc === "object" ? book.toc : {};
+    const actions = Object.entries(tocEntries).map(([actionName, entry]) => ({
+      name: actionName,
+      description: (entry && typeof entry === "object" ? entry.description : "") || "",
+    }));
 
-  const fn = book[actionName];
-  if (typeof fn !== "function") {
-    return { action: "execute_step", ok: false, msg: `Action not found: ${skillBookId}.${actionName}` };
-  }
+    return {
+      id: bookId,
+      title: book.title || bookId,
+      actions,
+    };
+  });
 
-  // Build payload — pass quest context and any step params
-  const payload = {
-    ...(step.params && typeof step.params === "object" ? step.params : {}),
-    guildos: { quest },
+  return {
+    name: String(adventurerRow.name || "(unnamed)"),
+    skillBooks,
   };
+}
 
-  let result;
-  try {
-    result = await fn(payload);
-  } catch (err) {
-    result = { ok: false, msg: err instanceof Error ? err.message : String(err) };
+/**
+ * Innate action wrapper — resolves adventurer from quest context, calls buildBoast.
+ * Can be dispatched via the proving grounds UI: innate_actions.boast.
+ *
+ * @param {Record<string, unknown>} quest — quest row (with .assignee resolved)
+ * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient, userId: string }} _ctx
+ */
+export async function boast(quest, _ctx) {
+  const assignee = quest.assignee;
+  const profile = assignee && typeof assignee === "object" ? assignee.profile : null;
+
+  if (!profile) {
+    return { action: "boast", ok: false, msg: "No assignee profile on quest — cannot boast without knowing which adventurer." };
   }
 
-  // Store result items in inventory and update the plan
-  const { updateQuest } = await import("@/libs/quest");
-  const currentInv = typeof quest.inventory === "object" ? quest.inventory : {};
-  const newItems = result?.items && typeof result.items === "object" ? result.items : {};
-
-  await updateQuest(questId, {
-    inventory: { ...currentInv, ...newItems },
-    // Persist the remaining plan (we popped the first step)
-  }, { client: ctx.client });
-
-  // Update execution_plan separately (updateQuest doesn't have an executionPlan field mapped through)
-  const { updateQuestExecutionPlan } = await import("@/libs/quest");
-  await updateQuestExecutionPlan(questId, remaining, { client: ctx.client });
-
-  // If no more steps, advance to review
-  if (remaining.length === 0) {
-    await updateQuest(questId, { stage: "review" }, { client: ctx.client });
-    return { action: "execute_step", ok: result?.ok ?? true, step: { skillBookId, actionName }, stage: "review", items: newItems };
-  }
-
-  return { action: "execute_step", ok: result?.ok ?? true, step: { skillBookId, actionName }, remaining: remaining.length, items: newItems };
+  const briefing = await buildBoast(profile);
+  return { action: "boast", ok: true, ...briefing };
 }

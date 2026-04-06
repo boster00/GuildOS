@@ -211,7 +211,8 @@
     if (!lettersList) return;
     if (allLetters.length === 0) {
       lettersList.textContent = "No pending letters.";
-      if (execControls) execControls.style.display = "none";
+      if (execControls) execControls.style.display = "";
+      if (doNextBtn) { doNextBtn.disabled = true; doNextBtn.textContent = "No letters"; }
       return;
     }
 
@@ -304,6 +305,14 @@
     autoTimer = setTimeout(doNextStep, 1000);
   }
 
+  function scheduleAutoRefresh() {
+    clearTimeout(autoTimer);
+    setExecStatus("All letters done \u2014 refreshing in 10s\u2026", "ok");
+    autoTimer = setTimeout(() => {
+      if (autoMode) loadPendingLetters();
+    }, 10000);
+  }
+
   async function doNextStep() {
     if (exec.running) return;
 
@@ -347,7 +356,10 @@
       exec.stepResults = [];
       exec.running = false;
       renderSteps();
-      if (autoMode && allLetters[exec.letterIdx]) scheduleAuto();
+      if (autoMode) {
+        if (allLetters[exec.letterIdx]) scheduleAuto();
+        else scheduleAutoRefresh();
+      }
       return;
     }
 
@@ -402,7 +414,10 @@
     exec.running = false;
     renderSteps();
 
-    if (autoMode && allLetters[exec.letterIdx]) scheduleAuto();
+    if (autoMode) {
+      if (allLetters[exec.letterIdx]) scheduleAuto();
+      else scheduleAutoRefresh();
+    }
   }
 
   doNextBtn?.addEventListener("click", () => {
@@ -411,9 +426,13 @@
 
   autoExecChk?.addEventListener("change", () => {
     autoMode = Boolean(autoExecChk.checked);
-    if (autoMode && !exec.running && allLetters[exec.letterIdx]) {
-      doNextStep();
-    } else if (!autoMode) {
+    if (autoMode) {
+      if (!exec.running && allLetters[exec.letterIdx]) {
+        doNextStep();
+      } else if (!exec.running) {
+        scheduleAutoRefresh();
+      }
+    } else {
       clearTimeout(autoTimer);
       autoTimer = null;
       updateExecControls();
@@ -433,12 +452,19 @@
       const res = await fetch(`${base}/api/pigeon-post?action=pending`, { headers });
       if (!res.ok) { lettersList.textContent = "Error " + res.status; return; }
       const groups = await res.json();
-      stopAutoMode();
+      clearTimeout(autoTimer);
+      autoTimer = null;
       allLetters = flattenGroups(groups);
       exec = { letterIdx: 0, stepIdx: 0, tabId: null, items: {}, stepResults: [], running: false };
       renderSteps();
+      if (autoMode) {
+        if (allLetters.length > 0) scheduleAuto();
+        else scheduleAutoRefresh();
+      }
     } catch (e) {
       lettersList.textContent = e.message || "Fetch failed";
+      if (execControls) execControls.style.display = "";
+      if (autoMode) scheduleAutoRefresh();
     }
   }
 

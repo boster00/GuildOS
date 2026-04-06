@@ -11,25 +11,37 @@ export const skillBook = {
   steps: [],
   toc: {
     testaction: {
-      description: "Multiply two numbers.",
-      inputExample: { num1: "number", num2: "number" },
-      outputExample: { product: "number", sysprompt: "string (adventurer system_prompt when guildos.profile is present)" },
+      description: "Multiply two numbers and return the product.",
+      input: {
+        num1: "number, e.g. 3",
+        num2: "number, e.g. 7",
+      },
+      output: {
+        product: "number",
+        sysprompt: "string, adventurer system_prompt when guildos.profile is present",
+      },
     },
     sendpigeonpost: {
-      description:
-        "Replace quest pigeon queue with one multi-step letter from browserActions (inventory.pigeon_letters; Browserclaw runs all steps then POSTs deliver once).",
-      inputExample: { browserActions: [{ action: "obtainText", selector: "h1", item: "h1text" }] },
-      outputExample: {
-        pigeon_letters: "Letter[] (one row with steps[])",
-        letterIds: "string[]",
-        letterId: "string (first)",
-        pigeon_letter: "object (first)",
+      description: "Replace quest pigeon queue with one multi-step letter from browserActions. Browserclaw runs all steps then POSTs deliver once.",
+      input: {
+        browserActions: "array of step objects, e.g. [{ action: 'get', selector: 'h1', item: 'h1text' }]",
+      },
+      output: {
+        pigeon_letters: "array, one letter row with steps[]",
+        letterIds: "array of strings",
+        letterId: "string, first letter ID",
+        pigeon_letter: "object, first letter",
       },
     },
     checkPigeonResult: {
       description: "Verify that a pigeon-delivered item exists in inventory.",
-      inputExample: { h1text: "string (the extracted text)" },
-      outputExample: { verified: "boolean", h1text: "string" },
+      input: {
+        h1text: "string, the extracted text",
+      },
+      output: {
+        verified: "boolean",
+        h1text: "string",
+      },
       waitFor: ["h1text"],
     },
   },

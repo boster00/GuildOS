@@ -3,40 +3,29 @@
  */
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
 import { replacePigeonLetters } from "@/libs/weapon/pigeon";
+import { getAdventurerExecutionContext } from "@/libs/adventurer/advance.js";
 
-const DISPATCH_BROWSER_ACTIONS_DESCRIPTION = `Sends an ordered **browserActions** array to GuildOS **pigeon post**: the server replaces the quest's pigeon queue with **one multi-step letter**. Browserclaw (Chrome extension) pulls that letter, runs each step on the active tab in order, collects results under each step's **item** key (inventory), then POSTs a single deliver. An optional **url** on a step triggers full-page navigation before that step runs; if **url** is omitted, the step runs in the current document.
+const DISPATCH_BROWSER_ACTIONS_DESCRIPTION = `Sends an ordered **browserActions** array to GuildOS **pigeon post**: the server replaces the quest's pigeon queue with **one multi-step letter**. Browserclaw (Chrome extension) pulls that letter, runs each step in order, collects results under each step's **item** key, then POSTs a single deliver when all steps complete.
 
-**Every step must include:** **item** — a non-empty string used as the inventory key for the result written when the step completes. **action** names which operation to run (see below). Most DOM steps require a non-empty **selector**; exceptions are **navigateInPage**, **wait**, and **listenFor** (listenFor allows selector-only, text-only, or both — see below).
+**Every step must include:** **item** (non-empty string — inventory key for the result) and **action** (which operation to run). Steps that target a DOM element also require **selector**. Add a **url** field to any step to navigate to that URL before executing the action.
 
-Browserclaw holds all captured **item** values in memory for the letter; one **POST** to pigeon-post **deliver** sends the full **items** map when you choose Send result — not one request per step.
+**Actions:**
 
-**Actions (parameters beyond action/selector/item/url):**
+- **navigate** — Navigate to **url** and stop (no DOM interaction). Required: **url**, **item**.
 
-- **obtainText** — Legacy read: takes **innerText**-style text from the **first** element matching **selector**. Required: **selector**, **item**. Use when you only need visible text from one node.
+- **get** — Read text or an attribute from a DOM element. By default reads **innerText**. Optional **attribute**: innerHTML | outerHTML | value | or any named attribute string. Optional **getAll** (boolean, default false) to collect all matches as an array. Required: **selector**, **item**.
 
-- **collect** — Reads a property from matched node(s). **attribute**: one of innerText, textContent, innerHTML, outerHTML, href, src, value, checked; or **attr:name** for a named attribute. **match**: first | all | nth (default first). For **nth**, **nth** is 1-based. **item** stores the collected value (string or JSON-serializable structure when match=all). Required: **selector**, **item**, **attribute**.
+- **click** — Dispatches a full pointer + mouse + click event sequence on the element. Required: **selector**, **item**.
 
-- **search** — Finds content within matched element(s) using **targetString** (literal) or **pattern** + **flags** (RegExp). Uses the same **attribute** / **match** / **nth** conventions as **collect** for which DOM text to search. Required: **selector**, **item**, and either **targetString** or **pattern**.
+- **typeText** — Types text into an input or contenteditable. Dispatches keyboard events per character. **text** is the string to type. **clearContent** (boolean, default true) clears the field first. Required: **selector**, **item**, **text**.
 
-- **click** — Clicks the first element matching **selector**. Optional **scrollIntoView** (boolean, default true) scrolls into view first. Required: **selector**, **item** (still required for pigeon bookkeeping even if no text is collected).
+- **pressKey** — Dispatches keydown/keypress/keyup on a target element. **key** is the key name (e.g. "Enter", "Tab", "Escape"). Optional **selector** (defaults to activeElement). Required: **item**, **key**.
 
-- **enterValue** — Sets an input's value using the native value setter and dispatches **input** and **change**. **value** is the string to set. Optional **clear** (boolean) clears first. Required: **selector**, **item**, **value**.
+- **wait** — Waits **seconds** (number, capped at 120), then optionally polls for **selector** to appear in DOM for up to 30 s. Required: **item**, **seconds**. No selector required (selector is optional for the poll phase).
 
-- **setChecked** — Sets **checked** (boolean) on checkbox/radio. Required: **selector**, **item**, **checked**.
+- **getUrl** — Returns the current page URL. Required: **item**. No selector.
 
-- **selectOption** — Selects an option on **select**: **optionValue** (preferred) or **optionLabel**. Required: **selector**, **item**, and one of **optionValue** / **optionLabel**.
-
-- **navigateInPage** — Client-side navigation: **path** and/or **hash** applied via History API as implemented by Browserclaw. **selector** is not required. **item** remains required for pigeon semantics (store a short status string or timestamp if no natural payload).
-
-- **wait** — Pauses the run for **seconds** (number, non-negative; extension caps at 120s). Handled in the extension background (no DOM). Required: **item**, **seconds**. No **selector**.
-
-- **listenFor** — Blocks until a condition becomes true, then advances (other steps do not run until this completes). Provide **selector** and/or **targetString** (at least one required). If **selector** only: waits until \`document.querySelector(selector)\` matches. If **targetString** only: waits until the document body text includes that substring. If both: waits until the element matches **and** its visible text includes **targetString**. Optional **timeoutMs** (default 30000, max 120000) and **intervalMs** (poll interval, default 250, clamped 100–2000). On success, **item** stores an object (matched: true, plus optional selector/targetString echo fields). On timeout, the step fails.
-
-- **insertMarkup** — Inserts HTML relative to **selector** (anchor). **placement**: beforebegin | afterbegin | beforeend | afterend. **html** is the markup fragment; parsing should occur only on detached/template nodes (never assign **innerHTML** on live tracked nodes). **signature** is an idempotency token so re-runs do not duplicate inserts. Required: **selector**, **item**, **placement**, **signature**, **html**.
-
-**Implementation note (Browserclaw):** **obtainText**, **listenFor**, and **wait** are implemented end-to-end; other actions may still be partial — confirm the extension dispatcher when relying on them.
-
-**Operational note:** Steps are stored on the quest (inventory **pigeon_letters**). Keep **insertMarkup** HTML small; large payloads bloat persisted JSON.
+**Operational note:** Steps are stored on the quest (inventory **pigeon_letters**). Keep step counts reasonable — one letter per test run is preferred.
 `;
 
 export const skillBook = {
@@ -48,30 +37,14 @@ export const skillBook = {
   toc: {
     dispatchBrowserActionsThroughPigeonPost: {
       description: DISPATCH_BROWSER_ACTIONS_DESCRIPTION,
-      inputExample: {
-        guildos: { quest: { id: "quest-uuid" } },
-        browserActions: [
-          {
-            action: "obtainText",
-            selector: "h1",
-            item: "pageTitle",
-            url: "https://example.com",
-          },
-          {
-            action: "collect",
-            selector: ".price",
-            item: "priceText",
-            attribute: "innerText",
-            match: "nth",
-            nth: 2,
-          },
-        ],
+      input: {
+        browserActions: "array of step objects, each with: action (string, one of: navigate, get, click, typeText, pressKey, wait, getUrl), item (string, inventory key for result), selector (string, CSS selector — required for get/click/typeText), url (string, optional — navigate before action), text (string, for typeText), key (string, for pressKey), seconds (int, for wait)",
       },
-      outputExample: {
-        pigeon_letters: "Letter[] (one row with steps[])",
-        letterIds: "string[]",
-        letterId: "string (first)",
-        pigeon_letter: "object (first)",
+      output: {
+        pigeon_letters: "array, one letter row with steps[]",
+        letterIds: "array of strings",
+        letterId: "string, first letter ID",
+        pigeon_letter: "object, first letter",
       },
     },
   },
@@ -86,8 +59,9 @@ function normalizePayload(a, b) {
       : {};
 }
 
+const NO_SELECTOR_ACTIONS = new Set(["navigate", "navigateInPage", "wait", "getUrl", "pressKey"]);
 function actionNeedsSelector(action) {
-  return action !== "navigateInPage";
+  return !NO_SELECTOR_ACTIONS.has(action);
 }
 
 export async function dispatchBrowserActionsThroughPigeonPost(a, b) {
@@ -103,13 +77,35 @@ export async function dispatchBrowserActionsThroughPigeonPost(a, b) {
   /** @type {Record<string, unknown>[]} */
   const partials = [];
 
-  const browserActions = raw.browserActions;
+  let browserActions = raw.browserActions;
+
+  // Auto-generate standard weapon test actions from weapon_spec when browserActions not provided
   if (!Array.isArray(browserActions)) {
-    return skillActionErr("dispatchBrowserActionsThroughPigeonPost: browserActions must be an array.");
+    const spec = raw.weapon_spec && typeof raw.weapon_spec === "object" && !Array.isArray(raw.weapon_spec)
+      ? /** @type {Record<string, unknown>} */ (raw.weapon_spec) : null;
+    const weaponName = typeof spec?.name === "string" ? spec.name.trim() : "";
+    if (weaponName) {
+      const baseUrl = `http://localhost:${process.env.PORT || 3002}/town/proving-grounds/weapons/${weaponName}/`;
+      browserActions = [
+        { action: "navigate", url: baseUrl, item: "nav" },
+        { action: "wait", seconds: 2, selector: `#${weaponName}-cred-check-btn`, item: "ready" },
+        { action: "click", selector: `#${weaponName}-cred-check-btn`, item: "credCheck" },
+        { action: "wait", seconds: 3, selector: `#${weaponName}-cred-check-result`, item: "waited" },
+        { action: "get", selector: `#${weaponName}-cred-check-result`, item: "credResult" },
+        { action: "click", selector: `#${weaponName}-hello-btn`, item: "helloClick" },
+        { action: "wait", seconds: 3, selector: `#${weaponName}-hello-result`, item: "helloWaited" },
+        { action: "get", selector: `#${weaponName}-hello-result`, item: "helloResult" },
+      ];
+    } else {
+      return skillActionErr("dispatchBrowserActionsThroughPigeonPost: browserActions must be an array, or weapon_spec.name must be provided for auto-generation.");
+    }
   }
 
+  const execCtx = getAdventurerExecutionContext();
+  const clientOpt = execCtx?.client ? { client: execCtx.client } : {};
+
   if (browserActions.length === 0) {
-    const { data, error } = await replacePigeonLetters(questId, [], {});
+    const { data, error } = await replacePigeonLetters(questId, [], clientOpt);
     if (error) return skillActionErr(error?.message || "replacePigeonLetters failed.");
     return skillActionOk({
       pigeon_letters: data ?? [],
@@ -145,31 +141,6 @@ export async function dispatchBrowserActionsThroughPigeonPost(a, b) {
       );
     }
 
-    if (action === "listenFor") {
-      const ts = ba.targetString != null ? String(ba.targetString).trim() : "";
-      if (!selector && !ts) {
-        return skillActionErr(
-          `dispatchBrowserActionsThroughPigeonPost: browserActions[${index}] listenFor requires a non-empty selector and/or targetString.`,
-        );
-      }
-      if (ba.timeoutMs != null) {
-        const t = Number(ba.timeoutMs);
-        if (!Number.isFinite(t) || t < 0) {
-          return skillActionErr(
-            `dispatchBrowserActionsThroughPigeonPost: browserActions[${index}] listenFor timeoutMs must be a non-negative number.`,
-          );
-        }
-      }
-      if (ba.intervalMs != null) {
-        const iv = Number(ba.intervalMs);
-        if (!Number.isFinite(iv) || iv < 0) {
-          return skillActionErr(
-            `dispatchBrowserActionsThroughPigeonPost: browserActions[${index}] listenFor intervalMs must be a non-negative number.`,
-          );
-        }
-      }
-    }
-
     if (action === "wait") {
       const sec = Number(ba.seconds);
       if (!Number.isFinite(sec) || sec < 0) {
@@ -191,7 +162,7 @@ export async function dispatchBrowserActionsThroughPigeonPost(a, b) {
     return skillActionErr("dispatchBrowserActionsThroughPigeonPost: no valid steps after validation.");
   }
 
-  const { data, error } = await replacePigeonLetters(questId, partials);
+  const { data, error } = await replacePigeonLetters(questId, partials, clientOpt);
   if (error || !data) {
     return skillActionErr(error?.message || "replacePigeonLetters failed.");
   }

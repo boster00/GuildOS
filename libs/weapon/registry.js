@@ -28,6 +28,17 @@ export const WEAPONS = [
     requiresActivation: false,
   },
   {
+    id: "bigquery",
+    title: "BigQuery",
+    tagline: "Query Google BigQuery tables via the REST API v2 with service-account auth.",
+    summary: "Lets skill books fetch recent events from BigQuery datasets using jobs.query.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses GOOGLE_BIGQUERY_KEY_JSON (service account) to sign JWTs, exchange for access tokens, and run BigQuery SQL queries via the REST API.",
+    ],
+    requiresActivation: false,
+  },
+  {
     id: "zoho",
     title: "Zoho Books",
     tagline: "Blueprint: Books API, OAuth, and ledger reads for skill books—forge it to make it real.",

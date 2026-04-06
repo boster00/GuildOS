@@ -1,8 +1,10 @@
 /**
- * Zoho Books weapon — single module. Public API: getAccessToken, getList.
- * User identity comes from council (requireUser); tokens live in potions.
+ * Zoho weapon — single module covering Zoho Books + Zoho CRM (shared OAuth).
+ * Public API: getAccessToken, searchBooks (Books), searchCrm (CRM).
+ *
+ * Auth: User identity resolves via adventurer execution context first, then Next.js requireUser.
+ * This lets the weapon work in both execution context (cron/scripts) and HTTP handlers.
  */
-import { requireUser } from "@/libs/council/auth/server";
 import { getZohoBooksAppCredentials } from "@/libs/council/profileEnvVars";
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
@@ -47,8 +49,35 @@ function accessTokenLikelyExpired(expiresAtIso) {
   return Date.now() > t - EXPIRY_SKEW_MS;
 }
 
-async function getZohoConnection(userId) {
-  const db = await database.init("server");
+/**
+ * Resolve userId: adventurer execution context → Next.js requireUser → explicit arg.
+ * @param {string | null | undefined} [explicit]
+ */
+async function resolveUserId(explicit) {
+  if (explicit) return explicit;
+  const { getAdventurerExecutionUserId } = await import("@/libs/adventurer/advance.js");
+  const ctxId = getAdventurerExecutionUserId();
+  if (ctxId) return ctxId;
+  const { requireUser } = await import("@/libs/council/auth/server");
+  const user = await requireUser();
+  return user.id;
+}
+
+/**
+ * Get a DB client: prefer service-role from execution context (works outside Next.js HTTP),
+ * fall back to server-scoped client.
+ * @param {import("@supabase/supabase-js").SupabaseClient | null | undefined} [injected]
+ */
+async function resolveClient(injected) {
+  if (injected) return injected;
+  const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
+  const ctx = getAdventurerExecutionContext();
+  if (ctx?.client) return ctx.client;
+  return database.init("service");
+}
+
+async function getZohoConnection(userId, injectedClient) {
+  const db = await resolveClient(injectedClient);
   const { data: row, error } = await db
     .from(publicTables.potions)
     .select("secrets")
@@ -61,8 +90,8 @@ async function getZohoConnection(userId) {
   return rowToLegacyShape(row);
 }
 
-async function upsertZohoConnection(payload) {
-  const db = await database.init("server");
+export async function upsertZohoConnection(payload, injectedClient) {
+  const db = await resolveClient(injectedClient);
   const { user_id, ...rest } = payload;
   const secrets = { ...rest };
   const expiresRaw = secrets.expires_at;
@@ -91,14 +120,20 @@ function getAuthLinks() {
   };
 }
 
+/** Short, Forge-centric message used in all "not connected / expired" errors. */
 function getAuthLinksMessage() {
   const L = getAuthLinks();
-  return [
-    "Zoho Books is not connected, or the stored session cannot be refreshed.",
-    `Open Town square → Forge → Zoho Books and use activation (${L.forgeZoho}), or visit the Inn for quests (${L.inn}).`,
-    `Or start OAuth directly: ${L.connectZoho}`,
-    `Check connection (JSON): ${L.status}`,
-  ].join(" ");
+  return `Go to the Forge to activate or re-forge the Zoho weapon: ${L.forgeZoho}`;
+}
+
+/** Message specifically for missing / insufficient CRM scope (401 from CRM API). */
+function getCrmScopeMessage() {
+  const L = getAuthLinks();
+  return (
+    `WEAPON_REAUTH_REQUIRED: The Zoho weapon does not have CRM scope (received 401 from Zoho CRM API). ` +
+    `This means the current OAuth token was issued before CRM permissions were added. ` +
+    `Go to the Forge, click "Scrap weapon & forge again", then re-authorize to grant CRM access: ${L.forgeZoho}`
+  );
 }
 
 /**
@@ -128,12 +163,12 @@ async function refreshAccessToken({ refreshToken, region, clientId, clientSecret
   return { ok: true, token };
 }
 
-async function refreshAndPersist(userId, current) {
+async function refreshAndPersist(userId, current, injectedClient) {
   const { clientId, clientSecret } = await getZohoBooksAppCredentials(userId);
   if (!clientId || !clientSecret) {
-    const L = getAuthLinks();
     throw new Error(
-      `Missing Zoho Books OAuth credentials. ${getAuthLinksMessage()} OAuth app: Council Hall Formulary or env ZOHO_BOOKS_CLIENT_ID / ZOHO_BOOKS_CLIENT_SECRET. Links: ${L.connectZoho}`
+      `Missing Zoho OAuth app credentials (ZOHO_BOOKS_CLIENT_ID / ZOHO_BOOKS_CLIENT_SECRET). ` +
+      `Set them in Council Hall → Formulary, then ${getAuthLinksMessage()}`
     );
   }
   const region = current.region || "com";
@@ -144,9 +179,8 @@ async function refreshAndPersist(userId, current) {
     clientSecret,
   });
   if (!refreshed.ok) {
-    const L = getAuthLinks();
     throw new Error(
-      `Zoho token refresh failed (${refreshed.error}). Re-authorize Zoho Books. ${getAuthLinksMessage()} ${L.connectZoho}`
+      `Zoho token refresh failed (${refreshed.error}). ${getAuthLinksMessage()}`
     );
   }
   const t = refreshed.token;
@@ -159,10 +193,7 @@ async function refreshAndPersist(userId, current) {
     expires_at: expiresAt,
     organization_id: current.organization_id,
   };
-  const { error: upErr } = await upsertZohoConnection({
-    user_id: userId,
-    ...newSecrets,
-  });
+  const { error: upErr } = await upsertZohoConnection({ user_id: userId, ...newSecrets }, injectedClient);
   if (upErr) {
     throw new Error(`Could not save refreshed token: ${upErr.message}`);
   }
@@ -170,29 +201,28 @@ async function refreshAndPersist(userId, current) {
 }
 
 /**
+ * @param {string} userId
+ * @param {import("@supabase/supabase-js").SupabaseClient | null | undefined} [injectedClient]
  * @returns {Promise<{ access_token: string, region: string, organization_id: string | null, refresh_token: string | null }>}
  */
-async function ensureSecretsForCurrentUser(userId) {
-  let current = await getZohoConnection(userId);
+async function ensureSecretsForCurrentUser(userId, injectedClient) {
+  let current = await getZohoConnection(userId, injectedClient);
 
   if (!current?.access_token && !current?.refresh_token) {
-    const L = getAuthLinks();
-    throw new Error(`${getAuthLinksMessage()} Start OAuth: ${L.connectZoho}`);
+    throw new Error(`Zoho weapon not connected. ${getAuthLinksMessage()}`);
   }
 
   const needsRefresh = !current.access_token || accessTokenLikelyExpired(current.expires_at);
 
   if (needsRefresh) {
     if (!current.refresh_token) {
-      const L = getAuthLinks();
-      throw new Error(`${getAuthLinksMessage()} ${L.connectZoho}`);
+      throw new Error(`Zoho access token expired and no refresh token found. ${getAuthLinksMessage()}`);
     }
-    current = await refreshAndPersist(userId, current);
+    current = await refreshAndPersist(userId, current, injectedClient);
   }
 
   if (!current?.access_token) {
-    const L = getAuthLinks();
-    throw new Error(`${getAuthLinksMessage()} ${L.connectZoho}`);
+    throw new Error(`Zoho access token unavailable after refresh. ${getAuthLinksMessage()}`);
   }
 
   return {
@@ -204,77 +234,220 @@ async function ensureSecretsForCurrentUser(userId) {
 }
 
 /**
- * @returns {Promise<string>} Bearer access token for Zoho Books API.
+ * Exchange an OAuth authorization code for tokens.
+ * @param {{ code: string, region: string, clientId: string, clientSecret: string, redirectUri: string }} p
  */
-export async function getAccessToken() {
-  const user = await requireUser();
-  const s = await ensureSecretsForCurrentUser(user.id);
+export async function exchangeZohoCode({ code, region, clientId, clientSecret, redirectUri }) {
+  const host = TOKEN_HOST[region] || TOKEN_HOST.com;
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: redirectUri,
+    code,
+  });
+  const response = await fetch(`${host}/oauth/v2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
+  }
+  const token = await response.json();
+  return { ok: true, token };
+}
+
+/**
+ * Fetch the Zoho Books organization_id using a fresh access token.
+ * @param {string} accessToken
+ * @param {string} [region]
+ */
+export async function fetchZohoOrganizationId(accessToken, region = "com") {
+  const baseUrl = ZOHO_API_BASE[region] || ZOHO_API_BASE.com;
+  const response = await fetch(`${baseUrl}/books/v3/organizations`, {
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const json = await response.json();
+  const orgs = json?.organizations;
+  return Array.isArray(orgs) && orgs[0]?.organization_id ? String(orgs[0].organization_id) : null;
+}
+
+/**
+ * @param {string} [userId] — optional; resolves from execution context or requireUser if omitted
+ * @returns {Promise<string>} Bearer access token for Zoho API.
+ */
+export async function getAccessToken(userId) {
+  const uid = await resolveUserId(userId);
+  const s = await ensureSecretsForCurrentUser(uid);
   return s.access_token;
 }
 
 /**
- * @param {string} module - API path segment (e.g. "salesorders", "invoices")
- * @param {number} numOfRecords
+ * Search any Zoho Books module (salesorders, invoices, bills, etc.).
+ * Returns up to `limit` records sorted by date descending.
+ *
+ * @param {string} module — API path segment (e.g. "salesorders", "invoices")
+ * @param {number} limit
+ * @param {string} [userId] — optional; resolves from execution context if omitted
  * @returns {Promise<unknown[]>}
  */
-export async function getList(module, numOfRecords) {
-  const user = await requireUser();
-  const secrets = await ensureSecretsForCurrentUser(user.id);
+export async function searchBooks(module, limit, userId) {
+  const uid = await resolveUserId(userId);
+  const secrets = await ensureSecretsForCurrentUser(uid);
   const region = secrets.region || "com";
   const baseUrl = ZOHO_API_BASE[region] || ZOHO_API_BASE.com;
   const organizationId = secrets.organization_id;
 
   if (!organizationId) {
-    const L = getAuthLinks();
     throw new Error(
-      `Zoho organization_id is missing. Re-authorize Zoho Books (callback stores org id). ${getAuthLinksMessage()} ${L.connectZoho}`
+      `Zoho organization_id is missing. Re-forge the weapon so the callback can store it. ${getAuthLinksMessage()}`
     );
   }
 
   const mod = String(module ?? "").replace(/^\//, "").replace(/\/$/, "");
   if (!mod) {
-    throw new Error("getList: module is required.");
+    throw new Error("searchBooks: module is required.");
   }
 
-  const limit = Math.max(1, Math.min(200, Number(numOfRecords) || 10));
+  const n = Math.max(1, Math.min(200, Number(limit) || 10));
 
   const url = new URL(`${baseUrl}/books/v3/${encodeURIComponent(mod)}`);
-  // Log the URL for diagnostics/tracing what we're fetching from Zoho API
   if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console
-    console.log(`[Zoho:getList] Fetching ${url.toString()}`);
+    console.log(`[Zoho:searchBooks] ${url.toString()}`);
   }
   url.searchParams.set("organization_id", organizationId);
-  url.searchParams.set("per_page", String(limit));
+  url.searchParams.set("per_page", String(n));
   url.searchParams.set("sort_column", "date");
   url.searchParams.set("sort_order", "D");
 
   const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Zoho-oauthtoken ${secrets.access_token}`,
-    },
+    headers: { Authorization: `Zoho-oauthtoken ${secrets.access_token}` },
     cache: "no-store",
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`ZOHO_FETCH_FAILED:${response.status}:${text.slice(0, 500)}`);
+    throw new Error(`ZOHO_BOOKS_FETCH_FAILED:${response.status}:${text.slice(0, 500)}`);
   }
 
   const json = await response.json();
   if (json && typeof json === "object") {
     const arrKey = Object.keys(json).find((k) => Array.isArray(json[k]));
     if (arrKey && Array.isArray(json[arrKey])) {
-      return json[arrKey].slice(0, limit);
+      return json[arrKey].slice(0, n);
     }
   }
   return [];
+}
+
+/**
+ * Default fields to request per CRM module. Keeps responses concise and
+ * avoids returning hundreds of custom fields. Unknown modules omit the
+ * `fields` param and let the CRM API return its default set.
+ */
+const CRM_MODULE_FIELDS = {
+  Contacts: "First_Name,Last_Name,Email,Phone,Account_Name,Lead_Source",
+  Quotes: "Subject,Quote_Stage,Grand_Total,Account_Name,Contact_Name,Expiry_Date",
+  Leads: "First_Name,Last_Name,Email,Phone,Company,Lead_Source",
+  Deals: "Deal_Name,Stage,Amount,Account_Name,Closing_Date",
+};
+
+/**
+ * Search any Zoho CRM module (Contacts, Quotes, Leads, Deals, …).
+ * Uses `GET /crm/v7/{Module}`. Module names are PascalCase.
+ *
+ * @param {string} module — PascalCase CRM module name (e.g. "Contacts", "Quotes")
+ * @param {number} limit — max records to return (default 5, max 200)
+ * @param {string} [userId] — optional; resolves from execution context if omitted
+ * @returns {Promise<unknown[]>}
+ */
+export async function searchCrm(module, limit, userId) {
+  const uid = await resolveUserId(userId);
+  const secrets = await ensureSecretsForCurrentUser(uid);
+  const region = secrets.region || "com";
+  const baseUrl = ZOHO_API_BASE[region] || ZOHO_API_BASE.com;
+  const n = Math.max(1, Math.min(200, Number(limit) || 5));
+
+  const mod = String(module ?? "").trim();
+  if (!mod) {
+    throw new Error("searchCrm: module is required.");
+  }
+
+  const url = new URL(`${baseUrl}/crm/v7/${encodeURIComponent(mod)}`);
+  url.searchParams.set("per_page", String(n));
+  const fields = CRM_MODULE_FIELDS[mod];
+  if (fields) {
+    url.searchParams.set("fields", fields);
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Zoho-oauthtoken ${secrets.access_token}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(getCrmScopeMessage());
+    }
+    throw new Error(`ZOHO_CRM_FETCH_FAILED:${response.status}:${text.slice(0, 500)}`);
+  }
+
+  const json = await response.json();
+  return Array.isArray(json?.data) ? json.data.slice(0, n) : [];
+}
+
+/**
+ * Build the Zoho OAuth authorization URL.
+ * Scopes cover both Zoho Books and Zoho CRM (shared OAuth flow).
+ *
+ * @param {{ region?: string, clientId: string, redirectUri: string, extraScopes?: string[] }} opts
+ */
+export function buildZohoOAuthAuthorizeUrl({ region = "com", clientId, redirectUri, extraScopes = [] }) {
+  const host = TOKEN_HOST[region] || TOKEN_HOST.com;
+  const defaultScopes = [
+    "ZohoBooks.fullaccess.all",
+    "ZohoCRM.modules.contacts.READ",
+    "ZohoCRM.modules.contacts.WRITE",
+    "ZohoCRM.modules.quotes.READ",
+    "ZohoCRM.modules.leads.READ",
+    "ZohoCRM.modules.deals.READ",
+  ];
+  const scopes = [...new Set([...defaultScopes, ...extraScopes])].join(",");
+  const url = new URL(`${host}/oauth/v2/auth`);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("scope", scopes);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("access_type", "offline");
+  url.searchParams.set("prompt", "consent");
+  return url.toString();
 }
 
 /** OAuth callback URL registered with Zoho (must match console + token exchange). */
 export function getZohoOAuthCallbackUrl() {
   const base = getSiteUrl().replace(/\/$/, "");
   return `${base}/api/weapon/zoho?action=callback`;
+}
+
+/**
+ * Delete the Zoho OAuth token row for a user (scrap the weapon).
+ * The Formulary OAuth app credentials (clientId/clientSecret) are untouched.
+ * @param {string} userId
+ * @param {import("@supabase/supabase-js").SupabaseClient | null | undefined} [injectedClient]
+ */
+export async function deleteZohoConnection(userId, injectedClient) {
+  const db = await resolveClient(injectedClient);
+  return db
+    .from(publicTables.potions)
+    .delete()
+    .eq("owner_id", userId)
+    .eq("kind", ZOHO_KIND);
 }
 
 async function readZohoSecretsRow(userId) {

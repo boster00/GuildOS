@@ -15,26 +15,56 @@ export const skillBook = {
   toc: {
     plan: {
       description: "Evaluate whether a weapon is needed for the quest. References docs/weapon-crafting-guideline.md. Returns forge spec or skip.",
-      inputExample: {},
-      outputExample: { action: "forge|skip", weapon_name: "string", msg: "string" },
+      input: {},
+      output: {
+        action: "string, one of: forge, skip",
+        weapon_name: "string",
+        msg: "string",
+      },
     },
     review: {
-      description: "Review blueprint from plan. Escalates to user review if credentials/setup needed, otherwise marks ready to forge.",
-      inputExample: {},
-      outputExample: { decision: "ready|escalate|skip", msg: "string" },
+      description: "Review blueprint from plan. Escalates to user if credentials or setup are needed, otherwise marks ready to forge.",
+      input: {},
+      output: {
+        decision: "string, one of: ready, escalate, skip",
+        msg: "string",
+      },
     },
     forgeWeapon: {
-      description: "Reads weapon_spec from quest inventory, invokes Claude CLI to write the weapon file + skill book action, returns HTML report.",
-      inputExample: { weapon_spec: { name: "string", description: "string", codeGoal: "string", actions: [] } },
-      outputExample: { html: "string", report_html: "string" },
+      description: "Read weapon_spec from quest inventory, invoke Claude CLI to write the weapon file and skill book action, return an HTML report.",
+      input: {
+        weapon_spec: "object with name, description, codeGoal, actions[]",
+      },
+      output: {
+        forge_report: "string, HTML report of what was created",
+      },
     },
     updateProvingGrounds: {
-      description: "Reads setup_steps from quest inventory and saves them to council_settings.proving_grounds_setup for the current user.",
-      inputExample: { setup_steps: ["Step 1: ...", "Step 2: ..."] },
-      outputExample: { saved: true },
+      description: "Read setup_steps from quest inventory and save them to council_settings.proving_grounds_setup for the current user.",
+      input: {
+        setup_steps: "array of strings, e.g. ['Step 1: ...', 'Step 2: ...']",
+      },
+      output: {
+        saved: "boolean",
+      },
     },
   },
 };
+
+/** Read a key from the quest inventory regardless of whether it is an array or map. */
+function readInventoryKey(guildos, key) {
+  const quest = guildos?.quest && typeof guildos.quest === "object" ? guildos.quest : null;
+  if (!quest) return undefined;
+  const inv = /** @type {unknown} */ (quest.inventory);
+  if (Array.isArray(inv)) {
+    const entry = inv.find((i) => i && (i.item_key === key || i.key === key));
+    return entry?.payload !== undefined ? entry.payload : entry?.value;
+  }
+  if (inv && typeof inv === "object" && !Array.isArray(inv)) {
+    return /** @type {Record<string, unknown>} */ (inv)[key];
+  }
+  return undefined;
+}
 
 /**
  * @param {unknown} [a]
@@ -47,12 +77,21 @@ export async function forgeWeapon(a, b) {
 
   const guildos = raw.guildos && typeof raw.guildos === "object" && !Array.isArray(raw.guildos)
     ? /** @type {Record<string, unknown>} */ (raw.guildos) : null;
-  const questInventory = guildos?.quest && typeof guildos.quest === "object" && !Array.isArray(guildos.quest)
-    ? /** @type {Record<string, unknown>} */ (/** @type {Record<string, unknown>} */ (guildos.quest).inventory ?? {}) : {};
 
-  const spec = raw.weapon_spec ?? questInventory.weapon_spec ?? null;
+  // weapon_spec may come from input, inventory, or be derived from blueprint (Blacksmith NPC plan stores blueprint, not weapon_spec)
+  const blueprintFallback = readInventoryKey(guildos, "blueprint");
+  const derivedFromBlueprint = blueprintFallback && typeof blueprintFallback === "object"
+    && typeof blueprintFallback.weapon_name === "string" && blueprintFallback.weapon_name
+    ? {
+        name: blueprintFallback.weapon_name,
+        description: String(blueprintFallback.msg || ""),
+        codeGoal: `Create or expand the ${blueprintFallback.weapon_name} weapon connector. ${blueprintFallback.msg || ""} Actions to implement: ${Array.isArray(blueprintFallback.actions_to_implement) ? blueprintFallback.actions_to_implement.join(", ") : "see blueprint"}.`,
+        actions: Array.isArray(blueprintFallback.actions_to_implement) ? blueprintFallback.actions_to_implement : [],
+      }
+    : null;
+  const spec = raw.weapon_spec ?? readInventoryKey(guildos, "weapon_spec") ?? derivedFromBlueprint ?? null;
   if (!spec || typeof spec !== "object") {
-    return skillActionErr("forgeWeapon: weapon_spec is required (in input or quest inventory).");
+    return skillActionErr("forgeWeapon: weapon_spec is required (in input, quest inventory, or derivable from blueprint).");
   }
   const s = /** @type {Record<string, unknown>} */ (spec);
   const weaponName = typeof s.name === "string" ? s.name.trim() : "";
@@ -109,7 +148,7 @@ Begin with <!DOCTYPE html> immediately. Do not include any text before it.`;
     return skillActionErr(`forgeWeapon: claudeCLI failed — ${result.error || "unknown error"}`, { html: result.html });
   }
 
-  return skillActionOk({ html: result.html, report_html: result.html });
+  return skillActionOk({ forge_report: result.html });
 }
 
 /**
@@ -123,12 +162,10 @@ export async function updateProvingGrounds(a, b) {
 
   const guildos = raw.guildos && typeof raw.guildos === "object" && !Array.isArray(raw.guildos)
     ? /** @type {Record<string, unknown>} */ (raw.guildos) : null;
-  const questInventory = guildos?.quest && typeof guildos.quest === "object" && !Array.isArray(guildos.quest)
-    ? /** @type {Record<string, unknown>} */ (/** @type {Record<string, unknown>} */ (guildos.quest).inventory ?? {}) : {};
   const profile = guildos?.profile && typeof guildos.profile === "object" && !Array.isArray(guildos.profile)
     ? /** @type {Record<string, unknown>} */ (guildos.profile) : null;
 
-  const steps = raw.setup_steps ?? questInventory.setup_steps ?? null;
+  const steps = raw.setup_steps ?? readInventoryKey(guildos, "setup_steps") ?? null;
   const stepsArr = Array.isArray(steps) ? steps.map((s) => String(s)) : null;
   if (!stepsArr || stepsArr.length === 0) {
     return skillActionErr("updateProvingGrounds: setup_steps array is required (in input or quest inventory).");
@@ -255,12 +292,7 @@ export async function review(a, b) {
 
   const guildos = raw.guildos && typeof raw.guildos === "object" && !Array.isArray(raw.guildos)
     ? /** @type {Record<string, unknown>} */ (raw.guildos) : null;
-  const quest = guildos?.quest && typeof guildos.quest === "object"
-    ? /** @type {Record<string, unknown>} */ (guildos.quest) : {};
-  const inventory = quest.inventory && typeof quest.inventory === "object"
-    ? /** @type {Record<string, unknown>} */ (quest.inventory) : {};
-
-  const blueprint = raw.blueprint || inventory.blueprint || null;
+  const blueprint = raw.blueprint || readInventoryKey(guildos, "blueprint") || null;
   if (!blueprint || typeof blueprint !== "object") {
     return skillActionErr("review: blueprint not found in inventory. Run plan first.");
   }

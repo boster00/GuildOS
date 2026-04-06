@@ -9,8 +9,12 @@ export const skillBook = {
   toc: {
     callToArms: {
       description: "Activation hook when a quest is handed off for recruitment (idea-stage reroute).",
-      inputExample: { quest: { id: "string", title: "string" } },
-      outputExample: { ok: true },
+      input: {
+        quest: "object with id, title",
+      },
+      output: {
+        ok: "boolean",
+      },
     },
   },
 };

@@ -65,49 +65,66 @@ export const definition = {
   title: "Questmaster",
   description:
     "Plan user requests into quest-shaped JSON and pick roster adventurers by capability.",
-  toc: [
-    {
-      id: "planRequestToQuest",
-      summary: "Translate a raw user request into a structured quest (title, description, deliverables, due date, stage).",
-      input: { initialRequest: { type: "string", required: true } },
-      output: { title: { type: "string" }, description: { type: "string" }, deliverables: { type: "string" }, due_date: { type: "string" }, stage: { type: "string" } },
-    },
-    {
-      id: "findAdventurerForQUest",
-      summary: "Given a quest and a roster of adventurers, pick the best-fit adventurer by capability.",
-      input: { quest: { type: "object", required: true }, adventurers: { type: "array", required: true } },
-      output: { adventurer_id: { type: "string" }, name: { type: "string" } },
-    },
-    {
-      id: "selectAdventurer",
-      summary:
-        "Idea-stage roster match for a New Request: load capabilities + names, AI chooses one adventurer or returns { result: false, msg }.",
-      input: { quest: { type: "object", required: true } },
-      output: { result: { type: "object" }, msg: { type: "string" } },
-    },
-    {
-      id: "assign",
-      summary:
-        "Assign stage: load quest by ID, scan adventurer roster, pick best-fit or return no-match. Returns full debug: API payload, prompt, model response.",
-      input: { questId: { type: "string", required: true } },
-      output: { result: { type: "object" }, msg: { type: "string" }, meta: { type: "object" } },
-    },
-    {
-      id: "interpretIdea",
-      summary:
-        "Turn a raw user request into a structured quest for a chosen adventurer (title, description with deliverable clarity, deliverables).",
+  toc: {
+    planRequestToQuest: {
+      description: "Translate a raw user request into a structured quest (title, description, deliverables, due date, stage).",
       input: {
-        initialRequest: { type: "string", required: true },
-        adventurerName: { type: "string", required: true },
+        initialRequest: "string, the user's raw request text",
       },
       output: {
-        title: { type: "string" },
-        description: { type: "string" },
-        deliverables: { type: "string" },
-        due_date: { type: "string" },
+        title: "string",
+        description: "string",
+        deliverables: "string",
+        due_date: "string, ISO 8601",
+        stage: "string, one of: idea, plan",
       },
     },
-  ],
+    findAdventurerForQuest: {
+      description: "Given a quest and a roster of adventurers, pick the best-fit adventurer by capability.",
+      input: {
+        quest: "object with title, description, deliverables",
+        adventurers: "array of { id, name, capabilities }",
+      },
+      output: {
+        adventurer_id: "string, UUID",
+        name: "string",
+      },
+    },
+    selectAdventurer: {
+      description: "Roster match for a new request: load adventurer capabilities + boast, AI chooses one or returns no-match.",
+      input: {
+        quest: "object with id, title, description",
+      },
+      output: {
+        result: "object { id, name } or false",
+        msg: "string, rationale",
+      },
+    },
+    assign: {
+      description: "Assign stage: load quest, scan adventurer roster, pick best-fit or return no-match.",
+      input: {
+        questId: "string, quest UUID",
+      },
+      output: {
+        result: "object { id, name } or false",
+        msg: "string, rationale",
+        meta: "object, debug trace",
+      },
+    },
+    interpretIdea: {
+      description: "Turn a raw user request into a structured quest for a chosen adventurer.",
+      input: {
+        initialRequest: "string, the user's raw request text",
+        adventurerName: "string, name of the chosen adventurer",
+      },
+      output: {
+        title: "string",
+        description: "string",
+        deliverables: "string",
+        due_date: "string, ISO 8601 or null",
+      },
+    },
+  },
   steps: [],
 };
 
@@ -401,7 +418,12 @@ export async function selectAdventurer(userId, { quest, client }) {
   }
 
   const rosterArr = Array.isArray(roster) ? roster : [];
-  const brief = rosterArr.map((a) => ({
+
+  // Build brief with both static capabilities (abstract) and dynamic boast (specific).
+  // Capabilities describes the type of work the adventurer handles.
+  // Boast lists the exact skill book actions available — the binding contract.
+  const { buildBoast } = await import("@/libs/adventurer/index.js");
+  const brief = await Promise.all(rosterArr.map(async (a) => ({
     id: a.id,
     name: a.name,
     capabilities:
@@ -410,16 +432,15 @@ export async function selectAdventurer(userId, { quest, client }) {
         : a.capabilities != null
           ? JSON.stringify(a.capabilities)
           : "",
-    skill_books: Array.isArray(a.skill_books) ? a.skill_books.join(", ") : "",
-    backstory: typeof a.backstory === "string" ? a.backstory : "",
-  }));
+    boast: await buildBoast(a),
+  })));
 
-  const prompt = `You match a NEW guild request to at most one adventurer on the roster (capabilities + name + id).
+  const prompt = `You match a NEW guild request to at most one adventurer on the roster.
 
 User request (raw):
 ${initialRequest}
 
-Roster — each entry has "id" (UUID), "name", and "capabilities" (plain text). Copy id and name EXACTLY from this list:
+Roster — each entry has "id", "name", "capabilities" (high-level description), and "boast" (exact list of skill book actions the adventurer can perform).
 ${JSON.stringify(brief, null, 2)}
 
 Reply with ONLY one JSON object (no markdown, no prose):
@@ -438,7 +459,9 @@ If NONE are a good match:
 
 Rules:
 - "msg" must be a non-empty string.
-- "result" is either an object with both "id" and "name" from the roster, or boolean false (or the string "false").`;
+- "result" is either an object with both "id" and "name" from the roster, or boolean false (or the string "false").
+- An adventurer can ONLY do what is listed in their boast. If the quest requires a capability not explicitly covered by any action in the adventurer's boast, return result: false.
+- Match by what the actions DO (read their descriptions), not by action names.`;
 
   if (rosterArr.length === 0) {
     const msg = "No adventurers on roster; cannot assign without recruitment.";
@@ -643,13 +666,13 @@ export async function assign(userId, { questId, guildos, client }) {
 
   const questMeta = { id: questRow.id, title: questRow.title, description: questRow.description, stage: questRow.stage };
 
-  // If a match was found, write the assignment back to the quest
+  // If a match was found, write the assignment and advance to plan
   if (result.data && result.data.result && result.data.result !== false) {
     const match = result.data.result;
     const assignedTo = match.name || "";
 
     // Use quest module's resolveAssignee to confirm NPC vs adventurer
-    const { resolveAssignee } = await import("@/libs/quest");
+    const { resolveAssignee, updateQuest } = await import("@/libs/quest");
     const resolved = await resolveAssignee(assignedTo, client);
 
     const { updateQuestAssignee } = await import("@/libs/council/database/serverQuest.js");
@@ -657,6 +680,9 @@ export async function assign(userId, { questId, guildos, client }) {
       assigneeId: resolved.type === "adventurer" ? resolved.profile.id : null,
       assignedTo,
     }, { client });
+
+    // Advance to plan — Cat's job is done once assignee is set
+    await updateQuest(questRow.id, { stage: "plan" }, { client });
 
     return {
       data: {

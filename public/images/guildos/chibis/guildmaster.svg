@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" role="img" aria-label="Guildmaster chibi — Oinky the Piggy">
+  <title>Oinky the Piggy — Guildmaster</title>
+  <!-- shadow -->
+  <ellipse cx="60" cy="118" rx="38" ry="10" fill="#8b5e3c" opacity="0.2"/>
+  <!-- head -->
+  <circle cx="60" cy="68" r="44" fill="#fbb4c4" stroke="#e11d48" stroke-width="3"/>
+  <!-- pig ears -->
+  <ellipse cx="26" cy="38" rx="14" ry="18" fill="#fbb4c4" stroke="#e11d48" stroke-width="2" transform="rotate(-20 26 38)"/>
+  <ellipse cx="94" cy="38" rx="14" ry="18" fill="#fbb4c4" stroke="#e11d48" stroke-width="2" transform="rotate(20 94 38)"/>
+  <!-- inner ears -->
+  <ellipse cx="26" cy="38" rx="8" ry="11" fill="#f9a8d4" opacity="0.6" transform="rotate(-20 26 38)"/>
+  <ellipse cx="94" cy="38" rx="8" ry="11" fill="#f9a8d4" opacity="0.6" transform="rotate(20 94 38)"/>
+  <!-- eyes -->
+  <circle cx="44" cy="62" r="7" fill="#1e1b4b"/>
+  <circle cx="76" cy="62" r="7" fill="#1e1b4b"/>
+  <circle cx="46" cy="60" r="2.5" fill="#fff"/>
+  <circle cx="78" cy="60" r="2.5" fill="#fff"/>
+  <!-- snout -->
+  <ellipse cx="60" cy="80" rx="14" ry="10" fill="#f9a8d4" stroke="#e11d48" stroke-width="1.5"/>
+  <!-- nostrils -->
+  <ellipse cx="54" cy="80" rx="3" ry="2.5" fill="#e11d48" opacity="0.6"/>
+  <ellipse cx="66" cy="80" rx="3" ry="2.5" fill="#e11d48" opacity="0.6"/>
+  <!-- body -->
+  <rect x="28" y="98" width="64" height="28" rx="8" fill="#e11d48" stroke="#9f1239" stroke-width="2"/>
+  <!-- tie -->
+  <path d="M56 98 L60 112 L64 98 Z" fill="#fbbf24" stroke="#92400e" stroke-width="1"/>
+</svg>

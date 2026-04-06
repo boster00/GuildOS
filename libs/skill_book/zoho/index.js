@@ -1,43 +1,88 @@
 /**
- * Zoho Books skill book — toc is a map: action name → { description, inputExample, outputExample }.
+ * Zoho skill book — unified search across Zoho Books and Zoho CRM.
+ * One action (`search`) covers all modules. The caller specifies a `module`
+ * parameter; routing to Books vs CRM API happens internally.
  */
-import { getList } from "@/libs/weapon/zoho";
+import { searchBooks, searchCrm } from "@/libs/weapon/zoho";
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
+
+const BOOKS_MODULES = new Set([
+  "salesorders", "invoices", "bills",
+  "purchaseorders", "creditnotes", "payments", "estimates",
+]);
+
+const CRM_MODULES = new Set([
+  "Contacts", "Quotes", "Leads", "Deals",
+]);
 
 export const skillBook = {
   id: "zoho",
-  title: "Zoho Books",
-  description: "Connect to Zoho Books and fetch latest records via the Books API.",
+  title: "Zoho",
+  description: "Search Zoho Books and Zoho CRM modules via shared OAuth.",
   steps: [],
   toc: {
-    getRecentOrders: {
-      description: "Fetch the latest rows from a Zoho Books module (possible transaction names: salesorders, invoices, bills, purchaseorders, creditnotes, payments, estimates).",
-      inputExample: { module: "pick a transaction name, note the format is single word without spaces, like salesorders, invoices, bills, purchaseorders, creditnotes, payments or estimates", numOfRecords: "integer" },
-      outputExample: [],
+    search: {
+      description: "Search any Zoho module and return up to N records.",
+      input: {
+        module: "string, one of: salesorders, invoices, bills, purchaseorders, creditnotes, payments, estimates, Contacts, Quotes, Leads, Deals",
+        limit: "int, e.g. 5",
+      },
+      output: {
+        records: "array of objects",
+      },
     },
   },
 };
 
 /**
- * Adventurer wrappers call (userId, input); some API routes call (input) only.
- * @param {unknown} [a] userId or payload
- * @param {unknown} [b] payload when a is userId
- * @returns {Promise<{ ok: boolean, msg: string, items: Record<string, unknown> }>}
+ * Normalize skill book action input — handles both (userId, input) and
+ * (enrichedPayload) call shapes from the proving grounds.
+ * @param {unknown} a
+ * @param {unknown} b
  */
-export async function getRecentOrders(a, b) {
-  const input =
-    b !== undefined && typeof b === "object" && b !== null && !Array.isArray(b)
-      ? b
-      : a !== undefined && typeof a === "object" && a !== null && !Array.isArray(a)
-        ? a
-        : {};
-  const raw = input;
-  const mod = String(raw.module ?? raw.transaction_type ?? "salesorders").trim() || "salesorders";
-  const n = Number(raw.numOfRecords ?? raw.limit ?? 10);
-  try {
-    const rows = await getList(mod, n);
-    return skillActionOk({ [mod]: rows });
-  } catch (e) {
-    return skillActionErr(e instanceof Error ? e.message : String(e));
+function normalizeInput(a, b) {
+  if (b !== undefined && typeof b === "object" && b !== null && !Array.isArray(b)) return b;
+  if (a !== undefined && typeof a === "object" && a !== null && !Array.isArray(a)) return a;
+  return {};
+}
+
+/**
+ * Unified Zoho search — routes to Books or CRM based on the `module` value.
+ *
+ * @param {unknown} [a]
+ * @param {unknown} [b]
+ */
+export async function search(a, b) {
+  const raw = normalizeInput(a, b);
+  const module = String(raw.module ?? "").trim();
+  const limit = Number(raw.limit ?? 5);
+
+  if (!module) {
+    return skillActionErr(
+      `"module" is required. Books: ${[...BOOKS_MODULES].join(", ")}. CRM: ${[...CRM_MODULES].join(", ")}.`
+    );
   }
+
+  if (BOOKS_MODULES.has(module)) {
+    try {
+      const rows = await searchBooks(module, limit);
+      return skillActionOk({ records: rows });
+    } catch (e) {
+      return skillActionErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  if (CRM_MODULES.has(module)) {
+    try {
+      const rows = await searchCrm(module, limit);
+      return skillActionOk({ records: rows });
+    } catch (e) {
+      return skillActionErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return skillActionErr(
+    `Unknown Zoho module: "${module}". ` +
+    `Books: ${[...BOOKS_MODULES].join(", ")}. CRM: ${[...CRM_MODULES].join(", ")}.`
+  );
 }

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" role="img" aria-label="Questmaster chibi — Wendy the Kitty">
+  <title>Wendy the Kitty — Questmaster</title>
+  <!-- shadow -->
+  <ellipse cx="60" cy="118" rx="38" ry="10" fill="#5b2d8e" opacity="0.2"/>
+  <!-- head -->
+  <circle cx="60" cy="68" r="44" fill="#fde8d8" stroke="#d97706" stroke-width="3"/>
+  <!-- cat ears -->
+  <path d="M22 38 L32 4 L52 34 Z" fill="#fde8d8" stroke="#d97706" stroke-width="2.5"/>
+  <path d="M68 34 L88 4 L98 38 Z" fill="#fde8d8" stroke="#d97706" stroke-width="2.5"/>
+  <!-- inner ears -->
+  <path d="M30 32 L36 12 L48 32 Z" fill="#fbcfe8" opacity="0.6"/>
+  <path d="M72 32 L84 12 L90 32 Z" fill="#fbcfe8" opacity="0.6"/>
+  <!-- eyes -->
+  <ellipse cx="44" cy="64" rx="7" ry="8" fill="#1e1b4b"/>
+  <ellipse cx="76" cy="64" rx="7" ry="8" fill="#1e1b4b"/>
+  <circle cx="46" cy="62" r="2.5" fill="#fff"/>
+  <circle cx="78" cy="62" r="2.5" fill="#fff"/>
+  <!-- nose + mouth -->
+  <ellipse cx="60" cy="78" rx="3" ry="2" fill="#f472b6"/>
+  <path d="M54 82 Q60 90 66 82" fill="none" stroke="#1e1b4b" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- whiskers -->
+  <line x1="16" y1="72" x2="38" y2="76" stroke="#d97706" stroke-width="1.2" opacity="0.5"/>
+  <line x1="16" y1="80" x2="38" y2="80" stroke="#d97706" stroke-width="1.2" opacity="0.5"/>
+  <line x1="82" y1="76" x2="104" y2="72" stroke="#d97706" stroke-width="1.2" opacity="0.5"/>
+  <line x1="82" y1="80" x2="104" y2="80" stroke="#d97706" stroke-width="1.2" opacity="0.5"/>
+  <!-- body -->
+  <rect x="28" y="98" width="64" height="28" rx="8" fill="#d97706" stroke="#92400e" stroke-width="2"/>
+  <!-- collar bell -->
+  <circle cx="60" cy="102" r="4" fill="#fbbf24" stroke="#92400e" stroke-width="1"/>
+</svg>

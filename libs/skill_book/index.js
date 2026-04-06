@@ -9,7 +9,7 @@
 import { definition as defaultDef, escalate as defaultEscalate } from "./default/index.js";
 
 export { skillActionOk, skillActionErr } from "./actionResult.js";
-import { skillBook as zohoSkillBook, getRecentOrders } from "./zoho/index.js";
+import { skillBook as zohoSkillBook, search as zohoSearch } from "./zoho/index.js";
 import {
   skillBook as testskillbookDef,
   testaction,
@@ -30,11 +30,12 @@ import {
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
 import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
+import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEvents } from "./bigquery/index.js";
 
 // --- planStepUtils (inlined) ---
 
 /**
- * @typedef {{ skillbook: string, action: string, input?: string[], output?: string[] }} PlanStep
+ * @typedef {{ skillbook: string, action: string, input?: string[], output?: string[], params?: Record<string, unknown> }} PlanStep
  */
 
 /**
@@ -74,6 +75,11 @@ export function normalizePlanStep(raw) {
   }
   if (Array.isArray(o.output)) {
     out.output = o.output.map((x) => String(x)).filter((s) => s.length > 0);
+  }
+  // Preserve params — static values known at plan time (e.g. { module: "Quotes", limit: 5 }).
+  // At execute time, params are merged into the payload alongside inventory-resolved input keys.
+  if (o.params && typeof o.params === "object" && !Array.isArray(o.params)) {
+    out.params = o.params;
   }
   return out;
 }
@@ -216,6 +222,7 @@ export function buildAdventurerSkillBookView(definition, adventurerActions = {})
     for (const row of definition.toc) {
       if (row && typeof row.id === "string") {
         toc[row.id] = {
+          description: row.description || row.summary || "",
           input: row.input && typeof row.input === "object" && !Array.isArray(row.input) ? row.input : {},
           output: row.output && typeof row.output === "object" && !Array.isArray(row.output) ? row.output : {},
           ...(Array.isArray(row.waitFor) ? { waitFor: row.waitFor } : {}),
@@ -226,6 +233,7 @@ export function buildAdventurerSkillBookView(definition, adventurerActions = {})
     for (const [actionId, entry] of Object.entries(definition.toc)) {
       const e = entry && typeof entry === "object" ? entry : {};
       toc[actionId] = {
+        description: e.description || e.summary || "",
         input:
           (e.input && typeof e.input === "object" && !Array.isArray(e.input) ? e.input : null) ??
           (e.inputExample && typeof e.inputExample === "object" && !Array.isArray(e.inputExample) ? e.inputExample : {}),
@@ -272,6 +280,7 @@ export const SKILL_BOOKS = {
   blacksmith: blacksmithSkillBook,
   testskillbook: testskillbookDef,
   browsercontrol: browsercontrolSkillBook,
+  bigquery: bigquerySkillBook,
 };
 
 /**
@@ -304,7 +313,7 @@ export function listSkillBookIdsForRosterUI() {
 }
 
 const zohoAdventurerActions = {
-  getRecentOrders: (_userId, input) => getRecentOrders(/** @type {Record<string, unknown>} */ (input || {})),
+  search: (_userId, input) => zohoSearch(/** @type {Record<string, unknown>} */ (input || {})),
 };
 
 const testskillbookAdventurerActions = {
@@ -416,6 +425,9 @@ const ADVENTURER_REGISTRY = {
   blacksmith: { definition: blacksmithSkillBook, adventurerActions: blacksmithAdventurerActions },
   testskillbook: { definition: testskillbookDef, adventurerActions: testskillbookAdventurerActions },
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: browsercontrolAdventurerActions },
+  bigquery: { definition: bigquerySkillBook, adventurerActions: {
+    getRecentEvents: (_userId, input) => bigqueryGetRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
 };
 
 /**

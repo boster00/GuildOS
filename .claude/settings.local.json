@@ -5,8 +5,12 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(node -e \"require\\('@modelcontextprotocol/sdk'\\)\")",
-      "Bash(node --input-type=module -e \"import\\('@modelcontextprotocol/sdk/server/index.js'\\).then\\(\\(\\)=>console.log\\('ok'\\)\\)\")"
+      "Bash(node --input-type=module -e \"import\\('@modelcontextprotocol/sdk/server/index.js'\\).then\\(\\(\\)=>console.log\\('ok'\\)\\)\")",
+      "Bash(git config:*)",
+      "Bash(node mcp/zoho-server.mjs)",
+      "Bash(echo \"exit:$?\")"
     ],
     "defaultMode": "bypassPermissions"
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

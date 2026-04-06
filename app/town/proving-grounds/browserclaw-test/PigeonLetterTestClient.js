@@ -4,8 +4,10 @@ import { useState } from "react";
 const DEFAULT_PAYLOAD = JSON.stringify(
   {
     steps: [
-      { action: "navigate", url: "https://example.com", item: "nav" },
-      { action: "obtainText", selector: "h1", item: "heading" },
+      { action: "navigate", url: "https://example.com" },
+      { action: "wait", seconds: 1, selector: "h1" },
+      { action: "get", selector: "h1", item: "heading" },
+      { action: "getUrl", item: "finalUrl" },
     ],
   },
   null,

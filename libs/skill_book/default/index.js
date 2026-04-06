@@ -8,29 +8,31 @@ export const definition = {
   id: "default",
   title: "Default",
   description: "Built-in helpers: JSON extraction, inventory bridging, escalation.",
-  toc: [
-    {
-      id: "escalate",
-      summary: "Escalate the quest to review. Sets stage to review, assigns to Guildmaster (Pig), posts the comment. Returns { escalated: true }.",
+  toc: {
+    escalate: {
+      description: "Escalate the quest to review. Sets stage to review, assigns to Guildmaster (Pig), posts the comment.",
       input: {
-        questId: { type: "string", required: true },
-        comment: { type: "string", required: true, description: "Non-empty reason for escalation." },
+        questId: "string, the quest ID",
+        comment: "string, non-empty reason for escalation",
       },
-      output: { escalated: { type: "boolean" } },
+      output: {
+        escalated: "boolean",
+      },
     },
-    {
-      id: "organizeInventory",
-      summary: "Bridge between actions: given quest context and current inventory, produce the input items needed by the next action.",
+    organizeInventory: {
+      description: "Bridge between actions: given quest context and current inventory, produce the input items needed by the next action.",
       input: {
-        questTitle: { type: "string", required: true },
-        questDescription: { type: "string", required: true },
-        questDeliverables: { type: "string", required: false },
-        currentItems: { type: "array", required: true, description: "Current quest inventory items." },
-        neededInputSpec: { type: "object", required: true, description: "Input schema of the upcoming action." },
+        questTitle: "string",
+        questDescription: "string",
+        questDeliverables: "string, optional",
+        currentItems: "array, current quest inventory items",
+        neededInputSpec: "object, input schema of the upcoming action",
       },
-      output: { items: { type: "array", description: "New or updated inventory items to merge." } },
+      output: {
+        items: "array, new or updated inventory items to merge",
+      },
     },
-  ],
+  },
   steps: [],
 };
 

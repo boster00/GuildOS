@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" role="img" aria-label="Runesmith chibi — Nick Wildrunes">
+  <title>Nick Wildrunes — Runesmith</title>
+  <!-- shadow -->
+  <ellipse cx="60" cy="118" rx="38" ry="10" fill="#7c2d12" opacity="0.2"/>
+  <!-- head -->
+  <circle cx="60" cy="68" r="44" fill="#f97316" stroke="#c2410c" stroke-width="3"/>
+  <!-- fox ears -->
+  <path d="M18 42 L28 2 L48 36 Z" fill="#f97316" stroke="#c2410c" stroke-width="2.5"/>
+  <path d="M72 36 L92 2 L102 42 Z" fill="#f97316" stroke="#c2410c" stroke-width="2.5"/>
+  <!-- ear tips (dark) -->
+  <path d="M24 28 L28 8 L38 28 Z" fill="#292524"/>
+  <path d="M82 28 L92 8 L96 28 Z" fill="#292524"/>
+  <!-- white face patch -->
+  <ellipse cx="60" cy="82" rx="28" ry="22" fill="#fef3c7" opacity="0.8"/>
+  <!-- eyes — sly fox look -->
+  <ellipse cx="44" cy="62" rx="7" ry="6" fill="#059669"/>
+  <circle cx="44" cy="62" r="4" fill="#1e1b4b"/>
+  <circle cx="46" cy="60" r="2" fill="#fff"/>
+  <ellipse cx="76" cy="62" rx="7" ry="6" fill="#059669"/>
+  <circle cx="76" cy="62" r="4" fill="#1e1b4b"/>
+  <circle cx="78" cy="60" r="2" fill="#fff"/>
+  <!-- nose -->
+  <ellipse cx="60" cy="76" rx="4" ry="3" fill="#292524"/>
+  <!-- sly smirk -->
+  <path d="M52 82 Q60 88 72 82" fill="none" stroke="#1e1b4b" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- body -->
+  <rect x="28" y="98" width="64" height="28" rx="8" fill="#16a34a" stroke="#166534" stroke-width="2"/>
+  <!-- rune symbol on shirt -->
+  <text x="60" y="117" text-anchor="middle" font-size="16" font-weight="bold" fill="#bbf7d0" font-family="serif">R</text>
+</svg>

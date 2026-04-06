@@ -76,6 +76,7 @@ export default function QuestDetailFieldEditClient({
   const [dueIso, setDueIso] = useState(() =>
     initialDueDate != null && initialDueDate !== "" ? String(initialDueDate) : null,
   );
+  const [rawInv, setRawInv] = useState(() => initialInventory);
   const [invMap, setInvMap] = useState(() => inventoryRawToMap(initialInventory));
 
   const [editTitle, setEditTitle] = useState(false);
@@ -133,10 +134,10 @@ export default function QuestDetailFieldEditClient({
   }, [description]);
 
   const beginInv = useCallback(() => {
-    setDraftInv(JSON.stringify(invMap, null, 2));
+    setDraftInv(rawInv == null ? "" : typeof rawInv === "string" ? rawInv : JSON.stringify(rawInv, null, 2));
     setEditInv(true);
     setErr(null);
-  }, [invMap]);
+  }, [rawInv]);
 
   const beginAssignee = useCallback(() => {
     setDraftAssignee(assignedTo.trim());
@@ -163,7 +164,10 @@ export default function QuestDetailFieldEditClient({
     if (row.due_date !== undefined) {
       setDueIso(row.due_date == null || row.due_date === "" ? null : String(row.due_date));
     }
-    if (row.inventory !== undefined) setInvMap(inventoryRawToMap(row.inventory));
+    if (row.inventory !== undefined) {
+      setRawInv(row.inventory);
+      setInvMap(inventoryRawToMap(row.inventory));
+    }
   }, []);
 
   const patchQuest = useCallback(
@@ -218,13 +222,9 @@ export default function QuestDetailFieldEditClient({
   const saveInv = useCallback(async () => {
     let parsed;
     try {
-      parsed = JSON.parse(draftInv || "{}");
+      parsed = JSON.parse(draftInv || "null");
     } catch {
       setErr("Items: invalid JSON.");
-      return;
-    }
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      setErr("Items JSON must be an object (inventory map), not an array.");
       return;
     }
     const ok = await patchQuest({ inventory: parsed });
@@ -472,7 +472,7 @@ export default function QuestDetailFieldEditClient({
               onChange={(e) => setDraftInv(e.target.value)}
               disabled={saving}
             />
-            <p className="text-xs text-base-content/50">Object keyed by item id (inventory map). Save replaces the full inventory.</p>
+            <p className="text-xs text-base-content/50">Raw inventory JSON. Save replaces the full inventory column.</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={saveInv}>
                 {saving ? "Saving…" : "Save"}

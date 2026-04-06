@@ -7,6 +7,8 @@ GuildOS is a fantasy-themed AI agent orchestration platform. Users create **ques
 **Active app surfaces:** `app/town/**`, `app/signin`, `app/opening`, `app/api/*`
 **Archived (do not treat as active):** `_archive/legacy-shipfast-root/`
 
+> **ALWAYS READ FIRST:** `docs/project-architecture-documentation.md` is the source of truth for the quest pipeline, NPC behavior, stage machine, and preparation cascade. Read it at the start of every session involving quest lifecycle, NPCs, adventurers, skill books, or weapons. It also documents common misunderstandings that have recurred across sessions.
+
 ---
 
 ## NEW FILES — STRICTEST RULE (highest priority)

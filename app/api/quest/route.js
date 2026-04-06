@@ -1,6 +1,6 @@
 /**
  * Quest domain — single route; triage via ?action=
- * GET:  salesOrders | get (id=)
+ * GET:  get (id=)
  * POST: request (default)
  */
 import { requireUser } from "@/libs/council/auth/server";
@@ -12,15 +12,11 @@ import {
   updateQuest,
   QUEST_STAGES,
 } from "@/libs/quest";
-import { getRecentOrders } from "@/libs/skill_book/zoho";
 import {
-  insertQuestMinimal,
-  selectQuestIdByOwnerTitle,
   updateQuestAssignee,
 } from "@/libs/council/database/serverQuest.js";
-import { zohoErrorToJsonPayload } from "@/libs/weapon/zoho";
 
-const GET_ACTIONS = ["salesOrders", "sales-orders", "get"];
+const GET_ACTIONS = ["get"];
 
 export async function GET(request) {
   const action = request.nextUrl.searchParams.get("action");
@@ -38,35 +34,6 @@ export async function GET(request) {
       },
       { status: 400 }
     );
-  }
-
-  if (action === "salesOrders" || action === "sales-orders") {
-    const res = await getRecentOrders({ module: "salesorders", numOfRecords: 10 });
-    if (!res.ok) {
-      return Response.json(zohoErrorToJsonPayload(new Error(res.msg)), { status: 400 });
-    }
-    const data = /** @type {unknown[]} */ (res.items.salesorders ?? []);
-
-    const title = "Quest 1: Recent Sales Orders";
-    const { data: existingQuest } = await selectQuestIdByOwnerTitle(user.id, title);
-    const questId =
-      existingQuest?.id ??
-      (await insertQuestMinimal({ ownerId: user.id, title, stage: "execute" })).data?.id;
-
-    await appendInventoryItem(questId, {
-      item_key: "quest1_sales_orders",
-      payload: {
-        source: "zoho_books",
-        row_count: data.length,
-        rows: data,
-      },
-    });
-
-    return Response.json({
-      questId,
-      count: data.length,
-      rows: data,
-    });
   }
 
   if (action === "get") {

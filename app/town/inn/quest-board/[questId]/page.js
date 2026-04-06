@@ -10,7 +10,6 @@ import { getQuestForOwner, QUEST_PATCH_RELATIVE_URL, QUEST_STAGES } from "@/libs
 import QuestActivityCommentsPanel from "./QuestActivityCommentsPanel.js";
 import QuestDetailFieldEditClient from "./QuestDetailFieldEditClient.js";
 import QuestNextStepsEditClient from "./QuestNextStepsEditClient.js";
-import QuestAddInventoryItemForm from "@/components/QuestAddInventoryItemForm";
 
 function JsonBlock({ label, value, showEmptyObject = false }) {
   const isPlainObject = typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49,7 +48,10 @@ function executionPlanRowDisplay(row, index) {
     : Array.isArray(row?.output_keys)
       ? row.output_keys
       : [];
-  return { index, skillbook, action, input, output };
+  const params = row?.params && typeof row.params === "object" && !Array.isArray(row.params)
+    ? row.params
+    : null;
+  return { index, skillbook, action, input, output, params };
 }
 
 function executionPlanAsArray(plan) {
@@ -88,7 +90,22 @@ function ExecutionPlanTable({ plan }) {
                   <td className="px-3 py-2 align-top font-mono text-sm text-base-content/90">{r.skillbook || "—"}</td>
                   <td className="px-3 py-2 align-top font-mono text-sm text-base-content/90">{r.action || "—"}</td>
                   <td className="px-3 py-2 align-top font-mono text-xs text-base-content/80">
-                    {r.input.length ? r.input.join(", ") : "—"}
+                    {r.input.length ? r.input.join(", ") : r.params ? "" : "—"}
+                    {r.params ? (
+                      <details className="inline-block">
+                        <summary className="cursor-pointer select-none" title="Inspect step params">
+                          {r.input.length ? " " : ""}🔍 <span className="text-[0.65rem] text-base-content/50">params</span>
+                        </summary>
+                        <div className="mt-1 rounded-lg border border-base-300 bg-base-200/60 p-2 text-[0.7rem] leading-relaxed">
+                          {Object.entries(r.params).map(([k, v]) => (
+                            <div key={k}>
+                              <span className="font-semibold text-base-content/70">{k}:</span>{" "}
+                              <span className="text-base-content/90">{typeof v === "string" ? v : JSON.stringify(v)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2 align-top font-mono text-xs text-base-content/80">
                     {r.output.length ? r.output.join(", ") : "—"}
@@ -187,6 +204,13 @@ function QuestStageMenu({ questId, currentStage }) {
       savedEl.style.opacity = "";
     }, 3000);
   }
+
+  // Close dropdown when clicking outside
+  document.addEventListener("click", function (e) {
+    if (details && details.open && !details.contains(e.target)) {
+      details.open = false;
+    }
+  });
 
   root.querySelectorAll(".qsm-opt").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -313,8 +337,6 @@ export default async function QuestDetailPage({ params }) {
         </dl>
 
         <JsonBlock label="Deliverables" value={quest.deliverables} />
-
-        <QuestAddInventoryItemForm questId={quest.id} />
 
         <ExecutionPlanTable plan={quest.execution_plan} />
 
