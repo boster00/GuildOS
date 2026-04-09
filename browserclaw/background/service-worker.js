@@ -857,6 +857,16 @@ async function executeOneStep(letter, stepIndex, existingTabId) {
   }
 }
 
+// Cookie extraction handler — used by orchestrator to bridge cookies to CCC sessions
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || message.type !== "GET_COOKIES") return;
+  const domain = message.domain || ".google.com";
+  chrome.cookies.getAll({ domain })
+    .then(cookies => sendResponse({ ok: true, cookies }))
+    .catch(err => sendResponse({ ok: false, error: String(err) }));
+  return true; // keep channel open for async response
+});
+
 chrome.runtime.onInstalled.addListener((details) => {
   logTabEvent("runtime.onInstalled", { reason: details.reason });
   // Clean up stale keys from old WS/native host storage

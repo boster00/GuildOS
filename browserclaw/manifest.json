@@ -14,7 +14,7 @@
   "background": {
     "service_worker": "background/service-worker.js"
   },
-  "permissions": ["tabs", "storage", "windows", "alarms"],
+  "permissions": ["tabs", "storage", "windows", "alarms", "cookies"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
@@ -26,7 +26,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["assets/bunny-fab.png"],
+      "resources": ["assets/bunny-fab.png", "cookie-export/index.html", "cookie-export/index.js"],
       "matches": ["<all_urls>"]
     }
   ]

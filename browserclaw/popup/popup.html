@@ -17,6 +17,16 @@
         <button type="button" id="bc-broadcast" class="bc-btn">Signal open tabs</button>
       </section>
       <p id="bc-status" class="bc-popup__status" aria-live="polite"></p>
+      <section class="bc-popup__section bc-popup__section--divider" aria-labelledby="bc-cookies-heading">
+        <h2 id="bc-cookies-heading" class="bc-popup__h2">Cookie Export</h2>
+        <div class="bc-cookie-row">
+          <input type="text" id="bc-cookie-domain" class="bc-cookie-input" value=".google.com" placeholder="domain e.g. .google.com" />
+          <button type="button" id="bc-export-cookies" class="bc-btn bc-btn--green">Export Cookies</button>
+        </div>
+        <p id="bc-cookie-status" class="bc-popup__status" aria-live="polite"></p>
+        <textarea id="bc-cookie-result" class="bc-cookie-result" readonly placeholder="Cookies will appear here as JSON…" rows="6"></textarea>
+        <button type="button" id="bc-copy-cookies" class="bc-btn bc-btn--secondary bc-btn--sm" style="display:none">Copy to clipboard</button>
+      </section>
     </main>
     <script src="../shared/constants.js"></script>
     <script src="popup.js"></script>
