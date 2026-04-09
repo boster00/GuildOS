@@ -246,6 +246,63 @@
 
     body.appendChild(settingsBtn);
 
+    // Cookie export section
+    const cookieSection = document.createElement('div');
+    cookieSection.className = 'browserclaw-modal-section';
+
+    const cookieBtn = document.createElement('button');
+    cookieBtn.type = 'button';
+    cookieBtn.className = 'browserclaw-modal-settings browserclaw-modal-cookie-btn';
+    cookieBtn.textContent = 'Export Cookies (.google.com)';
+
+    const cookieStatus = document.createElement('p');
+    cookieStatus.className = 'browserclaw-modal-cookie-status';
+
+    const cookieArea = document.createElement('textarea');
+    cookieArea.className = 'browserclaw-modal-cookie-area';
+    cookieArea.readOnly = true;
+    cookieArea.rows = 5;
+    cookieArea.placeholder = 'Cookies will appear here…';
+    cookieArea.id = 'bc-modal-cookie-result';
+    cookieArea.style.display = 'none';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'browserclaw-modal-settings browserclaw-modal-copy-btn';
+    copyBtn.textContent = 'Copy to clipboard';
+    copyBtn.style.display = 'none';
+
+    cookieBtn.addEventListener('click', () => {
+      cookieStatus.textContent = 'Fetching…';
+      chrome.runtime.sendMessage({ type: 'GET_COOKIES', domain: '.google.com' }, (res) => {
+        if (chrome.runtime.lastError || !res || !res.ok) {
+          cookieStatus.textContent = '✗ ' + ((chrome.runtime.lastError && chrome.runtime.lastError.message) || (res && res.error) || 'Failed');
+          return;
+        }
+        const data = JSON.stringify(res.cookies.map((c) => ({
+          name: c.name, value: c.value, domain: c.domain,
+          path: c.path, httpOnly: c.httpOnly, secure: c.secure
+        })));
+        cookieArea.value = data;
+        cookieArea.setAttribute('data-ready', '1');
+        cookieArea.style.display = 'block';
+        copyBtn.style.display = 'block';
+        cookieStatus.textContent = '✓ ' + res.cookies.length + ' cookies';
+      });
+    });
+
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(cookieArea.value).then(() => {
+        cookieStatus.textContent = 'Copied!';
+      });
+    });
+
+    cookieSection.appendChild(cookieBtn);
+    cookieSection.appendChild(cookieStatus);
+    cookieSection.appendChild(cookieArea);
+    cookieSection.appendChild(copyBtn);
+    body.appendChild(cookieSection);
+
     modal.appendChild(header);
     modal.appendChild(body);
     modalBackdrop.appendChild(modal);

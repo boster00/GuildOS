@@ -358,3 +358,47 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+#browserclaw-root .browserclaw-modal-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+#browserclaw-root .browserclaw-modal-cookie-btn {
+  background: linear-gradient(135deg, #059669, #10b981);
+}
+
+#browserclaw-root .browserclaw-modal-copy-btn {
+  margin-top: 6px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  font-size: 11px;
+  padding: 6px 10px;
+}
+
+#browserclaw-root .browserclaw-modal-cookie-status {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #475569;
+  font-family: system-ui, sans-serif;
+  min-height: 1em;
+}
+
+#browserclaw-root .browserclaw-modal-cookie-area {
+  all: unset;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #0f172a;
+  background: #f8fafc;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
