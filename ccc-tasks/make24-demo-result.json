@@ -1,0 +1,22 @@
+{
+  "task_id": "make24-demo",
+  "status": "completed",
+  "phases_completed": ["phase-0", "phase-1", "phase-2", "phase-3", "phase-4", "phase-5", "phase-6"],
+  "phases_failed": [],
+  "test_results": [
+    {"id": "TEST_1", "inputs": [4, 7, 8, 2], "output": "(4 * 7) - (8 / 2) = 24", "status": "PASS"},
+    {"id": "TEST_2", "inputs": [1, 1, 1, 1], "output": "No solution found.", "status": "PASS"},
+    {"id": "TEST_3", "inputs": [6, 6, 6, 6], "output": "((6 + 6) + 6) + 6 = 24", "status": "PASS"},
+    {"id": "TEST_4", "inputs": [3, 3, 8, 8], "output": "8 / (3 - (8 / 3)) = 24", "status": "PASS"}
+  ],
+  "deliverables_written": {
+    "pptx": "C:/Users/xsj70/Downloads/make24-test-report.pptx",
+    "video": "C:/Users/xsj70/Downloads/make24-demo-video.mp4"
+  },
+  "summary": "All 6 phases completed successfully. The Make 24 brute-force solver passed all 4 test cases including the unsolvable [1,1,1,1] and the classic [3,3,8,8] fractional puzzle. A 6-slide dark-themed PowerPoint report and a narrated MP4 video (edge-tts en-US-GuyNeural audio + moviepy assembly at 24fps libx264/aac) were saved to both deliverables/ and Downloads/.",
+  "issues": [
+    "ffmpeg not found on PATH — moviepy used its bundled imageio-ffmpeg encoder successfully",
+    "ANTHROPIC_API_KEY credit balance too low (400 error) — voiceover scripts were pre-written instead of LLM-generated; audio synthesis via edge-tts succeeded normally",
+    "Playwright file:// URL required Windows-native path format (C:\\...) not MSYS /c/... style"
+  ]
+}

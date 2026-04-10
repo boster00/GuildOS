@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BigQueryTestClient from "./BigQueryTestClient";
+import ProvinGroundsNav from "../../ProvinGroundsNav.js";
 
 export const metadata = { title: "BigQuery Weapon Test · Proving Grounds · GuildOS" };
 
@@ -14,6 +15,8 @@ export default function BigQueryTestPage() {
           <span className="mx-2">/</span>
           <span className="text-base-content">BigQuery weapon</span>
         </nav>
+
+        <ProvinGroundsNav active="bigquery" />
 
         <h1 className="mt-4 text-2xl font-bold">BigQuery Weapon Test</h1>
         <p className="mt-1 text-sm text-base-content/60">

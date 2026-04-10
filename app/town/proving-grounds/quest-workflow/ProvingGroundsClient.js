@@ -124,7 +124,6 @@ function WeaponTester({ catalog, questId }) {
     try {
       const payload = {};
 
-      // Merge items JSON
       if (itemsJson.trim()) {
         try {
           const items = JSON.parse(itemsJson);
@@ -132,7 +131,6 @@ function WeaponTester({ catalog, questId }) {
         } catch { toast.error("Items JSON is invalid"); }
       }
 
-      // Auto-fill questId from the quest ID field
       if (questId && !payload.questId) payload.questId = questId;
 
       const apiPayload = {
@@ -206,7 +204,6 @@ function WeaponTester({ catalog, questId }) {
         <p className="mt-2 text-xs text-base-content/60 italic">{actionEntry.summary || actionEntry.description || ""}</p>
       )}
 
-      {/* Items input */}
       <div className="mt-4 border-t border-base-300/60 pt-4">
         <label className="form-control w-full">
           <span className="label-text text-xs font-mono">Items</span>
@@ -230,7 +227,6 @@ function WeaponTester({ catalog, questId }) {
         {running ? <><span className="loading loading-spinner loading-xs" /> Running…</> : "Run Action!"}
       </button>
 
-      {/* Result */}
       {result && (
         <div className={`mt-4 rounded-xl border p-3 ${result.ok ? "border-success/30 bg-success/5" : "border-error/30 bg-error/5"}`}>
           <div className="flex items-center justify-between">
@@ -253,7 +249,6 @@ function WeaponTester({ catalog, questId }) {
         </div>
       )}
 
-      {/* Debug log */}
       {debugLog && (
         <div className="mt-4 space-y-3 rounded-xl border border-info/30 bg-info/5 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-info">Debug Log</p>

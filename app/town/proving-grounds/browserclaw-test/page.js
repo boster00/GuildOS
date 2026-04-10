@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { getQuestsForOwner } from "@/libs/quest";
 import PigeonLetterTestClient from "./PigeonLetterTestClient";
+import ProvinGroundsNav from "../ProvinGroundsNav.js";
 
 export const metadata = { title: "Pigeon Letter Test · Proving Grounds · GuildOS" };
 
@@ -19,6 +20,8 @@ export default async function BrowserclawTestPage() {
           <span className="mx-2">/</span>
           <span className="text-base-content">Browserclaw test</span>
         </nav>
+
+        <ProvinGroundsNav active="browserclaw-test" />
 
         <h1 className="mt-4 text-2xl font-bold">Send Pigeon Letter</h1>
         <p className="mt-1 text-sm text-base-content/60">

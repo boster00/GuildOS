@@ -191,6 +191,15 @@ Domain layout for `libs/` vs `app/api` is documented in **`.cursor/rules/guildos
 - **Behavior (current):** Floating bunny FAB on `<all_urls>`; fab color from **`chrome.storage.local`**. Bunny **modal** (FAB click) shows a **scrollable DOM event log** (~common capture listeners on **`window`**, **`BROWSERCLAW_DOM_CAPTURE_EVENT_TYPES`**) — **newest first**, **max `BROWSERCLAW_DOM_EVENT_LOG_MAX` (200)** with oldest dropped; events targeting **`#browserclaw-root`** are ignored so the log isn’t flooded by the panel. **Clear** resets entries. **Extension options** → **`OPEN_OPTIONS_PAGE`**. Toolbar popup demo + **Broadcast open tabs** unchanged.
 - **Do not** import Next/Node-only code from `libs/` or `app/` into extension scripts unless it is deliberately browser-safe and duplicated or built for the extension. Prefer keeping Browserclaw self-contained.
 
+## Playwright (`playwright`, `playwright-core`, `@playwright/mcp`)
+
+- **Initiate the browser with the repo auth flow** — do not ad‑hoc `chromium.launch()` for logged-in work unless the task is explicitly greenfield with no session.
+- **Bootstrap / capture (headed, manual login):** `node scripts/auth-capture.mjs` — persistent profile (default `~/.guildos-playwright-profile` or `GUILDOS_PLAYWRIGHT_USER_DATA_DIR`). Use `--profile-only` to skip exporting JSON; omit it to also write `playwright/.auth/user.json` (or `PLAYWRIGHT_STORAGE_STATE_PATH`).
+- **Reuse:** **Persistent profile:** `node scripts/auth-load.mjs --persistent` (same env dir as capture). **Portable state:** `chromium.launch` + `browser.newContext({ storageState: 'playwright/.auth/user.json' })` or `node scripts/auth-load.mjs` (default state path).
+- **Chrome path:** set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` if needed; otherwise scripts use `channel: 'chrome'`.
+- **GuildOS in tabs:** set `NEXT_PUBLIC_SITE_URL` or `GUILDOS_PLAYWRIGHT_START_URL` (dev default port **3002**).
+- **Secrets:** `playwright/.auth/` is gitignored; do not commit storage state or profile dirs.
+
 ## GuildOS `libs/` packages
 
 - Full layout, domain boundaries, and carve-outs: **`.cursor/rules/guildos-libs-layout.mdc`** (applies under `libs/**`).

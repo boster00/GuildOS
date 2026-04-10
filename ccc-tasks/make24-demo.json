@@ -1,0 +1,109 @@
+{
+  "id": "make24-demo",
+  "version": "1.0",
+  "created_by": "main-thread",
+  "result_path": "ccc-tasks/make24-demo-result.json",
+
+  "deliverable_paths": {
+    "pptx": "C:/Users/xsj70/Downloads/make24-test-report.pptx",
+    "video": "C:/Users/xsj70/Downloads/make24-demo-video.mp4",
+    "results_json": "C:/Users/xsj70/make24-demo/results.json"
+  },
+
+  "instructions": "Execute every phase below. Produce the deliverable files at the exact paths in deliverable_paths. The JSON result file is just a status report back to the main thread — the real outputs are the .pptx and .mp4 files.",
+
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Environment Setup",
+      "steps": [
+        "Create C:/Users/xsj70/make24-demo/ with subdirs: src/, screenshots/, deliverables/",
+        "pip install anthropic python-dotenv python-pptx Pillow",
+        "Try: pip install edge-tts moviepy — note result, do not abort if they fail",
+        "Check: ffmpeg -version — note result",
+        "Load ANTHROPIC_API_KEY from C:/Users/xsj70/GuildOS/.env.local or environment. If missing, write failed result and stop."
+      ]
+    },
+    {
+      "id": "phase-1",
+      "name": "Build Make 24 Solver",
+      "steps": [
+        "Write C:/Users/xsj70/make24-demo/src/make24.py",
+        "Solver: recursive brute-force over all permutations and operator combinations",
+        "Input: 4 integers as CLI args. Output: expression = 24, or 'No solution found.'",
+        "Handle division by zero with try/except",
+        "Self-review before saving"
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Run Tests",
+      "steps": [
+        "Run 4 test cases via subprocess:",
+        "  TEST_1: [4, 7, 8, 2]  — expects solution",
+        "  TEST_2: [1, 1, 1, 1]  — expects no solution",
+        "  TEST_3: [6, 6, 6, 6]  — expects solution",
+        "  TEST_4: [3, 3, 8, 8]  — expects solution",
+        "Record actual output, expected, PASS/FAIL",
+        "Save to C:/Users/xsj70/make24-demo/results.json"
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Generate HTML Cards",
+      "steps": [
+        "For each test, write C:/Users/xsj70/make24-demo/screenshots/TEST_N.html",
+        "Dark VS Code theme: background #1e1e1e, monospace, 1200px wide",
+        "Show: test ID, inputs, command line, output, PASS/FAIL badge in matching colour"
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Screenshot HTML Cards",
+      "steps": [
+        "Install playwright if not present: pip install playwright && playwright install chromium",
+        "Screenshot each HTML file to C:/Users/xsj70/make24-demo/screenshots/TEST_N.png at 1280x800",
+        "If playwright fails, create simple fallback PNGs using Pillow (white bg, black text) — do not abort"
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Generate PowerPoint Report",
+      "steps": [
+        "Use python-pptx to build a test report presentation",
+        "Slides: (1) title + overall pass/fail, (2-5) one per test with screenshot + annotation, (6) summary table",
+        "Dark theme: slide bg #1e1e1e, text white/grey, PASS=green #4ec9b0, FAIL=red #f44747",
+        "Save to BOTH C:/Users/xsj70/make24-demo/deliverables/test-report.pptx AND C:/Users/xsj70/Downloads/make24-test-report.pptx"
+      ]
+    },
+    {
+      "id": "phase-6",
+      "name": "Generate Narrated Video",
+      "steps": [
+        "If edge-tts and moviepy are available:",
+        "  - Use the Anthropic API (ANTHROPIC_API_KEY) to generate a 2-3 sentence voiceover script for each test case",
+        "  - Synthesise audio with edge-tts voice en-US-GuyNeural",
+        "  - Assemble: intro card + 4 test screenshot clips with audio + outro card",
+        "  - 1920x1080, 24fps, libx264/aac",
+        "  - Save to BOTH C:/Users/xsj70/make24-demo/deliverables/demo-video.mp4 AND C:/Users/xsj70/Downloads/make24-demo-video.mp4",
+        "If not available: skip and note in result"
+      ]
+    }
+  ],
+
+  "result_schema": {
+    "task_id": "string",
+    "status": "completed | partial | failed",
+    "phases_completed": ["phase IDs"],
+    "phases_failed": [{"phase": "id", "reason": "string"}],
+    "test_results": [
+      {"id": "TEST_N", "inputs": [], "output": "string", "status": "PASS|FAIL"}
+    ],
+    "deliverables_written": {
+      "pptx": "path or null",
+      "video": "path or null"
+    },
+    "summary": "2-3 sentence human summary",
+    "issues": ["any problems"]
+  }
+}

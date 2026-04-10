@@ -1,0 +1,43 @@
+{
+  "id": "gmail-cookie-bridge",
+  "goal": "Inject Gmail auth cookies into a Playwright browser context and fetch 5 inbox subject lines",
+  "steps": [
+    {
+      "step": 1,
+      "description": "Install playwright if needed and load the cookie file",
+      "actions": [
+        "Run: npm install playwright (or pip install playwright + playwright install chromium) if not available",
+        "Read cookies from: C:/Users/xsj70/AppData/Local/Temp/gmail_cookies.json"
+      ]
+    },
+    {
+      "step": 2,
+      "description": "Launch a Playwright browser, inject the cookies, navigate to Gmail inbox",
+      "actions": [
+        "Launch chromium with headless:false (so you can see it) or headless:true",
+        "Create a browser context and add all 99 cookies from the JSON file",
+        "Navigate to https://mail.google.com/mail/u/0/#inbox",
+        "Wait for the inbox to load (wait for email rows to appear)"
+      ]
+    },
+    {
+      "step": 3,
+      "description": "Scrape the first 5 email subject lines from the inbox",
+      "actions": [
+        "Find the email subject elements in the DOM",
+        "Extract the text of the first 5 subject lines",
+        "If cookies are expired and login is required, report that in the result"
+      ]
+    },
+    {
+      "step": 4,
+      "description": "Write result to ccc-tasks/gmail-cookie-bridge-result.json",
+      "actions": [
+        "Write JSON with: { ok: true/false, subjects: [...5 strings...], notes: '...' }",
+        "Path: C:/Users/xsj70/GuildOS/ccc-tasks/gmail-cookie-bridge-result.json"
+      ]
+    }
+  ],
+  "cookiePath": "C:/Users/xsj70/AppData/Local/Temp/gmail_cookies.json",
+  "resultPath": "C:/Users/xsj70/GuildOS/ccc-tasks/gmail-cookie-bridge-result.json"
+}

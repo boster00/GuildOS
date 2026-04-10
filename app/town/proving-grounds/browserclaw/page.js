@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import BrowserclawTestClient from "./BrowserclawTestClient.js";
+import ProvinGroundsNav from "../ProvinGroundsNav.js";
 
 export const metadata = {
   title: "Browserclaw transport tests · Proving grounds · GuildOS",
@@ -23,6 +24,8 @@ export default async function BrowserclawTestPage() {
           <span className="mx-2">/</span>
           <span className="text-base-content">Browserclaw</span>
         </nav>
+
+        <ProvinGroundsNav active="browserclaw" />
 
         <div className="mt-4">
           <h1 className="text-3xl font-bold">Browserclaw Transport Tests</h1>

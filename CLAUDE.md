@@ -7,19 +7,30 @@ GuildOS is a fantasy-themed AI agent orchestration platform. Users create **ques
 **Active app surfaces:** `app/town/**`, `app/signin`, `app/opening`, `app/api/*`
 **Archived (do not treat as active):** `_archive/legacy-shipfast-root/`
 
-> **ALWAYS READ FIRST:** `docs/project-architecture-documentation.md` is the source of truth for the quest pipeline, NPC behavior, stage machine, and preparation cascade. Read it at the start of every session involving quest lifecycle, NPCs, adventurers, skill books, or weapons. It also documents common misunderstandings that have recurred across sessions.
+> **ALWAYS READ FIRST:** `docs/project-architecture-documentation.md` — source of truth for quest pipeline, NPCs, adventurers, stage machine, preparation cascade, and common misunderstandings from past sessions.
 
 ---
 
-## NEW FILES — STRICTEST RULE (highest priority)
+## Guideline discovery (convention-based)
 
-This project is especially prone to accidental file sprawl. Enforce the following with maximum strictness.
+Before working on a domain, check `docs/` for a matching guideline:
 
-**Do not create new files unless that creation is explicitly requested by the user or listed in an approved plan.**
+```
+docs/<domain>-guideline.md
+```
 
-- Only edit files that already exist unless the user explicitly asks for a new file.
-- Do not create scripts, stubs, or "temporary" helpers that were not asked for.
-- At the end of each turn: if any new file was created that was not explicitly requested, remove it.
+Current guidelines:
+- `docs/weapon-crafting-guideline.md` — creating or expanding weapons
+- `docs/skill-book-guideline.md` — creating or modifying skill books
+- `docs/browser-automation-guideline.md` — Chrome Extension vs Browserclaw
+
+New guidelines follow the same naming convention. No manual index needed.
+
+---
+
+## No file sprawl (strictest rule)
+
+Do not create new files unless explicitly requested by the user or listed in an approved plan. Do not create scripts, stubs, or helpers that were not asked for. At the end of each turn: if any new file was created that was not explicitly requested, remove it.
 
 ---
 
@@ -27,98 +38,36 @@ This project is especially prone to accidental file sprawl. Enforce the followin
 
 - **Next.js** 15.x with React 19 and Turbopack (`next dev --turbo`, port **3002**)
 - **Tailwind CSS** 4.x (CSS-based config: `@import "tailwindcss"`)
-- **DaisyUI** 5.x (use v5 class names: `card-border`, `card-sm`, etc.)
+- **DaisyUI** 5.x (use v5 class names)
 - **Supabase** — PostgreSQL 17, SSR package with async cookies
 - **OpenAI** — `gpt-4o-mini` default; `@openai/agents` SDK in dependencies
-- **Stripe** — dependency present; webhook/plan routes not yet in `app/api`
-- **Zoho Books** — CRM integration via `libs/skill_book/zoho/` and `libs/weapon/zoho/`
+- **Zoho** — Books + CRM unified via `libs/weapon/zoho/` and `libs/skill_book/zoho/`
 
 ---
 
 ## Critical rules
 
-### 1. Database (always use the `database` facade)
-
-Import only from `@/libs/council/database`. Never import `createServerClient`, `createBrowserClient`, or `createServiceClient` directly.
+### Database — always use the `database` facade
 
 ```javascript
 import { database } from "@/libs/council/database";
-
-// Server (SSR, user-scoped, reads fresh cookies — call inside each route handler/page):
-const db = await database.init("server");
-
-// Service role (cached after first init in process):
-const db = await database.init("service");
-
-// Browser (rare — prefer server fetching):
-const db = await database.init("client");
+const db = await database.init("server");  // SSR, user-scoped — call inside each handler
+const db = await database.init("service"); // service role — cached after first init
 ```
 
-The variable must always be named `db`. Do not use `serviceDb`, `svc`, etc.
+Variable must always be named `db`. Never import `createServerClient`/`createBrowserClient`/`createServiceClient` directly. Never call `database.init("server")` at module top level.
 
-Do NOT call `database.init("server")` at module top level — modules are long-lived; server clients must see the current request's cookies. Call it inside each route handler or server component.
+### Next.js 15 — always `await` headers() and cookies()
 
-Middleware may keep `createServerClient` from `@supabase/ssr` where required.
+### Imports — remove unused, prefer named, no wildcards
 
-### 2. Next.js 15 — always `await` `headers()` and `cookies()`
+### Action naming — six standard verbs only
 
-```javascript
-// WRONG
-const sig = headers().get("stripe-signature");
+`read`, `write`, `delete`, `search`, `transform`, `normalize`. Do not use synonyms (`get`, `fetch`, `load`, `list`, `find`, `create`, `update`). Prefer multipurpose actions with parameters over one-per-entity.
 
-// CORRECT
-const sig = (await headers()).get("stripe-signature");
-```
+### Environment variables
 
-### 3. Imports
-
-- Remove unused imports.
-- Prefer named imports over wildcards.
-- Do not leave imports only used by commented-out code — comment both or remove both.
-
-### 4. React hook dependencies
-
-Include real dependencies, or create clients inside `useEffect` to avoid stale closures.
-
-### 5. Tailwind CSS v4
-
-Do not put pseudo-selectors inside `@utility`. Use separate CSS rules for `:hover`, etc.
-
-### 6. DaisyUI v5
-
-Use v5 class names. Do not use v4 theme import paths.
-
-### 7. Environment variables
-
-Check required vars before use (Supabase, Stripe, site URL). Never hardcode `localhost:3000` — dev default is **3002**.
-
-```javascript
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.SITE_URL ||
-  (process.env.NODE_ENV === "development"
-    ? `http://localhost:${process.env.PORT || 3002}`
-    : `https://${site.domainName}`);
-```
-
-Required env vars: `NEXT_PUBLIC_SITE_URL`, `SITE_URL`, `PORT` (optional).
-
-### 8. Images
-
-Use `remotePatterns` in `next.config.mjs`, not deprecated `images.domains`.
-
----
-
-## File & API structure
-
-```
-app/api/<domain>/route.js   ← thin route handlers
-libs/<domain>/index.js      ← business logic
-```
-
-- Use `async`/`await` for all DB and external calls.
-- Return appropriate HTTP status codes and consistent JSON error shapes.
-- For new lib code: add to the package's existing `index.js` first. Don't create new files per function until modularity is clear.
+Never hardcode `localhost:3000` — dev default is **3002**. Check required vars before use.
 
 ---
 
@@ -128,114 +77,74 @@ libs/<domain>/index.js      ← business logic
 |---------|---------|
 | `libs/council/` | Platform infra: auth, database, AI, billing, cron, settings |
 | `libs/quest/` | Quest CRUD, stage transitions, inventory, `advance()` |
-| `libs/adventurer/` | AI agent execution runtime (`advance.js`) |
-| `libs/skill_book/` | Action registry & dispatch (see authoring guide below) |
+| `libs/adventurer/` | AI agent execution runtime, innate actions (`boast`, `doNextAction`) |
+| `libs/npcs/` | NPC modules (Cat, Pig, Blacksmith, Runesmith). Code-defined, NOT DB rows. |
+| `libs/skill_book/` | Action registry & dispatch |
+| `libs/weapon/` | External protocol connectors. One weapon per service. |
 | `libs/pigeon_post/` | Async job queue (state machine, polling) |
+| `libs/proving_grounds/` | Agent testing, roster management, stage machine (`advanceQuest`) |
 | `libs/cat/` | Mascot/assistant logic, commission chat, quest planning |
-| `libs/item/` | Quest inventory item management |
-| `libs/weapon/` | Weapon forging + Zoho CRM proxy |
-| `libs/proving_grounds/` | Agent testing, roster management |
 
-### Quest stages (in order)
+## File & API structure
 
-`idea → plan → assign → execute → review → closing → completed`
-
-### Skill book authoring
-
-Guide: `libs/skill_book/How_To_Develop_New_Skill_Books.md`
-Pattern: create `libs/skill_book/<bookId>/`, export `skillBook` + actions, register in `libs/skill_book/index.js` (`SKILL_BOOKS`, `ADVENTURER_REGISTRY`).
-
----
-
-## UI patterns
-
-### Fantasy voice + Merchant Guild Explain
-
-- **Headings/buttons:** fantasy flavor is fine.
-- **Explanatory blocks** (page intros, "what is this?" copy): pair fantasy text with a plain "Merchant Guild" version using `MerchantGuildExplain` from `@/components/MerchantGuildExplain`.
-- Toggle label: **Explain** / **Story**. Tooltip exact phrase: `"Explain to me again, this time in the Merchant Guild's language"` (export `MERCHANT_GUILD_EXPLAIN_TOOLTIP`).
-- Merchant text: professional, concise, no fantasy metaphors.
-- Default to this pattern for any teaching/explanatory copy unless it's a single label.
-
-### Styling
-
-```css
-@import "tailwindcss";
-@plugin "daisyui";
-/* @theme for design tokens; @utility for small reusable utilities */
+```
+app/api/<domain>/route.js   <- thin route handlers
+libs/<domain>/index.js      <- business logic
 ```
 
----
-
-## Performance patterns
-
-- Default to async server components for data fetching.
-- Use `"use client"` only for interactive UI.
-- Browser Supabase client: `await database.init("client")` from `@/libs/council/database`.
-- Use `@/libs/council/site` for branding/theme settings.
-- Always use `@/` absolute imports.
+For new lib code: add to the existing `index.js` first. Don't create new files per function until modularity is clear.
 
 ---
 
-## Billing / Stripe (current state)
-
-- No `libs/monkey/`, no `getPlanContext`/`assertPlan`, no `app/api/plan` or `app/api/webhook/stripe` yet.
-- `stripe` is in `package.json`; scripts `dev:stripe`/`stripe:listen` forward to `localhost:3002`.
-- When adding billing: new modules under `libs/council/` (or approved `libs/<pkg>/`) + thin `app/api/*` routes.
-
----
-
-## Database migrations
-
-- Prefer `ADD COLUMN IF NOT EXISTS` for new columns.
-- Use `DO $$` blocks only for renames or conditional logic.
-- Migration files: `supabase/migrations/YYYYMMDDHHMMSS_description.sql`
-- Local dev: `npm run db:start`, `npm run db:migration:new`
-
----
-
-## Browserclaw (Chrome extension, MV3)
-
-- **Path:** `browserclaw/` at repo root — not bundled by Next.js.
-- Load via **Load unpacked** in `chrome://extensions` (Developer mode), pointing at `browserclaw/`.
-- Layout: `manifest.json`, `background/service-worker.js`, `popup/`, `settings/`, `content/`, `shared/constants.js`, `shared/domCaptureEvents.js`, `assets/`.
-- Do NOT import Next.js/Node-only code from `libs/` or `app/` into extension scripts. Keep Browserclaw self-contained.
-
----
-
-## Common mistakes to avoid
+## Common mistakes
 
 1. Sync `headers()` / `cookies()` in Next 15 — must be awaited
 2. Unused imports and dead code
-3. Tailwind v3 `@tailwind` directives in a v4 project
-4. Old DaisyUI v4 theme import paths
-5. Raw `createServerClient`/`createServiceClient` imports instead of `database.init`
-6. Mixing server-only APIs into client components
-7. `images.domains` in `next.config` — use `remotePatterns`
-8. Hardcoded `localhost:3000` — dev default is **3002**
-9. `database.init("server")` at module top level (must be inside each handler)
+3. Raw `createServerClient`/`createServiceClient` instead of `database.init`
+4. `database.init("server")` at module top level
+5. Hardcoded `localhost:3000` — dev default is **3002**
+6. Using banned verb synonyms (`get`, `fetch`, `list`) in action names
+7. Creating one action per entity instead of multipurpose with parameters
 
 ---
 
-## Debugging
+## Playwright — browser launch pattern
 
-1. Trace entry → failure point.
-2. Log at branches and around awaits; include request/task IDs where safe.
-3. Use consistent prefix: `[Feature] [step] message`, `{ context }`.
-4. Guard verbose logs behind `NODE_ENV === "development"`.
-5. `_archive/` — consult only when the task involves history or porting.
+Always use these flags when launching a browser with Playwright. Without them, Google and other services block sign-in with "This browser may not be secure."
+
+```javascript
+import { chromium } from "playwright-core";
+
+// Persistent context (auth capture, stateful sessions):
+const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
+  headless: false,
+  channel: "chrome",           // use system Chrome, not bundled Chromium
+  viewport: null,
+  args: [
+    "--start-maximized",
+    "--disable-blink-features=AutomationControlled", // hides navigator.webdriver
+  ],
+  ignoreDefaultArgs: ["--enable-automation"],        // removes automation banner
+});
+
+// Fresh context (load saved storageState):
+const browser = await chromium.launch({
+  headless: false,
+  channel: "chrome",
+  args: [
+    "--start-maximized",
+    "--disable-blink-features=AutomationControlled",
+  ],
+  ignoreDefaultArgs: ["--enable-automation"],
+});
+const context = await browser.newContext({ storageState: "path/to/state.json" });
+```
+
+Auth scripts: `scripts/auth-capture.mjs` (manual login → export state), `scripts/auth-load.mjs` (import state into fresh session). State file default: `playwright/.auth/user.json`.
 
 ---
 
-## Commit conventions
-
-`feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `perf:`
-
-Before merge: no unused imports, all async APIs awaited, ESLint clean, `npm run build` passes, env-sensitive routes guarded.
-
----
-
-## Development commands
+## Development
 
 ```bash
 npm run dev              # Next.js dev with Turbopack (port 3002)
@@ -245,3 +154,5 @@ npm run lint:fix         # auto-fix
 npm run db:start         # start local Supabase
 npm run db:migration:new # create new migration
 ```
+
+Commit conventions: `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `perf:`

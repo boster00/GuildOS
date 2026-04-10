@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import CccTestClient from "./CccTestClient.js";
+import ProvinGroundsNav from "../ProvinGroundsNav.js";
 
 export const metadata = {
   title: "CCC Test · Proving grounds · GuildOS",
@@ -23,6 +24,8 @@ export default async function CccTestPage() {
           <span className="mx-2">/</span>
           <span className="text-base-content">CCC Test</span>
         </nav>
+
+        <ProvinGroundsNav active="ccc-test" />
 
         <div className="mt-4 flex flex-wrap items-start gap-4">
           <img

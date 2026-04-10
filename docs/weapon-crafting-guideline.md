@@ -22,14 +22,12 @@ A weapon is a protocol connector to exactly ONE external system — an API, MCP 
 
 ---
 
-## GuildOS context you must know
+## GuildOS context
 
-- **Project:** Next.js 15 app, ES module syntax, no TypeScript. Root is the current working directory.
-- **Database facade:** Always `import { database } from "@/libs/council/database"`, call `await database.init("server")` or `await database.init("service")` inside handlers. Variable must be named `db`.
+General project rules (database facade, imports, dev port, etc.) are in `CLAUDE.md`. This section covers weapon-specific context only.
+
 - **Credentials:** Permanent keys live in `profiles.env_vars`, accessed via `council.getEnvVar(keyName)`. Temporary tokens live in the `potions` table, accessed via `loadPotion(kind)`.
 - **Skill books** call weapon actions. A skill book at `libs/skill_book/<name>/index.js` imports weapon functions and wraps them with business logic.
-- **Imports:** Use `@/` absolute imports. Remove unused imports. No wildcards.
-- **Dev port:** localhost:**3002** (never 3000).
 
 ---
 
@@ -177,15 +175,12 @@ A prompt containing:
    - Error handling with clear messages
    - Every action in `blueprint.actions_to_implement` must be implemented — no stubs
 
-   **Naming rules:** Weapon functions must use the six standard verbs: `read`, `write`, `delete`, `search`, `transform`, `normalize`. Do not use `get`, `fetch`, `load`, `list`, `find`, `create`, `update`.
-
-   **Prefer multipurpose functions** with a parameter over one function per entity. Example: one `searchCrm(module, limit)` that works for Contacts, Quotes, Leads, Deals — not `searchContacts` + `searchQuotes` + `searchLeads`.
+   **Naming rules:** Standard verbs only — see CLAUDE.md. Prefer multipurpose functions with parameters.
 
 - **Discovery actions are mandatory:** if the primary action requires inputs like IDs or names that are not env vars, the weapon MUST include a discovery function (e.g., `search` with a datasets module before querying a specific table). Without discovery, the primary action is untestable.
 
 2. **`app/api/<weapon_name>/route.js`** (create if any HTTP access is needed) containing:
    - Thin route handler importing from the weapon module
-   - Proper Next.js 15 patterns: `await headers()`, `await cookies()`
    - Auth check via `requireUser()`
 
 3. Registration entry for `libs/weapon/registry.js`

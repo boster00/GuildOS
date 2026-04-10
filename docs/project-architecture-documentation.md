@@ -131,7 +131,11 @@ app/town/<page>/page.js         — UI components
 **3. plan** — Assigned adventurer (or NPC) generates `execution_plan`. NPCs use inline prompts; adventurers use `system_prompt` from DB + skill book TOC context. Output stored on quest.
 
 **4. execute** — Pop steps from `execution_plan` one per cron cycle. Each step calls `runProvingGroundsAction(skillbook, action, payload)`. On success: store output keys to inventory, pop step. On failure: log comment, stop.
+- **params**: static values known at plan time (e.g. `{ module: "Quotes", limit: 5 }`). Merged into the action payload first.
+- **input**: inventory keys from prior steps' output. Overlaid on top of params. This is how multi-step pipelines chain data.
+- **output**: inventory keys where the action's results get stored.
 - **waitFor**: if step declares `waitFor: ["key"]` and key isn't in inventory → skip (pigeon post async delivery pending).
+- **On weapon auth failure**: if the error contains `WEAPON_REAUTH_REQUIRED` or references the Forge, a system escalation comment is automatically added directing the user to the Forge UI to re-authorize.
 
 **5. review** — Before closing, the system attempts **automated Chrome verification** via `claude -p` (headless Claude Code with Chrome Extension MCP tools). It navigates to the quest detail page, screenshots the result, and records pass/fail in a comment. This is best-effort — if Chrome isn't running, verification is skipped. Then advances to `closing`. For NPC-assigned quests: Cat self-reviews, uncertain results → assign to Pig → user notified.
 
@@ -174,6 +178,15 @@ Then `advanceToNextStep()` immediately → quest becomes "Prepare weapon", stage
 Each prep quest runs the full pipeline. After all 3 complete, the original quest loads → Cat re-runs assign → finds the new adventurer.
 
 **Weapon expansion:** If a weapon for the same external service already exists, the Blacksmith extends it rather than creating a new file. One weapon per external system (e.g. one `zoho` weapon covers Books + CRM — shared OAuth).
+
+### Post-development testing
+
+After a weapon or skill book is forged/created, the producing NPC verifies its work using the **Claude Chrome Extension** (via `claude -p` subprocess). This happens inside the execute step — the same flow that builds the artifact also tests it.
+
+- **Blacksmith** (`forgeWeapon`): after writing weapon code, spawns `claude -p` with Chrome Extension tools to navigate to the weapon's test page (`/town/proving-grounds/weapons/<name>/`) and verify it loads without errors. Result stored in inventory as `forge_verification`.
+- **Runesmith** (future): same pattern for skill book creation — verify the new action is callable from the proving grounds UI.
+
+This is best-effort: if Chrome is not running or `claude -p` times out, verification is skipped and the pipeline continues. See `docs/browser-automation-guideline.md` for the full tooling reference.
 
 ---
 

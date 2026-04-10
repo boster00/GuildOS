@@ -52,6 +52,18 @@ export const WEAPONS = [
     requiresActivation: true,
     oauthDocsUrl: "https://www.zoho.com/accounts/protocol/oauth/web-server-applications.html",
   },
+  {
+    id: "vercel",
+    title: "Vercel",
+    tagline: "Manage deployments, projects, domains, and env vars via Vercel REST API.",
+    summary:
+      "Lets skill books list projects, check deployments, manage env vars, trigger redeploys, and query domains on Vercel.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses VERCEL_API_KEY (bearer token) to call the Vercel REST API. Covers projects, deployments, domains, env vars, and user/team info.",
+    ],
+    requiresActivation: false,
+  },
 ];
 
 export function getWeaponById(id) {
