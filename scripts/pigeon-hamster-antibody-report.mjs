@@ -1,9 +1,10 @@
 /**
- * Pigeon Post: Google SERP screenshots + PPTX + Storage upload.
+ * Pigeon Post: DuckDuckGo SERP viewport screenshots + PPTX + Storage upload.
+ * Uses Firefox — DDG often serves a bot CAPTCHA modal to headless Chromium from datacenter IPs.
  * Run: node scripts/pigeon-hamster-antibody-report.mjs
  */
 
-import { chromium } from "playwright";
+import { firefox } from "playwright";
 import { mkdirSync, readFileSync, existsSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -52,65 +53,101 @@ mkdirSync(OUT_DIR, { recursive: true });
 const today = new Date().toISOString().slice(0, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function googleSearchScreenshot(page, query, outPath) {
-  await page.goto("https://www.google.com/?hl=en&gl=us", {
-    waitUntil: "domcontentloaded",
-    timeout: 60000,
-  });
-  await sleep(1500);
+const BLOCK_PATTERNS = [
+  /captcha/i,
+  /are you a human/i,
+  /verify you are human/i,
+  /unusual traffic/i,
+  /automated queries/i,
+  /robot check/i,
+  /access denied/i,
+  /forbidden\b/i,
+  /cloudflare/i,
+  /attention required/i,
+  /enable javascript/i,
+  /sorry.*couldn.?t process/i,
+];
 
-  const accept = page.locator('button:has-text("Accept all"), button:has-text("I agree"), [aria-label="Accept all"]');
-  if (await accept.first().isVisible().catch(() => false)) {
-    await accept.first().click().catch(() => {});
-    await sleep(800);
+async function assertLooksLikeSearchResults(page, label) {
+  const anomaly = page.locator('[data-testid="anomaly-modal"]');
+  if (await anomaly.isVisible().catch(() => false)) {
+    throw new Error(`${label}: DuckDuckGo anomaly / bot challenge modal is visible`);
   }
 
-  const box = page.locator('textarea[name="q"], input[name="q"]').first();
-  await box.waitFor({ state: "visible", timeout: 20000 });
-  await box.fill(query);
-  await page.keyboard.press("Enter");
-  await page.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
-  await sleep(2500);
+  const text = (await page.locator("body").innerText().catch(() => "")).slice(0, 12000);
+  for (const re of BLOCK_PATTERNS) {
+    if (re.test(text)) {
+      throw new Error(`${label}: blocked or challenge page (matched ${re})`);
+    }
+  }
 
-  await page.locator("#search, #rso, .GyAeWb").first().waitFor({ state: "visible", timeout: 20000 }).catch(() => {});
+  const organicLinks = await page.locator('a[data-testid="result-title-a"]').count().catch(() => 0);
+  if (organicLinks < 3) {
+    throw new Error(`${label}: expected DDG organic results (result-title-a count=${organicLinks})`);
+  }
 
-  await page.screenshot({ path: outPath, fullPage: false });
+  const title = await page.title().catch(() => "");
+  if (!title || title.length < 3) {
+    throw new Error(`${label}: empty or missing document title`);
+  }
 }
 
-const browser = await chromium.launch({
-  headless: true,
-  args: [
-    "--disable-blink-features=AutomationControlled",
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-  ],
-  ignoreDefaultArgs: ["--enable-automation"],
-});
+function assertNonBlankPng(path, label) {
+  if (!existsSync(path)) throw new Error(`Missing ${path}`);
+  const buf = readFileSync(path);
+  if (buf.length < 12000) {
+    throw new Error(`${label}: PNG too small (likely blank): ${buf.length} bytes`);
+  }
+  if (buf[0] !== 0x89 || buf[1] !== 0x50) {
+    throw new Error(`${label}: not a valid PNG signature`);
+  }
+}
+
+/**
+ * Fresh DDG search from home (per task: navigate again for second query).
+ */
+async function duckduckgoSearchScreenshot(page, query, outPath, label) {
+  await page.goto("https://duckduckgo.com/", {
+    waitUntil: "domcontentloaded",
+    timeout: 90000,
+  });
+  await sleep(800);
+
+  const search = page.locator('input[name="q"], textarea[name="q"], #searchbox_input').first();
+  await search.waitFor({ state: "visible", timeout: 25000 });
+  await search.fill("");
+  await search.fill(query);
+  await page.keyboard.press("Enter");
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 60000 });
+  await page.waitForLoadState("networkidle", { timeout: 45000 }).catch(() => {});
+  await sleep(2000);
+
+  await page
+    .locator('a[data-testid="result-title-a"]')
+    .first()
+    .waitFor({ state: "visible", timeout: 35000 });
+
+  await assertLooksLikeSearchResults(page, label);
+  await page.screenshot({ path: outPath, fullPage: false });
+  assertNonBlankPng(outPath, label);
+}
+
+const browser = await firefox.launch({ headless: true });
 
 const context = await browser.newContext({
   viewport: { width: 1365, height: 900 },
-  userAgent:
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   locale: "en-US",
 });
 
 const page = await context.newPage();
 
 try {
-  await googleSearchScreenshot(page, "cute hamster pictures", HAM);
-  await googleSearchScreenshot(page, "antibody 3D structures", AB);
+  await duckduckgoSearchScreenshot(page, "cute hamster pictures", HAM, "hamster");
+  await duckduckgoSearchScreenshot(page, "antibody 3D structures", AB, "antibody");
 } finally {
   await browser.close();
 }
-
-function assertNonBlankPng(path) {
-  if (!existsSync(path)) throw new Error(`Missing ${path}`);
-  const buf = readFileSync(path);
-  if (buf.length < 8000) throw new Error(`Screenshot too small (likely blank): ${path} (${buf.length} bytes)`);
-}
-
-assertNonBlankPng(HAM);
-assertNonBlankPng(AB);
 
 const pptx = new PptxGenJS();
 pptx.author = "GuildOS Pigeon Post";
@@ -129,11 +166,11 @@ slideTitle.addText("Browser Test: Hamster & Antibody Screenshot PPT Report", {
 slideTitle.addText(today, { x: 0.5, y: 3.6, w: 9, fontSize: 18, align: "center" });
 
 const slideH = pptx.addSlide();
-slideH.addText("Search: cute hamster pictures", { x: 0.3, y: 0.2, w: 9.4, fontSize: 20, bold: true });
+slideH.addText("DuckDuckGo: cute hamster pictures", { x: 0.3, y: 0.2, w: 9.4, fontSize: 20, bold: true });
 slideH.addImage({ path: HAM, x: 0.3, y: 0.75, w: 9.4, h: 4.5 });
 
 const slideA = pptx.addSlide();
-slideA.addText("Search: antibody 3D structures", { x: 0.3, y: 0.2, w: 9.4, fontSize: 20, bold: true });
+slideA.addText("DuckDuckGo: antibody 3D structures", { x: 0.3, y: 0.2, w: 9.4, fontSize: 20, bold: true });
 slideA.addImage({ path: AB, x: 0.3, y: 0.75, w: 9.4, h: 4.5 });
 
 await pptx.writeFile({ fileName: PPTX });
@@ -157,7 +194,11 @@ const pptxPath = `${PREFIX}/test-result.pptx`;
 const hamPath = `${PREFIX}/hamster-results.png`;
 const abPath = `${PREFIX}/antibody-results.png`;
 
-const publicPptxUrl = await upload(pptxPath, PPTX, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+const publicPptxUrl = await upload(
+  pptxPath,
+  PPTX,
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+);
 await upload(hamPath, HAM, "image/png");
 await upload(abPath, AB, "image/png");
 
