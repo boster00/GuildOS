@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { database } from "@/libs/council/database";
+import { recordQuestComment } from "@/libs/quest";
 
 // ---------------------------------------------------------------------------
 // Env var snapshot passed to each agent as its environment
@@ -85,7 +87,7 @@ async function cursorSetup({ cursorRepository, cursorRef } = {}) {
     headers: cursorHeaders(apiKey),
     body: JSON.stringify({
       prompt: { text: "Agent initialized. Acknowledge setup and confirm you are ready." },
-      model: "default",
+      model: "composer-2.0",
       source: { repository: repo, ref },
       target: { autoCreatePr: false },
     }),
@@ -263,9 +265,19 @@ async function claudeResolveEnvironmentId() {
   return { ok: true, environmentId: list[0].id, source: "first_from_list" };
 }
 
-async function claudeSetup() {
+async function claudeSetup({ pinnedSessionId } = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, error: "ANTHROPIC_API_KEY not found in .env.local." };
+
+  // Short-circuit: use an existing session instead of creating a new one
+  if (pinnedSessionId) {
+    return {
+      ok: true,
+      sessionId: pinnedSessionId,
+      viewUrl: "https://claude.ai/code",
+      note: `Using pinned session ${pinnedSessionId}`,
+    };
+  }
 
   const agentRes = await fetch(`${CLAUDE_BASE}/v1/agents`, { headers: CLAUDE_HEADERS() });
   const agentData = await agentRes.json().catch(() => ({}));
@@ -448,6 +460,136 @@ async function codexFetch({ sessionId, runId }) {
 }
 
 // ---------------------------------------------------------------------------
+// Cursor Cloud — pigeon post dispatch
+// Sends a pigeon letter's payload to a Cursor Cloud agent as a followup message.
+// The agent treats each message as a task, executes it, and writes results
+// back to Supabase (storage upload, pigeon_letters status, quest comment).
+// ---------------------------------------------------------------------------
+
+/**
+ * Dispatch a pigeon letter to a Cursor Cloud agent.
+ * @param {{ agentId: string, letterId: string, questId: string, instructions: string }} opts
+ */
+async function cursorDispatch({ agentId, letterId, questId, instructions }) {
+  const apiKey = process.env.CURSOR_API_KEY;
+  if (!apiKey) return { ok: false, error: "CURSOR_API_KEY not set." };
+  if (!agentId) return { ok: false, error: "agentId is required." };
+  if (!instructions) return { ok: false, error: "instructions (prompt text) is required." };
+
+  const db = await database.init("service");
+
+  // Read attempt count for cache-busting on retries
+  let attemptCount = 0;
+  if (letterId) {
+    const { data: letterRow } = await db
+      .from("pigeon_letters")
+      .select("attempt_count")
+      .eq("id", letterId)
+      .maybeSingle();
+    attemptCount = letterRow?.attempt_count ?? 0;
+  }
+
+  // Claim the letter if letterId is provided
+  if (letterId) {
+    const { error: claimErr } = await db
+      .from("pigeon_letters")
+      .update({
+        status: "claimed",
+        claimed_by: `cursor_cloud:${agentId}`,
+        claimed_at: new Date().toISOString(),
+        lease_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min lease
+        attempt_count: attemptCount + 1,
+      })
+      .eq("id", letterId)
+      .eq("status", "pending");
+    if (claimErr) {
+      return { ok: false, error: `Failed to claim letter: ${claimErr.message}` };
+    }
+  }
+
+  // On retries, append ?v=N to uploaded URLs so CDN/browser caches are busted
+  const version = attemptCount > 0 ? attemptCount + 1 : null;
+  const versionSuffix = version ? `?v=${version}` : "";
+
+  // Build the full prompt with context
+  const prompt = [
+    `## Pigeon Post Task`,
+    letterId ? `Letter ID: ${letterId}` : null,
+    questId ? `Quest ID: ${questId}` : null,
+    version ? `Attempt: ${version} (retry)` : null,
+    ``,
+    `### Instructions`,
+    instructions,
+    ``,
+    `### When done`,
+    `After completing the task:`,
+    `1. Upload any artifacts (screenshots, videos, PPTs) to Supabase Storage bucket "GuildOS_Bucket" under path "cursor_cloud/${questId}/"`,
+    version ? `   **IMPORTANT (retry):** When uploading, use { upsert: true } to overwrite previous files.` : null,
+    `2. Call POST http://localhost:3002/api/pigeon-post?action=deliver with:`,
+    `   - Header: X-Pigeon-Key: ${process.env.PIGEON_API_KEY || "browserclaw-test-key"}`,
+    `   - Body: { "questId": "${questId}", "letterId": "${letterId}", "items": { "<item_key>": <result_value> } }`,
+    version ? `   **IMPORTANT (retry):** Append "${versionSuffix}" to all URLs in the items payload to bust browser/CDN cache (e.g. "url": "https://...test-result.pptx${versionSuffix}")` : null,
+    `3. If you need to post a comment on the quest, call POST http://localhost:3002/api/quest/comments with:`,
+    `   - Body: { "questId": "${questId}", "summary": "<your message>", "source": "cursor_cloud", "action": "note" }`,
+    `4. Report success or failure clearly in your response.`,
+  ].filter(Boolean).join("\n");
+
+  // Send followup to the Cursor agent
+  const res = await fetch(`${CURSOR_BASE}/v0/agents/${agentId}/followup`, {
+    method: "POST",
+    headers: cursorHeaders(apiKey),
+    body: JSON.stringify({ prompt: { text: prompt } }),
+  });
+  const data = await res.json().catch(() => ({}));
+
+  // Update letter status to processing
+  if (letterId) {
+    await db
+      .from("pigeon_letters")
+      .update({ status: "processing" })
+      .eq("id", letterId);
+  }
+
+  // Log dispatch to quest comments
+  if (questId) {
+    await recordQuestComment(questId, {
+      source: "cursor_cloud",
+      action: "dispatch",
+      summary: `Pigeon letter dispatched to Cursor Cloud agent ${agentId.slice(-12)}`,
+      detail: { agentId, letterId, dispatchStatus: res.status },
+    }).catch(() => {});
+  }
+
+  return { ok: res.ok, status: res.status, agentId, letterId, data };
+}
+
+/**
+ * Poll a Cursor Cloud agent's status and latest response for a dispatched letter.
+ */
+async function cursorPollDispatch({ agentId }) {
+  const apiKey = process.env.CURSOR_API_KEY;
+  if (!apiKey) return { ok: false, error: "CURSOR_API_KEY not set." };
+  if (!agentId) return { ok: false, error: "agentId is required." };
+
+  const [statusRes, convRes] = await Promise.all([
+    fetch(`${CURSOR_BASE}/v0/agents/${agentId}`, { headers: cursorHeaders(apiKey) }),
+    fetch(`${CURSOR_BASE}/v0/agents/${agentId}/conversation`, { headers: cursorHeaders(apiKey) }),
+  ]);
+
+  const statusData = await statusRes.json().catch(() => ({}));
+  const convData = await convRes.json().catch(() => ({}));
+  const messages = cursorConversationMessages(convData);
+  const latestAssistantText = cursorLatestAssistantText(messages);
+
+  return {
+    ok: statusRes.ok,
+    agentStatus: statusData.status,
+    latestAssistantText,
+    data: statusData,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Env check
 // ---------------------------------------------------------------------------
 function checkEnv() {
@@ -463,11 +605,72 @@ function checkEnv() {
 // ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Cloud agent registration — read/write to outposts table
+// ---------------------------------------------------------------------------
+
+async function registerCloudAgent({ userId, provider, name, sessionId, repository, ref, viewUrl, metadata }) {
+  const db = await database.init("service");
+  // Check if agent with this session_id already exists
+  if (sessionId) {
+    const { data: existing } = await db
+      .from("outposts")
+      .select("id")
+      .eq("session_id", sessionId)
+      .maybeSingle();
+    if (existing) {
+      const { data: updated, error: upErr } = await db
+        .from("outposts")
+        .update({ name: name || `${provider} agent`, status: "active", metadata: metadata || {} })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      return { data: updated, error: upErr };
+    }
+  }
+
+  const { data, error } = await db
+    .from("outposts")
+    .insert({
+      user_id: userId,
+      provider,
+      name: name || `${provider} agent`,
+      session_id: sessionId,
+      repository,
+      ref,
+      status: "active",
+      view_url: viewUrl,
+      metadata: metadata || {},
+    })
+    .select()
+    .single();
+  return { data, error };
+}
+
+async function readCloudAgents({ userId, provider, status }) {
+  const db = await database.init("service");
+  let query = db.from("outposts").select("*");
+  if (userId) query = query.eq("user_id", userId);
+  if (provider) query = query.eq("provider", provider);
+  if (status) query = query.eq("status", status);
+  query = query.order("created_at", { ascending: false });
+  const { data, error } = await query;
+  return { data, error };
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action");
   if (action === "checkEnv") return NextResponse.json(checkEnv());
   if (action === "listRepos") return NextResponse.json(await cursorListRepos());
+  if (action === "readAgents") {
+    const { data, error } = await readCloudAgents({
+      provider: searchParams.get("provider"),
+      status: searchParams.get("status"),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ agents: data });
+  }
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
 
@@ -485,7 +688,30 @@ export async function POST(request) {
         break;
       case "cursor_message": result = await cursorMessage({ sessionId }); break;
       case "cursor_fetch":   result = await cursorFetch({ sessionId }); break;
-      case "claude_setup":   result = await claudeSetup(); break;
+      case "register_agent":
+        result = await registerCloudAgent({
+          userId: body.userId,
+          provider: body.provider,
+          name: body.name,
+          sessionId: body.sessionId,
+          repository: body.repository,
+          ref: body.ref,
+          viewUrl: body.viewUrl,
+          metadata: body.metadata,
+        });
+        break;
+      case "cursor_dispatch":
+        result = await cursorDispatch({
+          agentId: body.agentId,
+          letterId: body.letterId,
+          questId: body.questId,
+          instructions: body.instructions,
+        });
+        break;
+      case "cursor_poll_dispatch":
+        result = await cursorPollDispatch({ agentId: body.agentId });
+        break;
+      case "claude_setup":   result = await claudeSetup({ pinnedSessionId: body.pinnedSessionId }); break;
       case "claude_message": result = await claudeMessage({ sessionId }); break;
       case "claude_fetch":   result = await claudeFetch({ sessionId }); break;
       case "codex_setup":    result = await codexSetup(); break;
@@ -496,7 +722,7 @@ export async function POST(request) {
     }
     return NextResponse.json(result);
   } catch (err) {
-    console.error(`[cloud_agents] [${action}] error:`, err);
+    console.error(`[outposts] [${action}] error:`, err);
     return NextResponse.json({ ok: false, error: err.message || "Unexpected error" }, { status: 500 });
   }
 }

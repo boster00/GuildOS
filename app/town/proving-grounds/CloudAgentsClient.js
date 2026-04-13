@@ -101,8 +101,11 @@ function ProviderRow({
   setupDescription,
   setupExtra,
   fetchDescription,
+  initialSessionId,
 }) {
-  const [sessionData, setSessionData] = useState(null);
+  const [sessionData, setSessionData] = useState(
+    initialSessionId ? { sessionId: initialSessionId, viewUrl: defaultViewUrl } : null
+  );
   const [loading, setLoading] = useState({ 1: false, 2: false, 3: false });
   const [results, setResults] = useState({ 1: null, 2: null, 3: null });
 
@@ -263,13 +266,15 @@ export default function CloudAgentsClient() {
       badgeColor: "badge-secondary",
       docsUrl: "https://platform.claude.com/docs/en/api/beta/sessions",
       defaultViewUrl: "https://claude.ai/code",
+      initialSessionId: "session_01UxewrT2YScpshw6df3JQ5T",
+      setupExtra: { pinnedSessionId: "session_01UxewrT2YScpshw6df3JQ5T" },
       setupDescription:
-        "Calls GET /v1/agents then POST /v1/sessions (developer API). Not the same as claude.ai/code “New session” — you need an agent defined under platform.claude.com → Agents, plus an Environment. Sessions may still open in claude.ai/code after creation.",
+        "Pinned session session_01UxewrT2YScpshw6df3JQ5T — skips creation, sends directly to this session.",
       requiredEnv: [
         {
           key: "ANTHROPIC_API_KEY",
           available: has("ANTHROPIC_API_KEY"),
-          note: "Key must belong to the same org as platform.claude.com. If Setup says agentCount 0, create a managed agent in Console → Agents (not only a Code UI session).",
+          note: "Key must belong to the same org as platform.claude.com.",
         },
       ],
     },

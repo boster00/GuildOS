@@ -10,6 +10,7 @@ import { getQuestForOwner, QUEST_PATCH_RELATIVE_URL, QUEST_STAGES } from "@/libs
 import QuestActivityCommentsPanel from "./QuestActivityCommentsPanel.js";
 import QuestDetailFieldEditClient from "./QuestDetailFieldEditClient.js";
 import QuestNextStepsEditClient from "./QuestNextStepsEditClient.js";
+import QuestAdvanceButtons from "./QuestAdvanceButtons.js";
 
 function JsonBlock({ label, value, showEmptyObject = false }) {
   const isPlainObject = typeof value === "object" && value !== null && !Array.isArray(value);
@@ -322,7 +323,7 @@ export default async function QuestDetailPage({ params }) {
           initialAssigneeId={quest.assignee_id}
           initialDueDate={quest.due_date}
           assigneeOptions={assigneeOptions}
-          stageControls={<QuestStageMenu questId={quest.id} currentStage={quest.stage} />}
+          stageControls={<><QuestStageMenu questId={quest.id} currentStage={quest.stage} /><QuestAdvanceButtons questId={quest.id} currentStage={quest.stage} /></>}
         />
 
         <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">

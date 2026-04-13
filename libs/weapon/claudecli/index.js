@@ -33,7 +33,10 @@ export async function invoke(taskPrompt) {
   const cmd = `${cat} "${tmpFile}" | claude --print --dangerously-skip-permissions`;
 
   return new Promise((resolve) => {
-    exec(cmd, { cwd: process.cwd(), timeout: TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    // Strip ANTHROPIC_API_KEY so claude CLI uses OAuth login (Max subscription) instead of API credits
+    const env = { ...process.env };
+    delete env.ANTHROPIC_API_KEY;
+    exec(cmd, { cwd: process.cwd(), timeout: TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024, env }, (err, stdout, stderr) => {
       // Clean up temp file
       try { unlinkSync(tmpFile); } catch { /* ignore */ }
 

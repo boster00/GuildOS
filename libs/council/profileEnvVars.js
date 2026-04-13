@@ -78,6 +78,32 @@ export function applyEnvVarsMutation(current, mutation) {
 }
 
 /**
+ * Google credentials: `profiles.env_vars` overrides `process.env` when set.
+ * Covers both the service account (BigQuery, etc.) and OAuth tokens (Gmail, etc.).
+ *
+ * @param {string} userId
+ */
+export async function getGoogleCredentials(userId) {
+  const db = await database.init("service");
+  const { data } = await db
+    .from(publicTables.profiles)
+    .select("env_vars")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const ev = normalizeEnvVars(data?.env_vars);
+
+  const pick = (key) => (ev[key] || "").trim() || (process.env[key] || "").trim() || null;
+
+  return {
+    serviceAccountJson: pick("GOOGLE_SERVICE_ACCOUNT"),
+    clientId:           pick("GOOGLE_ID"),
+    clientSecret:       pick("GOOGLE_SECRET"),
+    refreshToken:       pick("GOOGLE_GMAIL_REFRESH_TOKEN") || pick("GOOGLE_REFRESH_TOKEN"),
+  };
+}
+
+/**
  * Zoho Books OAuth app credentials: `profiles.env_vars` overrides `process.env` when set.
  * User access/refresh tokens are **not** here—they live in `potions` (see weapon zoho connection).
  *

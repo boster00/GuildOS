@@ -8,7 +8,14 @@
       "Bash(node --input-type=module -e \"import\\('@modelcontextprotocol/sdk/server/index.js'\\).then\\(\\(\\)=>console.log\\('ok'\\)\\)\")",
       "Bash(git config:*)",
       "Bash(node mcp/zoho-server.mjs)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(npx supabase:*)",
+      "Bash(printf %s: crsr_0065cd9fc0d87d04b2791c7a82fccfff994ec3b6a7d7cc0cba102446251946b9)",
+      "Bash(node -e ':*)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('node engines:', p.engines||'none'\\); console.log\\('node version used:'\\); \")",
+      "Bash(npm --version)",
+      "Bash(grep:*)",
+      "Bash(ssh -p 2223 boster_ooP9u@69.27.32.101 'mysql -h 127.0.0.1 -u bosterbio_user -p'\\\\''C67*b4@VDNYyJZm8'\\\\'' bosterbio_m2 --batch -e \":*)"
     ],
     "defaultMode": "bypassPermissions"
   },

@@ -169,184 +169,82 @@ export async function advanceQuest(quest, opts) {
     return { ok: result?.ok ?? true, advanced: !waiting, stage, action: `${slug}.${result?.action || "doNextAction"}`, detail: result };
   }
 
-  // ── Adventurer path: plan / execute / review handled here ──
+  // ── Adventurer path: assign → execute (direct), review ──
   if (assignee.type !== "adventurer") {
     return { ok: false, advanced: false, stage, error: `Cannot resolve assignee "${assignedTo}" as NPC or adventurer.` };
   }
 
   const advRow = assignee.profile;
 
-  // ── plan: AI generates execution_plan from system_prompt + skill book context ──
+  // ── plan: skip to execute (planning is done inline by the executing LLM) ──
   if (stage === "plan") {
-    const systemPrompt = String(advRow.system_prompt ?? "").trim();
-    const questTitle = String(quest.title ?? "").trim();
-    const questDescription = String(quest.description ?? "").trim();
-
-    // Build skill book context with full TOC so the planner sees exact action names + input/output
-    const { getSkillBook } = await import("@/libs/skill_book/index.js");
-    const advSkillBooks = Array.isArray(advRow.skill_books) ? advRow.skill_books : [];
-    const booksContext = advSkillBooks.map((bookId) => {
-      const book = getSkillBook(bookId);
-      if (!book) return `- ${bookId}: (not found)`;
-      const tocEntries = book.toc && typeof book.toc === "object" ? book.toc : {};
-      const actionLines = Object.entries(tocEntries).map(([name, entry]) => {
-        const desc = entry?.description || "";
-        const input = entry?.input && typeof entry.input === "object" ? JSON.stringify(entry.input) : "{}";
-        const output = entry?.output && typeof entry.output === "object" ? JSON.stringify(entry.output) : "{}";
-        return `    - ${name}: ${desc}\n      input: ${input}\n      output: ${output}`;
-      }).join("\n");
-      return `- ${bookId} (${book.title || bookId}): ${book.description || ""}\n  Actions:\n${actionLines}`;
-    }).join("\n");
-
-    const { inventoryRawToMap } = await import("@/libs/quest/inventoryMap.js");
-    const inventoryMap = inventoryRawToMap(quest.inventory);
-    const inventoryContext = Object.keys(inventoryMap).length > 0
-      ? `\nCurrent quest inventory:\n${JSON.stringify(inventoryMap, null, 2)}`
-      : "";
-
-    const fullPrompt = `${systemPrompt}\n\nQuest title: ${questTitle}\nQuest description: ${questDescription}${inventoryContext}\n\nAvailable skill books:\n${booksContext}`;
-
-    let aiText = "";
-    try {
-      const out = await runDungeonMasterChat({ userId: ownerId, messages: [{ role: "user", content: fullPrompt }], client });
-      aiText = out.text;
-    } catch (e) {
-      return { ok: false, advanced: false, stage, action: "plan:aiCall", error: e instanceof Error ? e.message : String(e) };
-    }
-
-    const parsed = parseJsonFromModelText(aiText);
-    if (!parsed) {
-      return { ok: false, advanced: false, stage, action: "plan:parseResponse", error: "Adventurer did not return valid JSON", detail: { rawText: aiText.slice(0, 500) } };
-    }
-
-    const executionPlan = Array.isArray(parsed.execution_plan) ? parsed.execution_plan : [];
-    if (executionPlan.length > 0) {
-      await updateQuestExecutionPlan(questId, executionPlan, { client });
-    }
-
-    // Store weapon_spec / setup_steps into inventory if present
-    if (parsed.weapon_spec || (Array.isArray(parsed.setup_steps) && parsed.setup_steps.length > 0)) {
-      const { appendInventoryItem } = await import("@/libs/quest/index.js");
-      if (parsed.weapon_spec && typeof parsed.weapon_spec === "object") {
-        await appendInventoryItem(questId, { item_key: "weapon_spec", payload: parsed.weapon_spec, source: "plan" }, { client });
-      }
-      if (Array.isArray(parsed.setup_steps) && parsed.setup_steps.length > 0) {
-        await appendInventoryItem(questId, { item_key: "setup_steps", payload: parsed.setup_steps, source: "plan" }, { client });
-      }
-    }
-
     await updateQuest(questId, { stage: "execute" }, { client });
-    await recordQuestComment(questId, { source: advRow.name, action: "plan", summary: `Plan created (${executionPlan.length} steps)`, detail: { executionPlan, parsed } }, { client });
-    return { ok: true, advanced: true, stage: "execute", action: "plan:createPlan", detail: { executionPlan, stepCount: executionPlan.length } };
+    await recordQuestComment(questId, { source: advRow.name, action: "plan", summary: "Skipping plan — adventurer executes directly." }, { client });
+    return { ok: true, advanced: true, stage: "execute", action: "plan:skipToExecute" };
   }
 
-  // ── execute: pop one step from execution_plan and dispatch it ──
+  // ── execute: invoke Claude CLI via the claudecli weapon ──
   if (stage === "execute") {
-    const { getQuest } = await import("@/libs/quest/index.js");
-    const { data: freshQuest } = await getQuest(questId, { client });
-    const executionPlan = Array.isArray(freshQuest?.execution_plan) ? freshQuest.execution_plan : [];
+    const { invoke: invokeClaudeCLI } = await import("@/libs/weapon/claudecli/index.js");
+    const { appendInventoryItem } = await import("@/libs/quest/index.js");
 
-    if (executionPlan.length === 0) {
-      await updateQuest(questId, { stage: "review" }, { client });
-      return { ok: true, advanced: true, stage: "review", action: "execute:complete" };
-    }
+    const questTitle = String(quest.title ?? "").trim();
 
-    const [currentStep, ...remainingSteps] = executionPlan;
-    const { normalizePlanStep, getSkillBook } = await import("@/libs/skill_book/index.js");
-    const step = normalizePlanStep(currentStep);
+    const cliPrompt = `Read docs/adventurer-creed.md then execute quest ${questId}`;
 
-    if (!step) {
-      await updateQuestExecutionPlan(questId, remainingSteps, { client });
-      return { ok: true, advanced: true, stage: "execute", action: "execute:skipInvalidStep", detail: { currentStep } };
-    }
+    const result = await invokeClaudeCLI(cliPrompt);
 
-    // ── waitFor: pause until required inventory keys exist ──
-    const { inventoryRawToMap } = await import("@/libs/quest/inventoryMap.js");
-    const invMap = inventoryRawToMap(freshQuest?.inventory);
-    const book = getSkillBook(step.skillbook);
-    const tocEntry = book?.toc?.[step.action];
-    const waitForKeys = Array.isArray(tocEntry?.waitFor) ? tocEntry.waitFor
-      : Array.isArray(currentStep?.waitFor) ? currentStep.waitFor : [];
-    if (waitForKeys.length > 0) {
-      const missing = waitForKeys.filter((k) => !(k in invMap));
-      if (missing.length > 0) {
-        return { ok: true, advanced: false, stage: "execute", action: "execute:waitingForInventory", note: `Waiting for inventory keys: ${missing.join(", ")}`, detail: { waitingFor: missing } };
-      }
-    }
+    let resultItems = {};
+    let resultSummary = "";
+    const lastError = result.error || "";
 
-    // Build payload: start with static params from plan, then overlay inventory-resolved input keys.
-    // params = values known at plan time (e.g. { module: "Quotes", limit: 5 })
-    // input = inventory keys whose values come from prior steps' output
-    const stepPayload = {};
-    const rawParams = currentStep?.params;
-    if (rawParams && typeof rawParams === "object" && !Array.isArray(rawParams)) {
-      Object.assign(stepPayload, rawParams);
-    }
-    if (Array.isArray(step.input)) {
-      for (const key of step.input) {
-        if (key in invMap) stepPayload[key] = invMap[key];
-      }
-    }
+    if (result.ok && result.rawOutput) {
+      const cliResult = result.rawOutput.trim();
 
-    const { runProvingGroundsAction } = await import("@/libs/proving_grounds/index.js");
-    const actionResult = await runProvingGroundsAction({
-      userId: ownerId,
-      client,
-      skillBookId: step.skillbook,
-      actionName: step.action,
-      payload: stepPayload,
-      adventurerRow: advRow,
-      questRow: freshQuest,
-    });
-
-    // Only pop step and persist items on success
-    if (actionResult.ok) {
-      if (actionResult.items && Object.keys(actionResult.items).length > 0) {
-        const { appendInventoryItem } = await import("@/libs/quest/index.js");
-        const outputFilter = Array.isArray(step.output) && step.output.length > 0 ? new Set(step.output) : null;
-        for (const [k, v] of Object.entries(actionResult.items)) {
-          if (!outputFilter || outputFilter.has(k)) {
-            await appendInventoryItem(questId, { item_key: k, payload: v, source: `${step.skillbook}.${step.action}` }, { client });
-          }
+      // Try to extract JSON summary from the last lines
+      let parsed = null;
+      const lines = cliResult.split("\n");
+      for (let i = lines.length - 1; i >= Math.max(0, lines.length - 5); i--) {
+        const line = lines[i].trim();
+        if (line.startsWith("{") && line.includes('"items"')) {
+          try { parsed = JSON.parse(line); break; } catch { /* continue scanning */ }
         }
       }
-      await updateQuestExecutionPlan(questId, remainingSteps, { client });
-    }
 
-    await recordQuestComment(questId, {
-      source: `${step.skillbook}.${step.action}`,
-      action: "execute",
-      summary: actionResult.ok ? "Step completed" : `Step failed: ${actionResult.msg}`,
-      detail: { step, ok: actionResult.ok, msg: actionResult.msg },
-    }, { client });
-
-    if (!actionResult.ok) {
-      // Weapon reauth escalation: surface a clear, actionable system comment so the
-      // user knows exactly what to do in the UI without reading raw error text.
-      // All weapon auth errors now include "WEAPON_REAUTH_REQUIRED" or "Forge" in the message.
-      const isWeaponReauth = typeof actionResult.msg === "string" && (
-        actionResult.msg.includes("WEAPON_REAUTH_REQUIRED") ||
-        actionResult.msg.includes("Go to the Forge") ||
-        actionResult.msg.includes("forge/zoho")
-      );
-      if (isWeaponReauth) {
-        const { getSiteUrl } = await import("@/libs/council/auth/urls.js");
-        const forgeUrl = `${getSiteUrl().replace(/\/$/, "")}/town/town-square/forge/zoho`;
-        await recordQuestComment(questId, {
-          source: "system",
-          action: "escalate:weapon_reauth",
-          summary: `Action required: the ${step.skillbook} weapon needs to be re-forged with expanded permissions. Go to the Forge → click "Scrap weapon & forge again" → re-authorize in Zoho to grant the missing scope. Forge: ${forgeUrl}`,
-          detail: { weaponId: step.skillbook, action: "reforge_required", forgeUrl },
-        }, { client });
+      if (parsed && parsed.items && typeof parsed.items === "object" && Object.keys(parsed.items).length > 0) {
+        resultItems = parsed.items;
+        resultSummary = parsed.summary || `Executed by ${advRow.name}`;
+      } else {
+        // No structured JSON — treat entire output as the result
+        const itemKey = questTitle.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "result";
+        resultItems = { [itemKey]: cliResult };
+        resultSummary = `Claude produced ${cliResult.length} chars (saved as "${itemKey}")`;
       }
-      return { ok: false, advanced: false, stage, action: `execute:${step.skillbook}.${step.action}`, error: actionResult.msg, detail: { step } };
     }
 
-    const newStage = remainingSteps.length === 0 ? "review" : "execute";
-    if (newStage === "review") {
+    // Save items to inventory
+    if (Object.keys(resultItems).length > 0) {
+      for (const [k, v] of Object.entries(resultItems)) {
+        await appendInventoryItem(questId, { item_key: k, payload: v, source: advRow.name }, { client });
+      }
+      await recordQuestComment(questId, {
+        source: advRow.name,
+        action: "execute",
+        summary: resultSummary || "Execution complete",
+        detail: { itemKeys: Object.keys(resultItems), attempt: "direct" },
+      }, { client });
       await updateQuest(questId, { stage: "review" }, { client });
+      return { ok: true, advanced: true, stage: "review", action: "execute:directComplete", detail: { items: Object.keys(resultItems) } };
     }
-    return { ok: true, advanced: true, stage: newStage, action: `execute:${step.skillbook}.${step.action}`, detail: { remainingSteps: remainingSteps.length } };
+
+    // No items produced — failure
+    await recordQuestComment(questId, {
+      source: advRow.name,
+      action: "execute",
+      summary: `Execution failed: ${lastError || "no deliverables produced"}`,
+      detail: { lastError },
+    }, { client });
+    return { ok: false, advanced: false, stage, action: "execute:failed", error: lastError || "No deliverables produced" };
   }
 
   // ── review: auto-advance to closing (Cat/Pig self-review is an NPC path above) ──

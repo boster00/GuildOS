@@ -1,29 +1,48 @@
 /**
  * BigQuery weapon — queries Google BigQuery via the REST API v2 (jobs.query).
- * Auth: GOOGLE_BIGQUERY_KEY_JSON env var (service account JSON).
+ * Auth: GOOGLE_SERVICE_ACCOUNT in profiles.env_vars (service account JSON), falls back to process.env.
  */
+import { getGoogleCredentials } from "@/libs/council/profileEnvVars";
 
 const BIGQUERY_API = "https://bigquery.googleapis.com/bigquery/v2";
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+async function resolveUserId(explicit) {
+  if (explicit) return explicit;
+  try {
+    const { getAdventurerExecutionUserId } = await import("@/libs/adventurer/advance.js");
+    const ctxId = getAdventurerExecutionUserId();
+    if (ctxId) return ctxId;
+  } catch { /* not in adventurer context */ }
+  const { requireUser } = await import("@/libs/council/auth/server");
+  const user = await requireUser();
+  return user.id;
+}
+
+async function getServiceAccountKey(userId) {
+  const creds = await getGoogleCredentials(userId);
+  const raw = creds.serviceAccountJson;
+  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT is not set in profiles.env_vars or process.env.");
+  const key = typeof raw === "string" ? JSON.parse(raw) : raw;
+  if (!key.client_email || !key.private_key) {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT missing client_email or private_key.");
+  }
+  return key;
+}
 
 /**
- * Build a signed JWT and exchange it for an access token.
+ * Build a signed JWT and exchange it for a BigQuery access token.
+ * @param {string} userId
  * @returns {Promise<string>}
  */
-async function getAccessToken() {
-  const raw = process.env.GOOGLE_BIGQUERY_KEY_JSON;
-  if (!raw) throw new Error("GOOGLE_BIGQUERY_KEY_JSON is not set.");
-  const key = JSON.parse(raw);
-  const { client_email, private_key, token_uri } = key;
-  if (!client_email || !private_key) {
-    throw new Error("GOOGLE_BIGQUERY_KEY_JSON missing client_email or private_key.");
-  }
-
+async function getAccessToken(userId) {
+  const key = await getServiceAccountKey(userId);
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
-    iss: client_email,
+    iss: key.client_email,
     scope: "https://www.googleapis.com/auth/bigquery.readonly",
-    aud: token_uri || "https://oauth2.googleapis.com/token",
+    aud: key.token_uri || TOKEN_URL,
     iat: now,
     exp: now + 3600,
   };
@@ -34,11 +53,10 @@ async function getAccessToken() {
   const crypto = await import("node:crypto");
   const sign = crypto.createSign("RSA-SHA256");
   sign.update(unsigned);
-  const signature = sign.sign(private_key, "base64url");
-
+  const signature = sign.sign(key.private_key, "base64url");
   const jwt = `${unsigned}.${signature}`;
 
-  const res = await fetch(token_uri || "https://oauth2.googleapis.com/token", {
+  const res = await fetch(key.token_uri || TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
@@ -51,24 +69,20 @@ async function getAccessToken() {
   return data.access_token;
 }
 
-/**
- * Extract projectId from the service-account key JSON.
- * @returns {string}
- */
-function getProjectId() {
-  const raw = process.env.GOOGLE_BIGQUERY_KEY_JSON;
-  if (!raw) throw new Error("GOOGLE_BIGQUERY_KEY_JSON is not set.");
-  const key = JSON.parse(raw);
+async function getProjectId(userId) {
+  const key = await getServiceAccountKey(userId);
   return key.project_id || "";
 }
 
 /**
  * List datasets in the project.
+ * @param {string} [userId]
  * @returns {Promise<Array<{ datasetId: string, location: string }>>}
  */
-export async function listDatasets() {
-  const token = await getAccessToken();
-  const projectId = getProjectId();
+export async function listDatasets(userId) {
+  const uid = await resolveUserId(userId);
+  const token = await getAccessToken(uid);
+  const projectId = await getProjectId(uid);
   if (!projectId) throw new Error("project_id missing from service account key.");
 
   const res = await fetch(`${BIGQUERY_API}/projects/${projectId}/datasets`, {
@@ -90,12 +104,14 @@ export async function listDatasets() {
  * @param {string} datasetId
  * @param {string} tableId
  * @param {number} [limit=10]
+ * @param {string} [userId]
  * @returns {Promise<{ rows: Array<Record<string, unknown>> }>}
  */
-export async function getRecentEvents(datasetId, tableId, limit = 10) {
+export async function getRecentEvents(datasetId, tableId, limit = 10, userId) {
   if (!datasetId || !tableId) throw new Error("datasetId and tableId are required.");
-  const token = await getAccessToken();
-  const projectId = getProjectId();
+  const uid = await resolveUserId(userId);
+  const token = await getAccessToken(uid);
+  const projectId = await getProjectId(uid);
   if (!projectId) throw new Error("project_id missing from service account key.");
 
   const n = Math.max(1, Math.min(Number(limit) || 10, 1000));
@@ -103,36 +119,23 @@ export async function getRecentEvents(datasetId, tableId, limit = 10) {
 
   const res = await fetch(`${BIGQUERY_API}/projects/${projectId}/jobs`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      configuration: {
-        query: {
-          query,
-          useLegacySql: false,
-        },
-      },
-    }),
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ configuration: { query: { query, useLegacySql: false } } }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`BigQuery jobs.query failed (${res.status}): ${text}`);
   }
   const job = await res.json();
-
-  // Poll for completion
   const jobId = job.jobReference?.jobId;
   if (!jobId) throw new Error("No jobId returned from BigQuery.");
 
   let status = job.status?.state;
   while (status !== "DONE") {
     await new Promise((r) => setTimeout(r, 1000));
-    const pollRes = await fetch(
-      `${BIGQUERY_API}/projects/${projectId}/jobs/${jobId}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const pollRes = await fetch(`${BIGQUERY_API}/projects/${projectId}/jobs/${jobId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!pollRes.ok) {
       const text = await pollRes.text();
       throw new Error(`BigQuery job poll failed (${pollRes.status}): ${text}`);
@@ -144,7 +147,6 @@ export async function getRecentEvents(datasetId, tableId, limit = 10) {
     }
   }
 
-  // Fetch results
   const resultsRes = await fetch(
     `${BIGQUERY_API}/projects/${projectId}/jobs/${jobId}/getQueryResults?maxResults=${n}`,
     { headers: { Authorization: `Bearer ${token}` } },
@@ -154,28 +156,27 @@ export async function getRecentEvents(datasetId, tableId, limit = 10) {
     throw new Error(`BigQuery getQueryResults failed (${resultsRes.status}): ${text}`);
   }
   const resultsData = await resultsRes.json();
-
   const fields = (resultsData.schema?.fields || []).map((f) => f.name);
   const rows = (resultsData.rows || []).map((row) => {
     const obj = {};
-    (row.f || []).forEach((cell, i) => {
-      obj[fields[i] || `col_${i}`] = cell.v;
-    });
+    (row.f || []).forEach((cell, i) => { obj[fields[i] || `col_${i}`] = cell.v; });
     return obj;
   });
-
   return { rows };
 }
 
 /**
- * Check whether the BigQuery credential env var is set.
- * @returns {{ ok: boolean, projectId: string }}
+ * Check whether Google service account credentials are available.
+ * @param {string} [userId]
  */
-export function checkCredentials() {
-  const raw = process.env.GOOGLE_BIGQUERY_KEY_JSON;
-  if (!raw) return { ok: false, projectId: "" };
+export async function checkCredentials(userId) {
   try {
-    const key = JSON.parse(raw);
+    const uid = await resolveUserId(userId);
+    const creds = await getGoogleCredentials(uid);
+    if (!creds.serviceAccountJson) return { ok: false, projectId: "" };
+    const key = typeof creds.serviceAccountJson === "string"
+      ? JSON.parse(creds.serviceAccountJson)
+      : creds.serviceAccountJson;
     return { ok: true, projectId: key.project_id || "" };
   } catch {
     return { ok: false, projectId: "" };

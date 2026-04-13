@@ -5,7 +5,7 @@ import { resolveDungeonMasterRuntime } from "@/libs/council/councilSettings";
  * Chat completion using the user’s Dungeon Master key / base URL / default model (same source as `/api/ai` intent for product flows).
  * @param {{ userId: string, messages: Array<{ role: string, content: string }>, model?: string, client: import("@/libs/council/database/types.js").DatabaseClient }} opts
  */
-export async function runDungeonMasterChat({ userId, messages, model: modelOverride, client }) {
+export async function runDungeonMasterChat({ userId, messages, model: modelOverride, maxTokens, client }) {
   if (!Array.isArray(messages) || messages.length === 0) {
     throw new Error("messages must be a non-empty array of { role, content }");
   }
@@ -28,14 +28,17 @@ export async function runDungeonMasterChat({ userId, messages, model: modelOverr
     apiKey: rt.apiKey,
     ...(rt.baseUrl ? { baseURL: rt.baseUrl } : {}),
   });
-  const res = await openai.chat.completions.create({
-    model,
-    messages,
-  });
+  const createOpts = { model, messages };
+  if (typeof maxTokens === "number" && maxTokens > 0) {
+    createOpts.max_tokens = maxTokens;
+  }
+  const res = await openai.chat.completions.create(createOpts);
   const text = res.choices?.[0]?.message?.content ?? "";
+  const finishReason = res.choices?.[0]?.finish_reason ?? null;
   return {
     text,
     model,
+    finishReason,
     usage: res.usage ?? null,
     apiKeySource: rt.apiKeySource,
   };

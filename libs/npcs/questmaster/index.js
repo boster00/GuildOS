@@ -19,34 +19,31 @@ export async function doNextAction(quest, ctx) {
   const questId = String(quest.id || "");
 
   if (stage === "idea") {
-    // Interpret the request into a structured quest, then advance to assign
+    // Evaluate if the request is clear enough and has measurable done criteria
     const { getSkillBook } = await import("@/libs/skill_book");
     const book = getSkillBook("questmaster");
-    const result = await book.planRequestToQuest({ initialRequest: quest.description });
+    const result = await book.interpretIdea({ initialRequest: quest.description, adventurerName: "TBD" });
     if (result?.error) return { action: "interpret", ok: false, error: result.error.message };
 
-    // If the AI decided the request is too vague (stage: "idea"), escalate for clarification
-    if (result.data?.stage === "idea") {
-      const { recordQuestComment } = await import("@/libs/quest");
-      const clarifyMsg =
-        `This request could not be clearly understood. ` +
-        `Original text: "${String(quest.description || "").slice(0, 200)}"\n\n` +
-        `Please reply with a clearer description of what you need — ` +
-        `for example, which system to use, what data to fetch, and any specific criteria.`;
+    // Unclear request — leave clarification question, kick to review assigned to Pig
+    if (result.data?.clear === false) {
+      const { updateQuest, recordQuestComment } = await import("@/libs/quest");
+      const { updateQuestAssignee } = await import("@/libs/council/database/serverQuest.js");
       await recordQuestComment(questId, {
         source: "Cat",
         action: "escalate:clarification",
-        summary: clarifyMsg,
-        detail: { reason: "vague_request", originalDescription: quest.description, aiInterpretation: result.data },
+        summary: result.data.question,
+        detail: { reason: "unclear_request", originalDescription: quest.description },
       }, { client: ctx.client });
-      return { action: "interpret:waiting_clarification", ok: true, stage: "idea", msg: clarifyMsg };
+      await updateQuestAssignee(questId, { assigneeId: null, assignedTo: "Pig" }, { client: ctx.client });
+      await updateQuest(questId, { stage: "review" }, { client: ctx.client });
+      return { action: "interpret:needs_clarification", ok: true, stage: "review", question: result.data.question };
     }
 
-    // Clear request — update quest with interpreted fields and advance to assign
+    // Clear request — set action-verb title, keep original description, advance to assign
     const { updateQuest } = await import("@/libs/quest");
     await updateQuest(questId, {
       title: result.data?.title || quest.title,
-      description: result.data?.description || quest.description,
       stage: "assign",
     }, { client: ctx.client });
     return { action: "interpret", ok: true, stage: "assign", title: result.data?.title };

@@ -457,10 +457,16 @@ If NONE are a good match:
   "msg": "<brief rationale why no one fits>"
 }
 
+IMPORTANT — triage priority (apply FIRST, before matching by boast):
+1. Ask: "Can this task be done with natural language alone — no specialized API access, no database changes, no codebase modifications?"
+2. If YES or UNSURE → pick the general-purpose agent. Most tasks (writing, research, reports, analysis, screenshots, creative work) fall here.
+3. ONLY pick a specialized adventurer if the task CLEARLY requires their specific weapon (e.g. Zoho CRM data, forging new code weapons, Stripe billing).
+4. Blacksmith/Runesmith are ONLY for creating new weapons and skill books — NOT for general tasks. Do not pick them for writing, research, or content.
+5. If a quest returns to assign with a comment saying specialized access is needed, read the comments and re-route accordingly.
+
 Rules:
 - "msg" must be a non-empty string.
 - "result" is either an object with both "id" and "name" from the roster, or boolean false (or the string "false").
-- An adventurer can ONLY do what is listed in their boast. If the quest requires a capability not explicitly covered by any action in the adventurer's boast, return result: false.
 - Match by what the actions DO (read their descriptions), not by action names.`;
 
   if (rosterArr.length === 0) {
@@ -562,25 +568,25 @@ export async function interpretIdea(userId, { initialRequest, adventurerName, cl
     return { data: null, error: new Error("Adventurer name is required for interpretIdea.") };
   }
 
-  const prompt = `You convert a user's raw request into a structured guild quest for one adventurer who will execute it.
-
-Chosen adventurer (by name): ${adv}
+  const prompt = `Evaluate this user request and decide if it is clear enough to execute.
 
 User request:
 ${req}
 
-Respond with ONLY one JSON object (no prose) using exactly these keys:
-{
-  "title": "verb-first short title — REQUIRED",
-  "description": "REQUIRED — clear narrative of the work, what success looks like, and that ${adv} is responsible for delivery",
-  "deliverables": "REQUIRED — concrete definition of what must be submitted (string, or array of strings if multiple)",
-  "due_date": "ISO 8601 datetime or null if unknown"
-}
+Check two things:
+1. Is the request clear enough that someone could act on it without asking questions?
+2. Can you deduce when the task is considered done? (explicit or obvious completion criteria)
+
+If BOTH pass, respond with:
+{"clear":true,"title":"<short action-verb title, e.g. Write a poem about spring in Beijing>"}
+
+If EITHER fails, respond with:
+{"clear":false,"question":"<one specific clarification question to ask the user>"}
 
 Rules:
-- title must be non-empty.
-- description must explicitly describe the deliverable and name/adscribe the work to ${adv}.
-- deliverables must be non-empty (string or non-empty array of strings).`;
+- title MUST start with an action verb.
+- Do NOT rewrite the user's request. The original description will be kept as-is.
+- Be lenient — if the task is obviously completable (e.g. "write a poem about X"), it is clear. Only flag truly ambiguous requests.`;
 
   let aiText = "";
   try {
@@ -596,30 +602,33 @@ Rules:
   }
 
   const parsed = extractJsonObject(aiText);
-  if (!parsed || typeof parsed.title !== "string" || String(parsed.title).trim() === "") {
-    return { data: null, error: new Error("Model did not return valid interpretIdea JSON (title required).") };
+  if (!parsed) {
+    return { data: null, error: new Error("Model did not return valid JSON for interpretIdea.") };
   }
 
-  const title = String(parsed.title).trim();
-  const description = parsed.description != null ? String(parsed.description).trim() : "";
-  if (!description) {
-    return { data: null, error: new Error("interpretIdea: description is required.") };
+  if (parsed.clear === false) {
+    // Request is unclear — return question for clarification
+    return {
+      data: {
+        clear: false,
+        question: String(parsed.question || "Could you clarify what you'd like done?"),
+        raw_model_text: aiText,
+      },
+      error: null,
+    };
   }
 
-  const deliverables = deliverablesToText(parsed.deliverables ?? parsed.deliverable);
-  if (!deliverables) {
-    return { data: null, error: new Error("interpretIdea: deliverables are required.") };
+  // Request is clear — return title only, description stays as-is
+  const title = typeof parsed.title === "string" ? parsed.title.trim() : "";
+  if (!title) {
+    return { data: null, error: new Error("interpretIdea: model returned clear=true but no title.") };
   }
-
-  const dueRaw = parsed.due_date ?? parsed.dueDate;
-  const due_date = parseDueDateIso(dueRaw);
 
   return {
     data: {
+      clear: true,
       title,
-      description,
-      deliverables,
-      due_date,
+      description: req, // keep original user request as description
       raw_model_text: aiText,
     },
     error: null,
@@ -681,8 +690,8 @@ export async function assign(userId, { questId, guildos, client }) {
       assignedTo,
     }, { client });
 
-    // Advance to plan — Cat's job is done once assignee is set
-    await updateQuest(questRow.id, { stage: "plan" }, { client });
+    // Advance directly to execute — planning is done inline by the executing LLM
+    await updateQuest(questRow.id, { stage: "execute" }, { client });
 
     return {
       data: {

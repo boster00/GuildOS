@@ -7,6 +7,7 @@ const TABS = [
   { key: "browserclaw-test", label: "Pigeon Test", href: "/town/proving-grounds/browserclaw-test" },
   { key: "ccc-test", label: "CCC Test", href: "/town/proving-grounds/ccc-test" },
   { key: "bigquery", label: "BigQuery", href: "/town/proving-grounds/weapons/bigquery" },
+  { key: "asana", label: "Asana Review", href: "/town/proving-grounds/asana" },
 ];
 
 export default function ProvinGroundsNav({ active }) {

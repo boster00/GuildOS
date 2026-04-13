@@ -1,4 +1,6 @@
 import { getZohoWeaponStatus } from "@/libs/weapon/zoho";
+import { checkCredentials as checkGmailCredentials } from "@/libs/weapon/gmail";
+
 
 /**
  * Weapon blueprints (integrations) defined in code. Until forged, each is only a blueprint—no live OAuth or API calls.
@@ -34,7 +36,7 @@ export const WEAPONS = [
     summary: "Lets skill books fetch recent events from BigQuery datasets using jobs.query.",
     icon: "/images/guildos/chibis/bolt.svg",
     description: [
-      "Uses GOOGLE_BIGQUERY_KEY_JSON (service account) to sign JWTs, exchange for access tokens, and run BigQuery SQL queries via the REST API.",
+      "Uses GOOGLE_SERVICE_ACCOUNT (service account) to sign JWTs, exchange for access tokens, and run BigQuery SQL queries via the REST API.",
     ],
     requiresActivation: false,
   },
@@ -64,6 +66,18 @@ export const WEAPONS = [
     ],
     requiresActivation: false,
   },
+  {
+    id: "gmail",
+    title: "Gmail",
+    tagline: "Search, read, star, and label emails via Google Gmail API.",
+    summary:
+      "Lets skill books search inboxes, read messages, star important emails, and modify labels using your Gmail account.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses GOOGLE_SERVICE_ACCOUNT (service account JSON with domain-wide delegation) to access Gmail via the REST API v1. Also requires GOOGLE_GMAIL_IMPERSONATE set to the target Gmail address.",
+    ],
+    requiresActivation: false,
+  },
 ];
 
 export function getWeaponById(id) {
@@ -78,6 +92,9 @@ export async function getWeaponActivationSummaries(userId) {
   for (const w of WEAPONS) {
     if (w.id === "zoho") {
       summaries.zoho = await getZohoWeaponStatus(userId);
+    }
+    if (w.id === "gmail") {
+      summaries.gmail = await checkGmailCredentials(userId);
     }
   }
   return summaries;

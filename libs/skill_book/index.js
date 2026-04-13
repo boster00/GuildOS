@@ -31,6 +31,22 @@ import {
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
 import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
 import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEvents } from "./bigquery/index.js";
+import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
+
+// --- claudeCLI (inline definition — no separate file needed) ---
+const claudeCLISkillBook = {
+  id: "claudeCLI",
+  title: "Claude CLI",
+  description: "Handles any task that can be done with Claude natively. Do not pick if the task requires changing local files.",
+  steps: [],
+  toc: {
+    executeTask: {
+      description: "Handles any task that can be done with Claude natively. Do not pick if the task requires changing local files.",
+      input: { instructions: "string — natural language description of what to do" },
+      output: { result: "object — delivered items and quest comment" },
+    },
+  },
+};
 
 // --- planStepUtils (inlined) ---
 
@@ -281,6 +297,8 @@ export const SKILL_BOOKS = {
   testskillbook: testskillbookDef,
   browsercontrol: browsercontrolSkillBook,
   bigquery: bigquerySkillBook,
+  claudeCLI: claudeCLISkillBook,
+  asana: asanaSkillBook,
 };
 
 /**
@@ -427,6 +445,71 @@ const ADVENTURER_REGISTRY = {
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: browsercontrolAdventurerActions },
   bigquery: { definition: bigquerySkillBook, adventurerActions: {
     getRecentEvents: (_userId, input) => bigqueryGetRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  asana: { definition: asanaSkillBook, adventurerActions: {
+    readProjectTasks: (_userId, input) => asanaReadProjectTasks(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readTaskComments: (_userId, input) => asanaReadTaskComments(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
+    executeTask: async (_userId, input) => {
+      const { execSync } = await import("child_process");
+      const inObj = /** @type {Record<string, unknown>} */ (input || {});
+      const instructions = String(inObj.instructions || "");
+      const outputItem = String(inObj.output_item || "result");
+      if (!instructions) return { ok: false, msg: "No instructions provided.", items: {} };
+
+      const EXEC_MAX_RETRIES = 3;
+      let lastResult = "";
+      let lastError = "";
+
+      for (let attempt = 1; attempt <= EXEC_MAX_RETRIES; attempt++) {
+        const retryContext = attempt > 1
+          ? `\n\nPREVIOUS ATTEMPT FAILED: ${lastError}\nFix the issue and try again.`
+          : "";
+
+        const prompt = [
+          `Check /docs/adventurer-claude-non-development-guideline.md before starting. Then do the following:`,
+          ``,
+          instructions,
+          retryContext,
+          ``,
+          `OUTPUT FORMAT REQUIREMENTS:`,
+          `- You MUST produce a non-empty result.`,
+          `- Output ONLY the final deliverable content as plain text.`,
+          `- No explanation, no markdown fences, no preamble — just the deliverable.`,
+          `- Before finishing, review your output: is it complete, correct, and non-empty? If not, fix it.`,
+        ].join("\n");
+
+        try {
+          const result = execSync(
+            `claude -p --dangerously-skip-permissions "${prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`,
+            { encoding: "utf-8", timeout: 5 * 60 * 1000, maxBuffer: 10 * 1024 * 1024 },
+          ).trim();
+
+          // Validate: result must be non-empty and not an error message
+          if (!result) {
+            lastError = "Claude returned empty output.";
+            if (attempt < EXEC_MAX_RETRIES) continue;
+            return { ok: false, msg: `Empty output after ${EXEC_MAX_RETRIES} attempts`, items: {} };
+          }
+
+          if (result.length < 10 && /^(error|fail|sorry)/i.test(result)) {
+            lastError = `Claude returned what looks like an error: "${result.slice(0, 100)}"`;
+            if (attempt < EXEC_MAX_RETRIES) continue;
+            return { ok: false, msg: lastError, items: {} };
+          }
+
+          lastResult = result;
+          return { ok: true, msg: `Claude produced ${result.length} chars (attempt ${attempt})`, items: { [outputItem]: result } };
+        } catch (err) {
+          lastError = `Claude CLI error: ${err.message || err}`;
+          if (attempt < EXEC_MAX_RETRIES) continue;
+          return { ok: false, msg: `Claude CLI failed after ${EXEC_MAX_RETRIES} attempts: ${lastError}`, items: {} };
+        }
+      }
+
+      return { ok: false, msg: `executeTask exhausted ${EXEC_MAX_RETRIES} retries: ${lastError}`, items: {} };
+    },
   } },
 };
 
