@@ -117,7 +117,9 @@ export async function getGoogleCredentials(userId) {
  * }>}
  */
 export async function getZohoBooksAppCredentials(userId) {
-  const db = await database.init("server");
+  // Service role: read `profiles.env_vars` for the given user without a Next.js request
+  // (Zoho token refresh runs from cron/scripts as well as HTTP handlers).
+  const db = await database.init("service");
   const { data, error } = await db
     .from(publicTables.profiles)
     .select("env_vars")
