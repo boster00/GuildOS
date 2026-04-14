@@ -260,25 +260,6 @@ export default function CloudAgentsClient() {
       ],
     },
     {
-      id: "claude",
-      name: "Anthropic Managed Agents (Sessions API)",
-      badge: "beta",
-      badgeColor: "badge-secondary",
-      docsUrl: "https://platform.claude.com/docs/en/api/beta/sessions",
-      defaultViewUrl: "https://claude.ai/code",
-      initialSessionId: "session_01UxewrT2YScpshw6df3JQ5T",
-      setupExtra: { pinnedSessionId: "session_01UxewrT2YScpshw6df3JQ5T" },
-      setupDescription:
-        "Pinned session session_01UxewrT2YScpshw6df3JQ5T — skips creation, sends directly to this session.",
-      requiredEnv: [
-        {
-          key: "ANTHROPIC_API_KEY",
-          available: has("ANTHROPIC_API_KEY"),
-          note: "Key must belong to the same org as platform.claude.com.",
-        },
-      ],
-    },
-    {
       id: "codex",
       name: "OpenAI Codex (Cloud Delegation)",
       badge: "openai",

@@ -8,7 +8,6 @@ import { recordQuestComment } from "@/libs/quest";
 function buildEnvSnapshot() {
   const KEYS = [
     "OPENAI_API_KEY",
-    "ANTHROPIC_API_KEY",
     "NEXT_PUBLIC_SUPABASE_URL",
     "SUPABASE_SECRETE_KEY",
     "RESEND_API_KEY",
@@ -212,170 +211,6 @@ async function cursorListRepos() {
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
-}
-
-// ---------------------------------------------------------------------------
-// Anthropic Managed Agents — Sessions API (beta)
-// Docs: https://platform.claude.com/docs/en/api/beta/sessions
-// This route calls GET /v1/agents + POST /v1/sessions (developer API). That is NOT the same
-// as clicking “New session” in the Claude Code consumer UI (claude.ai/code): those UIs do
-// not populate GET /v1/agents. Managed agent definitions are created under Console → Agents.
-// ---------------------------------------------------------------------------
-const CLAUDE_BASE = "https://api.anthropic.com";
-const CLAUDE_HEADERS = () => ({
-  "X-Api-Key": process.env.ANTHROPIC_API_KEY,
-  "anthropic-version": "2023-06-01",
-  "anthropic-beta": "managed-agents-2026-04-01",
-  "Content-Type": "application/json",
-});
-
-/** Managed Agents session metadata: max 16 keys, values ≤512 chars — no secrets. */
-function buildClaudeSessionMetadata() {
-  const keys = ["NEXT_PUBLIC_SITE_URL", "SITE_URL"];
-  const meta = {};
-  for (const k of keys) {
-    const v = process.env[k];
-    if (v && typeof v === "string") {
-      meta[k] = v.length > 512 ? v.slice(0, 512) : v;
-    }
-  }
-  return Object.keys(meta).length ? meta : undefined;
-}
-
-async function claudeResolveEnvironmentId() {
-  const res = await fetch(`${CLAUDE_BASE}/v1/environments`, { headers: CLAUDE_HEADERS() });
-  const data = await res.json().catch(() => ({}));
-  const list = Array.isArray(data.data) ? data.data : [];
-  if (!res.ok) {
-    return {
-      ok: false,
-      error: "Failed to list environments from the Anthropic API.",
-      status: res.status,
-      data,
-    };
-  }
-  if (list.length === 0) {
-    return {
-      ok: false,
-      error:
-        "No environments on this Anthropic organization. Create at least one in Claude Console so GET /v1/environments returns a row.",
-      data,
-    };
-  }
-  return { ok: true, environmentId: list[0].id, source: "first_from_list" };
-}
-
-async function claudeSetup({ pinnedSessionId } = {}) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { ok: false, error: "ANTHROPIC_API_KEY not found in .env.local." };
-
-  // Short-circuit: use an existing session instead of creating a new one
-  if (pinnedSessionId) {
-    return {
-      ok: true,
-      sessionId: pinnedSessionId,
-      viewUrl: "https://claude.ai/code",
-      note: `Using pinned session ${pinnedSessionId}`,
-    };
-  }
-
-  const agentRes = await fetch(`${CLAUDE_BASE}/v1/agents`, { headers: CLAUDE_HEADERS() });
-  const agentData = await agentRes.json().catch(() => ({}));
-  const agents = Array.isArray(agentData.data) ? agentData.data : [];
-
-  if (!agentRes.ok) {
-    return {
-      ok: false,
-      error:
-        "Could not list managed agents. Check ANTHROPIC_API_KEY, managed-agents beta access, and that the key belongs to the same org as Claude Console.",
-      agentListStatus: agentRes.status,
-      agentListResponse: agentData,
-    };
-  }
-
-  if (agents.length === 0) {
-    return {
-      ok: false,
-      error:
-        "GET /v1/agents returned zero managed agent configs for this API key. This proving-grounds step does not use the claude.ai/code “New session” UI.",
-      agentCount: 0,
-      agentListResponse: agentData,
-      hint:
-        "Managed agents are created in the developer console (https://platform.claude.com → Agents), not by starting a session in the Claude Code web app. Use an API key from the same Anthropic organization as that console. Then GET /v1/agents will list rows and Setup can create a session.",
-    };
-  }
-
-  const envResolve = await claudeResolveEnvironmentId();
-  if (!envResolve.ok) {
-    return { ok: false, ...envResolve };
-  }
-
-  const agent = agents[0];
-  const metadata = buildClaudeSessionMetadata();
-  const sessionBody = {
-    agent: agent.id,
-    environment_id: envResolve.environmentId,
-    ...(metadata ? { metadata } : {}),
-  };
-
-  const sessionRes = await fetch(`${CLAUDE_BASE}/v1/sessions`, {
-    method: "POST",
-    headers: CLAUDE_HEADERS(),
-    body: JSON.stringify(sessionBody),
-  });
-  const sessionData = await sessionRes.json().catch(() => ({}));
-  const sessionId = sessionData.id ?? null;
-
-  return {
-    ok: sessionRes.ok,
-    status: sessionRes.status,
-    sessionId,
-    agentUsed: { id: agent.id, name: agent.name },
-    environmentUsed: { id: envResolve.environmentId, source: envResolve.source },
-    viewUrl: "https://claude.ai/code",
-    data: sessionData,
-  };
-}
-
-async function claudeMessage({ sessionId }) {
-  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: "ANTHROPIC_API_KEY not set." };
-  if (!sessionId) return { ok: false, error: "No session. Run Setup first." };
-
-  const res = await fetch(`${CLAUDE_BASE}/v1/sessions/${sessionId}/events`, {
-    method: "POST",
-    headers: CLAUDE_HEADERS(),
-    body: JSON.stringify({
-      events: [
-        {
-          type: "user.message",
-          content: [{ type: "text", text: "calculate 8*9" }],
-        },
-      ],
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
-}
-
-function claudeNormalizeEvents(data) {
-  if (Array.isArray(data.data)) return data.data;
-  if (Array.isArray(data.events)) return data.events;
-  if (Array.isArray(data)) return data;
-  return [];
-}
-
-async function claudeFetch({ sessionId }) {
-  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: "ANTHROPIC_API_KEY not set." };
-  if (!sessionId) return { ok: false, error: "No session. Run Setup first." };
-
-  const res = await fetch(`${CLAUDE_BASE}/v1/sessions/${sessionId}/events`, {
-    headers: CLAUDE_HEADERS(),
-  });
-  const data = await res.json().catch(() => ({}));
-  const events = claudeNormalizeEvents(data);
-  const agentMessages = events.filter((e) => e.type === "agent.message");
-  const latest = agentMessages[agentMessages.length - 1] ?? null;
-  return { ok: res.ok, status: res.status, latestMessage: latest, eventCount: events.length, data };
 }
 
 // ---------------------------------------------------------------------------
@@ -596,7 +431,6 @@ function checkEnv() {
   return {
     env: {
       CURSOR_API_KEY: !!process.env.CURSOR_API_KEY,
-      ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
     },
   };
@@ -711,9 +545,6 @@ export async function POST(request) {
       case "cursor_poll_dispatch":
         result = await cursorPollDispatch({ agentId: body.agentId });
         break;
-      case "claude_setup":   result = await claudeSetup({ pinnedSessionId: body.pinnedSessionId }); break;
-      case "claude_message": result = await claudeMessage({ sessionId }); break;
-      case "claude_fetch":   result = await claudeFetch({ sessionId }); break;
       case "codex_setup":    result = await codexSetup(); break;
       case "codex_message":  result = await codexMessage({ sessionId }); break;
       case "codex_fetch":    result = await codexFetch({ sessionId, runId }); break;

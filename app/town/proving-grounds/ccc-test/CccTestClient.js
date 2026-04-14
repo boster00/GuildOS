@@ -71,7 +71,7 @@ export default function CccTestClient() {
         body: JSON.stringify({ action: "runAll" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
       setResults(data.results);
       setMeta({ passed: data.passed, total: data.total, messages: data.messagesExchanged });
     } catch (err) {
@@ -89,13 +89,13 @@ export default function CccTestClient() {
       <div className="rounded-2xl border border-base-300 bg-base-200/40 p-5">
         <h2 className="text-lg font-semibold">What is this test?</h2>
         <p className="mt-2 text-sm text-base-content/70">
-          This page runs a live <strong>Claude Code Cloud (CCC)</strong> session via the Anthropic API. The session is given a series of tasks — building a Python program, writing test cases, generating a voiceover narration script, and assembling deliverables — exactly as described in the full Make&nbsp;24 demo prompt. The live test here runs Phases&nbsp;0–3 directly: the CCC session initialises, then solves Make&nbsp;24 for four canonical test cases using{" "}
-          <code className="rounded bg-base-300 px-1 text-xs">claude-opus-4-6</code>.
+          This page described a <strong>Make&nbsp;24</strong> harness that used to call Anthropic’s HTTP API from the server. GuildOS no longer uses <code className="rounded bg-base-300 px-1 text-xs">ANTHROPIC_API_KEY</code> — use <strong>Claude Code</strong> in a terminal with{" "}
+          <code className="rounded bg-base-300 px-1 text-xs">claude auth login --claudeai</code>{" "}
+          (Claude subscription) for coding-agent work. The &quot;Run All Tests&quot; button below returns HTTP 501 until a non–API-key path is wired in.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-base-content/50">
-          <span className="rounded-full border border-base-300 px-3 py-1">Model: claude-opus-4-6</span>
-          <span className="rounded-full border border-base-300 px-3 py-1">4 test cases</span>
-          <span className="rounded-full border border-base-300 px-3 py-1">1 CCC message per case</span>
+          <span className="rounded-full border border-base-300 px-3 py-1">4 test cases (UI only)</span>
+          <span className="rounded-full border border-base-300 px-3 py-1">Server API runner disabled</span>
         </div>
       </div>
 
@@ -133,13 +133,6 @@ export default function CccTestClient() {
                 <div className="text-sm font-semibold">{phase.label}</div>
                 <div className="mt-0.5 text-xs text-base-content/60">{phase.desc}</div>
               </div>
-              {phase.num <= 3 && (
-                <div className="ml-auto shrink-0 self-start">
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    live
-                  </span>
-                </div>
-              )}
             </div>
           ))}
         </div>
