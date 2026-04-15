@@ -1,28 +1,22 @@
-# GuildOS Orchestration — Open Gaps
+# GuildOS Orchestration — Implementation Tasks
 
-## Critical (blocks autonomous operation)
+## 1. Global instructions: Cat exists in DB
+Add to global-instructions.md: Cat (Questmaster) exists in adventurers table. Agents must query DB for Cat's session_id when they need to seekHelp. Do not assume Cat is missing.
 
-| # | Gap | Impact |
-|---|-----|--------|
-| 1 | **Cat (Questmaster) never initialized** | No review layer. Agent can't seekHelp, closing quests pile up. Cat has session bc-1a4bfbeb but was never sent initAgent or questmaster instructions. |
-| 2 | **Closing → Asana archival untested** | Quests sit in closing forever. Cron notifies Cat but Cat doesn't know what to do. |
+## 2. Questmaster nudge in cron
+Add a specialized nudge for Cat: check all quests in closing stage, follow questmaster_registry.closeQuest skill book procedure for each. Similar to confused-agent nudge but targeted at Cat + closing quests.
 
-## Important (degrades efficiency)
+## 3. Quest dedup on creation
+In housekeeping.createQuest and the quest API: before inserting, check if a quest with the same Asana task reference already exists. If so, return the existing quest instead of creating a duplicate.
 
-| # | Gap | Impact |
-|---|-----|--------|
-| 3 | **No quest dedup** | Multiple quests for same task created manually. Need check-before-create. |
-| 4 | **Guildmaster can't auto-resolve escalations** | Agent escalates missing env vars, GM has to manually base64-encode and send. Not automated. |
-| 5 | **Comment summarization not implemented** | Quests will flood over time. housekeeping.summarizeComments defined but never called. |
+## 4. GM Desk "Resolve Escalations" button
+Add a button that triggers the local Guildmaster (Claude Code) to evaluate escalated quests and auto-resolve what it can (env vars, credentials, config). Already partially built — the triage button exists but needs to actually execute resolutions, not just classify.
 
-## Nice to have (ergonomic)
+## 5. Comment summarization — deferred
+Revisit after observing real usage patterns.
 
-| # | Gap | Impact |
-|---|-----|--------|
-| 6 | **Inn UI missing "Re-init" button** | Can't re-init agent from UI — must send manual messages. |
-| 7 | **No multi-agent coordination** | Agents work in isolation. No handoff or artifact sharing between agents. |
+## 6. Inn UI "Re-init" button — deferred
+Add button on adventurer card that calls initAgent. Low priority.
 
-## Resolved this round
-- Stage inconsistency: migrated 8 quests from 'completed' to 'complete'
-- Quest advance buttons removed from quest detail UI
-- Cat initialization: in progress
+## 7. Multi-agent coordination — deferred
+Already partially working. Defer until real scenario exposes need.

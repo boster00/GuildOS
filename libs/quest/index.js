@@ -59,6 +59,20 @@ export async function createQuest({
   priority = "medium",
   client: injected,
 }) {
+  // Dedup: check for existing quest with same title that isn't complete
+  const client = injected || (await import("@/libs/council/database").then((m) => m.database.init("service")));
+  const { data: existing } = await client
+    .from(publicTables.quests)
+    .select("id, title, stage")
+    .eq("owner_id", userId)
+    .eq("title", title)
+    .not("stage", "eq", "complete")
+    .limit(1);
+
+  if (existing?.length) {
+    return { data: existing[0], deduplicated: true };
+  }
+
   const { data, error } = await insertQuest(
     { userId, title, description, deliverables, dueDate, assigneeId, assignedTo, stage },
     { client: injected },

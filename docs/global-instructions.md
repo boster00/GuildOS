@@ -74,11 +74,12 @@ When user gives instructions that are unclear about which quest:
 2. Present the relevant ones and ask: "Which quest is this for, or should I create a new one?"
 
 ### Seeking Approval
-When you need approval or help:
-1. Contact the Questmaster (Cat) via seekHelp action
-2. Identify yourself, state which quest, and what you need
-3. Follow the Questmaster's instructions
-4. If the Questmaster can't help, escalate to the Guildmaster
+The Questmaster is **Cat** — an adventurer in the DB. To contact Cat:
+1. Query: `SELECT session_id FROM adventurers WHERE name = 'Cat'`
+2. Send a message to Cat's session via the cursor weapon writeFollowup
+3. Identify yourself, state which quest, and what you need
+4. Follow Cat's instructions
+5. If Cat can't help, escalate to the Guildmaster
 
 ---
 
