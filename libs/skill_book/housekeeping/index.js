@@ -95,7 +95,7 @@ Or via API: \`POST /api/quest/comments\` with \`{ questId, source: "adventurer",
 - Blocked by external dependency
 
 **Steps:**
-1. \`git add -A && git commit -m "WIP: <what you were doing>" && git push\` — save your progress first
+1. Save your progress first: git add -A, git commit -m "WIP: ...", git push
 2. Post a comment explaining exactly what is blocking you (be specific)
 3. Update the quest stage to 'escalated':
    \`\`\`javascript
@@ -158,7 +158,7 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
     seekHelp: {
       description: "Contact the Questmaster for approval or assistance.",
       howTo: `
-**Before seeking help:** Always `git push` first. Your branch is your work — if the session dies, the branch is the only record.
+**Before seeking help:** Always git push first. Your branch is your work — if the session dies, the branch is the only record.
 
 **When to seek help:**
 - Need approval on a deliverable before moving to review

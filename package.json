@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo -p 3002",
+    "dev": "concurrently -n \"next,cron\" -c \"blue,green\" \"next dev --turbo -p 3002\" \"node scripts/cron-poll.mjs\"",
+    "dev:next": "next dev --turbo -p 3002",
     "dev:stripe": "node scripts/dev-with-stripe.js",
     "dev:with-webhooks": "concurrently -n \"next,stripe\" -c \"blue,green\" \"npm run dev\" \"npm run stripe:listen\"",
     "stripe:listen": "stripe listen --forward-to localhost:3002/api/webhook/stripe",
