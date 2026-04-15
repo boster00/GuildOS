@@ -42,8 +42,11 @@
 ### Acceptance criteria
 - [x] Created "GuildOS Refactor" quest (id: 7b223a04-46dc-4e37-948d-919260fdc8bb) in review stage
 - [x] Dispatched screenshot task to agent bc-1a4bfbeb
-- [ ] Awaiting agent to take screenshots and upload to Supabase Storage
-- [ ] Verify screenshots on GM's Desk
+- [x] Agent took 6 screenshots using native Chrome (xdotool + ffmpeg x11grab)
+- [x] Screenshots verified: skill book registry, Inn upstairs with chibis, docs listing, library, forge, inn
+- [x] Uploaded all 6 to Supabase Storage under GuildOS_Bucket/cursor_cloud/{questId}/
+- [x] Quest inventory updated with screenshot URLs
+- [x] Quest "GuildOS Refactor" (7b223a04) visible on GM's Desk with screenshots
 
 ## Files Modified (this refactor)
 - `libs/weapon/cursor/index.js`
