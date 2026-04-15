@@ -69,48 +69,19 @@ export const skillBook = {
 `,
     },
     comment: {
-      description: "Post a comment to a quest for milestone reporting or escalation.",
+      description: "Post a comment to a quest.",
       howTo: `
-**When to comment:**
-- Major milestone completion (not every small step)
-- Escalating a problem
-- Responding to feedback
+Insert a row into quest_comments with: quest_id, source (adventurer), action (milestone/escalate/response), summary.
 
-**How:**
-\`\`\`javascript
-await db.from('quest_comments').insert({
-  quest_id: '<quest-id>',
-  source: 'adventurer',
-  action: 'milestone',  // or 'escalate', 'response'
-  summary: '<concise description of what happened>',
-  detail: {}
-});
-\`\`\`
-
-Or via API: \`POST /api/quest/comments\` with \`{ questId, source: "adventurer", action, summary }\`
-
-**Do NOT comment for:** routine progress, asking permission, small updates. Only significant events.
+Only comment for significant events: major milestone completion, escalation, responding to feedback. Not routine progress.
 `,
     },
     escalate: {
-      description: "Move a quest to escalated stage when blocked.",
+      description: "Move a quest to escalated stage.",
       howTo: `
-**When to escalate:**
-- Missing credentials or env vars you cannot obtain
-- Need local machine access
-- Need a decision from the user
-- Blocked by external dependency
+Update the quest stage to escalated. Include a comment explaining the blocker before calling this.
 
-**Steps:**
-1. Save your progress first: git add -A, git commit -m "WIP: ...", git push
-2. Post a comment explaining exactly what is blocking you (be specific)
-3. Update the quest stage to 'escalated':
-   \`\`\`javascript
-   await db.from('quests').update({ stage: 'escalated' }).eq('id', '<quest-id>');
-   \`\`\`
-3. If you have other active quests, work on the next highest-priority one
-
-**Do NOT escalate for:** things you can figure out yourself, permission to proceed (just proceed), or questions you can answer by reading docs.
+Do NOT escalate for things you can figure out yourself or permission to proceed — just proceed.
 `,
     },
     presentPlan: {
@@ -165,49 +136,17 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
     seekHelp: {
       description: "Contact the Questmaster for approval or assistance.",
       howTo: `
-**Before seeking help or submitting deliverables:**
-1. Git push your branch first — your work must be saved
-2. If the quest has more than 10 comments, run summarizeComments first to keep things clean
+Send a message to the Questmaster (Cat) asking for help or approval.
 
-**When to seek help:**
-- Need approval on a deliverable before moving to review
-- Stuck on something that doesn't warrant full escalation
-- Need a second opinion on approach
-
-**How:**
-1. Find the Questmaster adventurer:
-   \`\`\`javascript
-   const { data } = await db.from('adventurers').select('session_id').eq('name', 'Cat').single();
-   \`\`\`
-2. Send a message to the Questmaster's session:
-   \`\`\`javascript
-   // Use the cursor weapon or direct API
-   await writeFollowup({ agentId: data.session_id, message:
-     "I am [your name], working on quest [quest title] (id: [quest-id]). I need [approval/help] with: [specific request]"
-   });
-   \`\`\`
-3. Follow the Questmaster's instructions
-
-**When seeking review:** Include ALL deliverable URLs (screenshots, files) in your message so the Questmaster can evaluate them without having to look them up.
-
-**Questmaster behavior:** It will first ask if you have what you need to proceed. If yes, it tells you to proceed. If not, it helps or asks you to escalate.
+1. Query Cat's session: SELECT session_id FROM adventurers WHERE name = 'Cat'
+2. Send a message identifying yourself, your quest, and what you need
+3. When seeking review, include deliverable URLs in the message
 `,
     },
     getActiveQuests: {
       description: "Get all quests assigned to you that are not complete.",
       howTo: `
-**Query:**
-\`\`\`javascript
-const { data: quests } = await db.from('quests')
-  .select('id, title, stage, priority, description')
-  .eq('assignee_id', '<your-adventurer-id>')
-  .not('stage', 'eq', 'complete')
-  .order('priority', { ascending: true });  // high sorts before low alphabetically
-\`\`\`
-
-**After fetching:** If any quest has more than 10 comments, trigger summarizeComments on it before proceeding.
-
-**Priority order:** Work on highest-priority quests first (high > medium > low).
+Query the quests table for your assigned quests that are not in complete stage. Order by priority (high > medium > low).
 `,
     },
     summarizeComments: {
