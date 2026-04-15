@@ -29,16 +29,21 @@
 
 ## In Progress
 
-### Remaining for acceptance criteria screenshots:
-1. **Screenshot 1 (skill book as registry):** Convert at least 1 skill book to knowledge registry format (Phase 6)
-2. **Screenshot 2 (Inn upstairs):** Map existing Cursor sessions to adventurers, verify page renders with avatars+status
-3. **Screenshot 3 (global instructions):** Create `docs/global-instructions.md`, consolidate other docs
-4. **Screenshot 4 (Library/Forge/Pigeon Post):** These pages exist, just need screenshots
+### Phase 6 (partial): Gmail skill book converted to knowledge registry format
+- [x] `libs/skill_book/gmail/index.js` — toc entries now have `howTo` fields with prompt instructions
+- [x] Legacy JS functions preserved at bottom for backward compat
 
-### Then:
-- Create "GuildOS Refactor" quest in review stage
-- Dispatch agent bc-1a4bfbeb to take screenshots, save to Supabase, add as quest inventory items
-- Verify screenshots on GM's Desk
+### Phase 4: Global Instructions
+- [x] Created `docs/global-instructions.md` with entity model, weapon usage, skill book usage, submit_results API
+
+### Agent session linking
+- [x] Linked bc-1a4bfbeb to Neo Golden Finger adventurer
+
+### Acceptance criteria
+- [x] Created "GuildOS Refactor" quest (id: 7b223a04-46dc-4e37-948d-919260fdc8bb) in review stage
+- [x] Dispatched screenshot task to agent bc-1a4bfbeb
+- [ ] Awaiting agent to take screenshots and upload to Supabase Storage
+- [ ] Verify screenshots on GM's Desk
 
 ## Files Modified (this refactor)
 - `libs/weapon/cursor/index.js`

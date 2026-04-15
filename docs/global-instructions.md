@@ -149,6 +149,25 @@ If you cannot complete a task:
 
 ---
 
+## How to Communicate with Adventurers
+
+When dispatching tasks to adventurers (Cursor cloud agents), use **natural language**, not scripts. Describe WHAT to do and the success criteria — the agent decides HOW.
+
+**Good:** "Navigate to the Inn upstairs page and take a screenshot showing the adventurer cards with their avatars"
+**Bad:** "Write a Playwright script that does chromium.launch({...}) then page.goto(...) then page.screenshot({...})"
+
+The agent has its own tools and preferred workflows. Prescribing implementation details causes friction and failures. Just describe the goal.
+
+### Common pitfalls when working with Cursor agents
+
+1. **Don't use Playwright for authenticated pages** — Playwright opens a fresh browser without login cookies. Pages behind auth will redirect to /signin. Instead, tell the agent to use the native Chrome browser that's already logged in on the desktop (DISPLAY=:1).
+
+2. **Secret scanner redaction** — The Cursor repo has a secret scanner that corrupts strings containing package names or API keys. Don't ask agents to write scripts with Supabase client code inline. Instead, have them save files to the repo and push, then handle uploads from the manager side.
+
+3. **Always ask the agent to self-check** — After taking screenshots or producing artifacts, tell the agent to look at them and verify they show what's expected (not blank, not a sign-in page, not an error page). Then double-check yourself before presenting to the user.
+
+4. **Stop and redirect** — If the agent is going down a wrong path (e.g., fighting the secret scanner for 10 minutes), send a followup message telling it to stop and try a different approach. Don't let it spin.
+
 ## Environment
 
 - **Node.js** 22.x, **npm** 10.x
