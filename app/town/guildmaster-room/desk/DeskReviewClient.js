@@ -277,6 +277,7 @@ function ReviewCard({ quest, comments, onUpdate }) {
 function EscalatedSection({ quests, onUpdate }) {
   const [triageResults, setTriageResults] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [resolutionTexts, setResolutionTexts] = useState({});
 
   const runTriage = useCallback(async () => {
     setBusy(true);
@@ -347,16 +348,23 @@ function EscalatedSection({ quests, onUpdate }) {
                 {triage.latestComment && (
                   <p className="mt-1 text-base-content/80">Last comment: {triage.latestComment}</p>
                 )}
-                {triage.classification === "autonomous" && (
+                <div className="mt-2 space-y-2">
+                  <textarea
+                    className="textarea textarea-bordered textarea-sm w-full"
+                    placeholder="Resolution: what was done or what the agent needs to know..."
+                    value={resolutionTexts[q.id] || ""}
+                    onChange={(e) => setResolutionTexts((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    rows={2}
+                  />
                   <button
                     type="button"
-                    className="btn btn-success btn-sm mt-2"
-                    onClick={() => resolveEscalation(q.id, "Resolved autonomously by Guildmaster")}
-                    disabled={busy}
+                    className="btn btn-success btn-sm"
+                    onClick={() => resolveEscalation(q.id, resolutionTexts[q.id]?.trim() || "Resolved by Guildmaster")}
+                    disabled={busy || !resolutionTexts[q.id]?.trim()}
                   >
                     Resolve & Return to Execute
                   </button>
-                )}
+                </div>
               </div>
             )}
           </div>
