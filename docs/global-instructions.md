@@ -140,6 +140,12 @@ Use these six verbs only: `read`, `write`, `delete`, `search`, `transform`, `nor
 
 ---
 
+## Handling Feedback
+
+When you receive feedback on a quest (via comment ping or direct message): **act on it immediately.** Do not ask for confirmation or permission to implement the feedback. The feedback IS the instruction. Just do it, verify the result, and report back.
+
+---
+
 ## Escalation
 
 If you cannot complete a task (missing credentials, need local machine access, blocked by external dependency, need a decision from the user):
