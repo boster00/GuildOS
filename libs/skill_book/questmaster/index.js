@@ -69,10 +69,14 @@ function extractAsanaTaskGidFromDescription(description) {
   const d = String(description || "");
   const urlPair = d.match(/app\.asana\.com\/0\/\d+\/(\d{6,})/);
   if (urlPair) return urlPair[1];
+  const urlAlt = d.match(/app\.asana\.com\/\d+\/\d+\/(\d{6,})/i);
+  if (urlAlt) return urlAlt[1];
   const taskPath = d.match(/\/tasks\/(\d{6,})\b/);
   if (taskPath) return taskPath[1];
   const labeled = d.match(/Asana\s*(?:task)?\s*[:\s#]+(\d{6,})/i);
   if (labeled) return labeled[1];
+  const bare = d.match(/\b(\d{10,})\b/);
+  if (bare) return bare[1];
   return null;
 }
 
@@ -108,17 +112,17 @@ function buildClosingManagerSummary(quest, comments) {
     lines.push("");
   }
   lines.push(
-    "**Manager read:** Work is complete enough to leave the active pipeline; GuildOS stage will move to **completed** after this Asana update.",
+    "**Manager read:** Work is complete enough to leave the active pipeline; GuildOS stage will move to **complete** after this Asana update.",
   );
   return lines.join("\n").slice(0, 28000);
 }
 
 /**
- * Closing workflow: post managerial summary to mapped Asana task, complete it, mark quest completed.
+ * Closing workflow: post managerial summary to mapped Asana task, complete it, mark quest complete.
  * Registry name in product copy: **questmaster_registry** → skill book **questmaster**, action **closeQuest**.
  *
  * @param {string} userId
- * @param {{ questId?: string, quest_id?: string, asana_task_gid?: string, asanaTaskGid?: string, client?: import("@/libs/council/database/types.js").DatabaseClient }} input
+ * @param {{ questId?: string, quest_id?: string, asana_task_gid?: string, asanaTaskGid?: string, asana_task_id?: string, task_id?: string, client?: import("@/libs/council/database/types.js").DatabaseClient }} input
  */
 export async function closeQuest(userId, input) {
   const inObj = typeof input === "object" && input ? input : {};
@@ -149,15 +153,22 @@ export async function closeQuest(userId, input) {
     };
   }
 
-  let taskGid = String(inObj.asana_task_gid || inObj.asanaTaskGid || "").trim();
+  let taskGid = String(
+    inObj.asana_task_gid || inObj.asanaTaskGid || inObj.asana_task_id || inObj.task_id || "",
+  ).trim();
   if (!taskGid) {
-    taskGid = extractAsanaTaskGidFromDescription(String(quest.description || "")) || "";
+    const haystack = [
+      String(quest.description || ""),
+      String(quest.title || ""),
+      quest.deliverables != null ? String(quest.deliverables) : "",
+    ].join("\n");
+    taskGid = extractAsanaTaskGidFromDescription(haystack) || "";
   }
   if (!taskGid) {
     return {
       data: null,
       error: new Error(
-        "closeQuest: no Asana task GID found. Add an app.asana.com link or `Asana task: <gid>` to the quest description, or pass asana_task_gid.",
+        "closeQuest: no Asana task GID found. Add an app.asana.com link or `Asana task: <gid>` to the quest description (or title), or pass asana_task_gid / asana_task_id.",
       ),
     };
   }
@@ -170,7 +181,7 @@ export async function closeQuest(userId, input) {
     await recordQuestComment(
       questId,
       {
-        source: "system",
+        source: "questmaster",
         action: "closeQuest",
         summary: `Asana comment failed: ${commentRes.error}`,
       },
@@ -184,7 +195,7 @@ export async function closeQuest(userId, input) {
     await recordQuestComment(
       questId,
       {
-        source: "system",
+        source: "questmaster",
         action: "closeQuest",
         summary: `Asana complete failed: ${completeRes.error}`,
       },
@@ -193,7 +204,7 @@ export async function closeQuest(userId, input) {
     return { data: null, error: new Error(String(completeRes.error)) };
   }
 
-  const up = await updateQuest(questId, { stage: "completed" }, { client });
+  const up = await updateQuest(questId, { stage: "complete" }, { client });
   if (up.error) {
     return { data: null, error: up.error instanceof Error ? up.error : new Error(String(up.error)) };
   }
@@ -201,16 +212,16 @@ export async function closeQuest(userId, input) {
   await recordQuestComment(
     questId,
     {
-      source: "system",
+      source: "questmaster",
       action: "closeQuest",
-      summary: `Closing archived to Asana task ${taskGid} and quest marked completed.`,
+      summary: "Quest closed. Summary archived to Asana.",
       detail: { asana_task_gid: taskGid },
     },
     { client },
   );
 
   return {
-    data: { questId, asana_task_gid: taskGid, stage: "completed", owner_id: quest.owner_id },
+    data: { questId, asana_task_gid: taskGid, stage: "complete", owner_id: quest.owner_id },
     error: null,
   };
 }
@@ -268,7 +279,7 @@ export const definition = {
     },
     closeQuest: {
       description:
-        "Closing → completed: read quest + comments, build a managerial summary, post it to the Asana task linked in the quest description (or asana_task_gid), mark that Asana task complete, then set quest stage to completed. (Product registry label: questmaster_registry.)",
+        "Closing → complete: read quest + comments, build a managerial summary, post it to the Asana task linked in the quest text (or asana_task_gid / asana_task_id), mark that Asana task complete, then set quest stage to complete. (Product registry label: questmaster_registry.)",
       input: {
         questId: "string — GuildOS quest UUID",
         asana_task_gid: "string — optional override if not parseable from description",
@@ -276,7 +287,7 @@ export const definition = {
       output: {
         questId: "string",
         asana_task_gid: "string",
-        stage: "completed",
+        stage: "complete",
       },
     },
     interpretIdea: {

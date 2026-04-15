@@ -1,5 +1,5 @@
 /**
- * Asana skill book — read-only access to Asana projects and tasks.
+ * Asana skill book — read projects/tasks and post comments or complete tasks.
  * Uses ASANA_ACCESS_TOKEN from environment.
  */
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
@@ -79,7 +79,7 @@ export async function completeAsanaTask(taskGid) {
 export const skillBook = {
   id: "asana",
   title: "Asana",
-  description: "Read tasks and projects from Asana workspaces.",
+  description: "Read tasks and projects from Asana workspaces; append comments or mark tasks complete.",
   steps: [],
   toc: {
     readProjectTasks: {
