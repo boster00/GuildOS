@@ -112,12 +112,27 @@ Weapons remain external service connectors with clean JS interfaces. Agents call
 - No more action dispatch — the agent IS the executor, the skill book is the reference material
 - Think of it as: weapons = tools on the shelf, skill books = the manual for when/how to use them
 
+### Guildmaster (Pig) → Local Claude Code Session
+
+**Old model:** Pig is an NPC with code-defined behavior in `libs/npcs/guildmaster/`. Handles adventurer setup and review escalations.
+
+**New model:** The Guildmaster is powered by **the local Claude Code session** (this session). Its main purpose is to **remove obstacles for adventurers**.
+
+- New stage: `escalated` (between `execute` and `review`). When an adventurer is stuck, they move the quest to `escalated`.
+- GM's room shows all quests in `escalated` stage, grouped by adventurer.
+- **"Triage" button:** Evaluates all escalated tasks and classifies each:
+  - **Can handle autonomously** — simple stuff like providing credentials, running local prompts, checking configs. Claude Code resolves these without user input.
+  - **Needs user** — requires human decision, external access, or judgement calls. User chats with the adventurer directly to resolve.
+- After triage, auto-resolvable tasks get handled immediately, quest goes back to `execute`. User-needed tasks stay visible for manual intervention.
+
 ### Quests → Mostly unchanged
 
 - Quests remain the unit of work with stage-based progression
 - Map to **Asana tasks** for reporting and archiving
 - Output goal: surface **managerial decision-enabling summaries** into Asana — not raw details, but actionable conclusions and status
 - Quest pipeline stays, but execution stage now means "send task to adventurer's live session" instead of "run skill book actions"
+- **New stage:** `escalated` between `execute` and `review`. Adventurers move quests here when stuck.
+- **Stages now:** `idea → assign → plan → execute → escalated → review → closing → completed`
 - **Closing stage change:** Questmaster summarizes the quest outcome and writes the report to the mapped Asana task. Successfully archiving to Asana = closing criteria for exiting the closing stage.
 
 ## Architecture Decisions (Resolved)
