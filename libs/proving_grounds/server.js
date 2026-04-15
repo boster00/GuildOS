@@ -120,6 +120,11 @@ export async function advanceQuest(quest, opts) {
     return { ok: true, advanced: true, stage: "assign", action: "closing:nextStep", detail: stepResult.data };
   }
 
+  // ── escalated: wait for Guildmaster triage (no auto-advance) ──
+  if (stage === "escalated") {
+    return { ok: true, advanced: false, stage: "escalated", note: "Quest is escalated — awaiting Guildmaster triage." };
+  }
+
   // ── completed: terminal ──
   if (stage === "completed") {
     return { ok: true, advanced: false, stage: "completed", note: "Quest is already completed." };

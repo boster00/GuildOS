@@ -10,11 +10,13 @@ import {
   getQuest,
   appendInventoryItem,
   updateQuest,
+  recordQuestComment,
   QUEST_STAGES,
 } from "@/libs/quest";
 import {
   updateQuestAssignee,
 } from "@/libs/council/database/serverQuest.js";
+import { database } from "@/libs/council/database";
 
 const GET_ACTIONS = ["get"];
 
@@ -65,9 +67,89 @@ export async function GET(request) {
 export async function POST(request) {
   const action = request.nextUrl.searchParams.get("action") || "request";
 
-  if (action !== "request") {
+  if (action === "triage_escalated") {
+    const user = await requireUser();
+    const db = await database.init("server");
+    const { data: quests } = await db
+      .from("quests")
+      .select("id, title, description, inventory, assigned_to, assignee_id")
+      .eq("owner_id", user.id)
+      .eq("stage", "escalated");
+
+    if (!quests?.length) {
+      return Response.json({ ok: true, results: [], message: "No escalated quests" });
+    }
+
+    // For each quest, read latest comments to understand the escalation reason
+    const questIds = quests.map((q) => q.id);
+    const { data: comments } = await db
+      .from("quest_comments")
+      .select("quest_id, summary, source, action, created_at")
+      .in("quest_id", questIds)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    const commentsByQuest = {};
+    for (const c of comments || []) {
+      if (!commentsByQuest[c.quest_id]) commentsByQuest[c.quest_id] = [];
+      commentsByQuest[c.quest_id].push(c);
+    }
+
+    const AUTONOMOUS_PATTERNS = [
+      /missing.*(?:key|token|credential|secret|password|env)/i,
+      /(?:need|require).*(?:env|variable|config)/i,
+      /auth.*(?:expired|refresh|renew)/i,
+      /(?:run|execute).*(?:locally|on.*local|on.*machine)/i,
+      /(?:install|npm|package).*(?:missing|not found)/i,
+      /permission.*denied/i,
+    ];
+
+    const results = quests.map((q) => {
+      const qComments = (commentsByQuest[q.id] || []).slice(0, 5);
+      const escalationText = qComments.map((c) => c.summary).join(" ");
+      const canAutoResolve = AUTONOMOUS_PATTERNS.some((p) => p.test(escalationText));
+      return {
+        questId: q.id,
+        title: q.title,
+        assignedTo: q.assigned_to,
+        classification: canAutoResolve ? "autonomous" : "needs_user",
+        reason: canAutoResolve
+          ? "Matches autonomous resolution pattern (credentials/config/local action)"
+          : "Requires user decision or manual intervention",
+        latestComment: qComments[0]?.summary || null,
+      };
+    });
+
+    return Response.json({ ok: true, results });
+  }
+
+  if (action === "resolve_escalation") {
+    const user = await requireUser();
+    let body;
+    try { body = await request.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
+    const { questId, resolution } = body || {};
+    if (!questId || !resolution) {
+      return Response.json({ error: "questId and resolution are required" }, { status: 400 });
+    }
+    const { data: quest } = await getQuest(questId);
+    if (!quest || quest.owner_id !== user.id) {
+      return Response.json({ error: "Quest not found or not authorized" }, { status: 404 });
+    }
+    if (quest.stage !== "escalated") {
+      return Response.json({ error: "Quest is not in escalated stage" }, { status: 400 });
+    }
+    await recordQuestComment(questId, {
+      source: "guildmaster",
+      action: "resolve_escalation",
+      summary: resolution,
+    });
+    await updateQuest(questId, { stage: "execute" });
+    return Response.json({ ok: true, message: "Escalation resolved, quest returned to execute" });
+  }
+
+  if (!["request"].includes(action)) {
     return Response.json(
-      { error: "Invalid action", validActions: ["request"] },
+      { error: "Invalid action", validActions: ["request", "triage_escalated", "resolve_escalation"] },
       { status: 400 }
     );
   }

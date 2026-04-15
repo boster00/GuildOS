@@ -55,6 +55,15 @@
 - `app/api/adventurer/route.js`
 - `app/town/inn/upstairs/AdventurerRoomCard.js`
 
+### Phase 4.5: Escalation Stage + Guildmaster Triage (designed, not yet implemented)
+- [x] Concept defined: `escalated` stage between execute and review
+- [x] Guildmaster = local Claude Code session, triages escalated tasks
+- [x] Triage button: classifies autonomous vs needs-user
+- [x] Updated global instructions with escalation flow
+- [ ] DB migration: add `escalated` to valid stages
+- [ ] API: `triage_escalated` and `resolve_escalation` actions
+- [ ] GM room UI with escalated quests and triage button
+
 ## Files Created
 - `supabase/migrations/20260414200000_add_adventurer_session_fields.sql`
 - `supabase/migrations/20260414201000_add_adventurer_avatar.sql`

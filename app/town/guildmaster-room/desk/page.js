@@ -1,27 +1,52 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
-import { getQuestsForOwner } from "@/libs/quest";
 import { MerchantGuildExplain } from "@/components/MerchantGuildExplain";
+import { database } from "@/libs/council/database";
+import { inventoryRawToMap } from "@/libs/quest/inventoryMap.js";
+import DeskReviewClient from "./DeskReviewClient";
 
 export const metadata = {
   title: "The Guildmaster's desk · Guildmaster's chamber",
 };
 
-function needsGuildmasterAttention(quest) {
-  return quest.stage === "review";
-}
+async function loadReviewQuests(userId) {
+  const db = await database.init("server");
 
-function stageLabel(stage) {
-  const map = {
-    idea: "Idea",
-    plan: "Plan",
-    assign: "Assign",
-    execute: "Execute",
-    review: "Review",
-    closing: "Closing",
-    completed: "Completed",
-  };
-  return map[stage] || stage;
+  // Fetch review-stage AND escalated-stage quests
+  const { data: quests, error } = await db
+    .from("quests")
+    .select("id, title, description, stage, assigned_to, assignee_id, inventory, created_at, updated_at")
+    .eq("owner_id", userId)
+    .in("stage", ["review", "escalated"])
+    .order("updated_at", { ascending: false });
+
+  if (error) return { quests: [], error: error.message };
+  if (!quests || quests.length === 0) return { quests: [], error: null };
+
+  // Fetch comments for all review quests in one query
+  const questIds = quests.map((q) => q.id);
+  const { data: allComments } = await db
+    .from("quest_comments")
+    .select("id, quest_id, source, action, summary, detail, created_at")
+    .in("quest_id", questIds)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  // Group comments by quest ID
+  const commentsByQuest = {};
+  for (const c of allComments || []) {
+    if (!commentsByQuest[c.quest_id]) commentsByQuest[c.quest_id] = [];
+    commentsByQuest[c.quest_id].push(c);
+  }
+
+  // Normalize inventory and attach comments
+  const enriched = quests.map((q) => ({
+    ...q,
+    inventory: inventoryRawToMap(q.inventory),
+    _comments: commentsByQuest[q.id] || [],
+  }));
+
+  return { quests: enriched, error: null };
 }
 
 export default async function GuildmasterDeskPage() {
@@ -31,17 +56,14 @@ export default async function GuildmasterDeskPage() {
   let loadError = null;
 
   if (user) {
-    const { data, error } = await getQuestsForOwner(user.id);
-    if (error) {
-      loadError = error.message || "Could not load quests";
-    } else {
-      quests = (data || []).filter(needsGuildmasterAttention);
-    }
+    const result = await loadReviewQuests(user.id);
+    quests = result.quests;
+    loadError = result.error;
   }
 
   return (
     <main className="guild-bg-town-map min-h-dvh p-4 md:p-8">
-      <section className="mx-auto max-w-3xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
+      <section className="mx-auto w-full max-w-[1800px] rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Link href="/town/guildmaster-room" className="link link-hover">
             Guildmaster&apos;s chamber
@@ -63,8 +85,8 @@ export default async function GuildmasterDeskPage() {
           }
           merchant={
             <p className="text-sm text-base-content/70">
-              Quests that need human input (flagged by your agents) and items in <strong>review</strong> awaiting your
-              decision. The Inn&apos;s quest board holds the full pipeline; this desk is your inbox for intervention.
+              Quests in <strong>review</strong> stage awaiting your decision. Each card shows the work summary on the left
+              and attached screenshots on the right. Mark done or send feedback to keep things moving.
             </p>
           }
         />
@@ -90,39 +112,7 @@ export default async function GuildmasterDeskPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-8 space-y-3">
-            <p className="text-sm text-base-content/65">
-              {quests.length} matter{quests.length === 1 ? "" : "s"} awaiting you.
-            </p>
-            <ul className="space-y-3">
-              {quests.map((q) => (
-                <li
-                  key={q.id}
-                  className="rounded-2xl border border-amber-900/15 bg-gradient-to-br from-base-200/80 to-base-200/40 p-4 shadow-sm dark:border-amber-100/10"
-                >
-                  <div className="border-l-4 border-warning/50 pl-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h2 className="text-base font-semibold leading-snug">{q.title || "Untitled quest"}</h2>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="badge badge-ghost badge-sm">{stageLabel(q.stage)}</span>
-                      </div>
-                    </div>
-                    {q.description ? (
-                      <p className="mt-2 line-clamp-4 text-sm text-base-content/70">{q.description}</p>
-                    ) : null}
-                    {q.assigned_to ? (
-                      <p className="mt-2 text-xs text-base-content/50">Adventurer: {q.assigned_to}</p>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="pt-2">
-              <Link href="/town/inn#inn-quest-board" className="btn btn-outline btn-sm">
-                Open the Inn — main hall quest board
-              </Link>
-            </div>
-          </div>
+          <DeskReviewClient quests={quests} />
         )}
       </section>
     </main>

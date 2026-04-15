@@ -9,7 +9,7 @@ export async function runCron() {
   const { data: quests, error } = await db
     .from(publicTables.quests)
     .select("*")
-    .in("stage", ["idea", "plan", "execute", "closing"])
+    .in("stage", ["idea", "plan", "execute", "escalated", "closing"])
     .limit(20);
 
   if (error) {
