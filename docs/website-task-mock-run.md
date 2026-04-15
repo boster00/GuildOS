@@ -84,3 +84,4 @@ Date: 2026-04-15
 3. **Separate init from task dispatch** — send init, confirm ready, then send task
 4. **Add createAgent to cursor weapon** — we discovered the API endpoint exists
 5. **Global: system_prompt overrides global for project-specific conventions** — prevents Tailwind v3/v4 conflicts
+6. **Skill books are in GuildOS repo, agents work in project repos** — agent can't import housekeeping/getActiveQuests because it's not in its workspace. Options: (a) send skill book content as text in initAgent, (b) provide Supabase credentials so agent can query quests directly, (c) GuildOS API endpoint for quest operations. This is the #1 blocker for autonomous operation.
