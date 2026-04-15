@@ -1,46 +1,30 @@
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
-import { advance as advanceQuest } from "@/libs/quest/index.js";
 import { readAgent, writeFollowup } from "@/libs/weapon/cursor/index.js";
 
 export async function runCron() {
   const db = await database.init("service");
 
-  // ── 1. Advance closing-stage quests (NPC pipeline for Asana archival) ──
-  console.log("[cron] advancing closing quests");
-  const { data: closingQuests } = await db
-    .from(publicTables.quests)
-    .select("*")
-    .eq("stage", "closing")
-    .limit(20);
-
-  const results = [];
-  for (const quest of closingQuests || []) {
-    try {
-      const r = await advanceQuest(quest, { client: db });
-      results.push({ questId: quest.id, ...r });
-    } catch (err) {
-      results.push({ questId: quest.id, ok: false, stage: quest.stage, error: err?.message || String(err) });
-    }
-  }
-
-  // ── 2. Derive adventurer statuses ──
+  // ── 1. Roll call: derive adventurer statuses ──
   await deriveAdventurerStatuses(db);
 
-  // ── 3. Nudge confused adventurers (has quest, not busy) ──
+  // ── 2. Nudge confused adventurers ──
   await nudgeConfused(db);
+
+  // ── 3. Notify Questmaster of closing-stage quests ──
+  await notifyClosingQuests(db);
 
   // ── 4. Re-derive statuses (catch agents that went busy after nudge) ──
   await deriveAdventurerStatuses(db);
 
-  return { ok: true, questsProcessed: (npcQuests || []).length, results };
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
 // Derive adventurer status from Cursor API + quest state
 // ---------------------------------------------------------------------------
 //
-// idle:     no quest in execute/review, not busy
+// idle:     no active quest, not busy
 // busy:     has quest, Cursor agent RUNNING
 // confused: has quest but not busy, OR busy but no quest (gets nudged)
 // ailing:   Cursor API unreachable (manual recovery needed)
@@ -54,13 +38,11 @@ async function deriveAdventurerStatuses(db) {
 
   if (!adventurers?.length) return;
 
-  // Load all active quests with assignees
   const { data: activeQuests } = await db
     .from(publicTables.quests)
     .select("assignee_id, stage")
     .in("stage", ["execute", "review", "escalated", "closing"]);
 
-  // Group quests by adventurer
   const questsByAdventurer = {};
   for (const q of activeQuests || []) {
     if (!q.assignee_id) continue;
@@ -70,28 +52,24 @@ async function deriveAdventurerStatuses(db) {
 
   for (const adv of adventurers) {
     const quests = questsByAdventurer[adv.id] || [];
-    const hasEscalated = quests.some((q) => q.stage === "escalated");
-    const hasActiveQuest = quests.some((q) => q.stage === "execute" || q.stage === "review");
+    const hasActiveQuest = quests.some((q) => q.stage === "execute" || q.stage === "review" || q.stage === "closing");
     let newStatus;
 
-    // Escalated quests are handled by the GM desk, not the adventurer status
-    {
-      try {
-        const agent = await readAgent({ agentId: adv.session_id });
-        const isBusy = agent?.status === "RUNNING";
+    try {
+      const agent = await readAgent({ agentId: adv.session_id });
+      const isBusy = agent?.status === "RUNNING";
 
-        if (hasActiveQuest && isBusy) {
-          newStatus = "busy";
-        } else if (hasActiveQuest && !isBusy) {
-          newStatus = "confused"; // has quest but not working
-        } else if (!hasActiveQuest && isBusy) {
-          newStatus = "confused"; // busy but no quest
-        } else {
-          newStatus = "idle";
-        }
-      } catch {
-        newStatus = "ailing";
+      if (hasActiveQuest && isBusy) {
+        newStatus = "busy";
+      } else if (hasActiveQuest && !isBusy) {
+        newStatus = "confused";
+      } else if (!hasActiveQuest && isBusy) {
+        newStatus = "confused";
+      } else {
+        newStatus = "idle";
       }
+    } catch {
+      newStatus = "ailing";
     }
 
     if (newStatus !== adv.session_status) {
@@ -104,7 +82,7 @@ async function deriveAdventurerStatuses(db) {
 }
 
 // ---------------------------------------------------------------------------
-// Nudge confused adventurers (has quest but not busy)
+// Nudge confused adventurers
 // ---------------------------------------------------------------------------
 
 async function nudgeConfused(db) {
@@ -126,5 +104,40 @@ async function nudgeConfused(db) {
     } catch (err) {
       console.error(`[cron] nudge failed for ${adv.name}:`, err.message);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notify Questmaster (Cat) about closing-stage quests
+// ---------------------------------------------------------------------------
+
+async function notifyClosingQuests(db) {
+  const { data: closingQuests } = await db
+    .from(publicTables.quests)
+    .select("id, title, assigned_to")
+    .eq("stage", "closing")
+    .limit(20);
+
+  if (!closingQuests?.length) return;
+
+  // Find Cat (Questmaster)
+  const { data: cat } = await db
+    .from(publicTables.adventurers)
+    .select("session_id, session_status")
+    .eq("name", "Cat")
+    .single();
+
+  if (!cat?.session_id || cat.session_status === "inactive") return;
+
+  const questList = closingQuests.map((q) => `- "${q.title}" (id: ${q.id})`).join("\n");
+
+  try {
+    await writeFollowup({
+      agentId: cat.session_id,
+      message: `You have ${closingQuests.length} quest(s) in closing stage that need Asana archival:\n${questList}\n\nFor each: read the quest description and comments, write a managerial summary, and archive it to the Asana task specified in the quest description. Then move the quest to 'complete' stage. Use the closeQuest action from your questmaster_registry skill book.`,
+    });
+    console.log(`[cron] notified Cat about ${closingQuests.length} closing quest(s)`);
+  } catch (err) {
+    console.error(`[cron] failed to notify Cat about closing quests:`, err.message);
   }
 }

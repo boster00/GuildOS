@@ -138,7 +138,7 @@ function ReviewCard({ quest, comments, onUpdate }) {
       const res = await fetch("/api/quest", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: quest.id, stage: "completed" }),
+        body: JSON.stringify({ id: quest.id, stage: "closing" }),
       });
       if (!res.ok) throw new Error("Failed to update stage");
       router.refresh();

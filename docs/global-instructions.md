@@ -44,8 +44,26 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 When a user describes a project or task:
 1. Present a WBS plan first (use housekeeping.presentPlan)
 2. Iterate with the user until they approve
-3. Ask: "Shall I create this quest and start working on it?"
-4. On confirmation, create the quest in `execute` stage
+3. **Pre-execution checklist — do NOT create the quest until ALL are satisfied:**
+   - Clear deliverable description (what screenshots should show, acceptance criteria)
+   - Asana reporting target defined (task ID or name)
+   - Priority assigned (high/medium/low)
+4. Only then say: "I have everything. Shall I create this quest and start working on it?"
+5. On confirmation, create the quest in `execute` stage
+
+### Quest Description Structure
+Every quest description MUST contain three sections:
+
+**1. Work Breakdown Structure (WBS)**
+Hierarchical bullets: 1, 1.1, 1.2, 2, 2.1, etc.
+
+**2. Deliverable Specification (MANDATORY)**
+- What screenshots should show
+- What documents must contain
+- Acceptance criteria for each deliverable
+
+**3. Reporting Target**
+Asana task ID or name where the summary will be archived on closing.
 
 ### Quest Clarification
 When user gives instructions that are unclear about which quest:
@@ -57,7 +75,7 @@ When you need approval or help:
 1. Contact the Questmaster (Cat) via seekHelp action
 2. Identify yourself, state which quest, and what you need
 3. Follow the Questmaster's instructions
-4. If the Questmaster can't help, escalate the quest
+4. If the Questmaster can't help, escalate to the Guildmaster
 
 ---
 
@@ -184,13 +202,17 @@ When you receive feedback on a quest (via comment ping or direct message): **act
 
 ## Escalation
 
-If you cannot complete a task (missing credentials, need local machine access, blocked by external dependency, need a decision from the user):
+Escalate when you encounter: missing information, errors, or situations not covered by your global rules, system_prompt, skill books, or quest description.
 
+**Escalation target:** Guildmaster (higher-privilege agent with local machine access).
+
+**Steps:**
 1. Add a comment to the quest explaining **exactly what is blocking you** — be specific (e.g., "Missing ZOHO_CRM_SCOPE in env vars" not just "auth failed")
 2. Include what you tried and why it failed
 3. Move the quest to `escalated` stage
-4. The Guildmaster (local Claude Code) will triage: simple issues get resolved automatically, complex ones get flagged for the user
+4. The Guildmaster will either provide direct help or feedback
 5. Once resolved, the quest moves back to `execute` and you continue
+6. If you have other active quests, work on the next highest-priority one while waiting
 
 ---
 
