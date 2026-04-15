@@ -7,7 +7,7 @@ import { resolveServerClient } from "./resolveServer.js";
  * When `class_id` / `extras` exist (optional migration), PostgREST returns them if we list them — omit to avoid cache errors.
  */
 const ADVENTURER_ROW_SELECT =
-  "id, owner_id, name, system_prompt, skill_books, backstory, capabilities, created_at, updated_at";
+  "id, owner_id, name, system_prompt, skill_books, backstory, capabilities, session_id, worker_type, session_status, busy_since, avatar_url, created_at, updated_at";
 
 async function resolve(injected) {
   return resolveServerClient(injected);
@@ -52,6 +52,19 @@ export async function listAdventurersForOwner(ownerId, { client: injected } = {}
     .select(ADVENTURER_ROW_SELECT)
     .eq("owner_id", ownerId)
     .order("name", { ascending: true });
+}
+
+export async function updateAdventurerSession(adventurerId, sessionFields, { client: injected } = {}) {
+  const client = await resolve(injected);
+  const allowed = ["session_id", "worker_type", "session_status", "busy_since"];
+  const update = {};
+  for (const k of allowed) if (sessionFields[k] !== undefined) update[k] = sessionFields[k];
+  return client
+    .from(publicTables.adventurers)
+    .update(update)
+    .eq("id", adventurerId)
+    .select(ADVENTURER_ROW_SELECT)
+    .single();
 }
 
 export async function deleteAdventurerForOwner(adventurerId, ownerId, { client: injected } = {}) {

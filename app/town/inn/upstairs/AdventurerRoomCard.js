@@ -5,6 +5,30 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { classDisplayLabel } from "@/libs/proving_grounds/ui.js";
 
+const STATUS_BADGE = {
+  idle: { label: "Idle", className: "badge-ghost" },
+  raised_hand: { label: "Ready", className: "badge-success" },
+  busy: { label: "Working", className: "badge-info" },
+  confused: { label: "Needs Attention", className: "badge-warning" },
+  error: { label: "Error", className: "badge-error" },
+  inactive: { label: "Inactive", className: "badge-ghost opacity-50" },
+};
+
+const STATUS_POSE = {
+  idle: "normal",
+  inactive: "normal",
+  raised_hand: "happy",
+  busy: "working",
+  confused: "attention",
+  error: "attention",
+};
+
+function getAvatarSrc(avatarType, status) {
+  const type = avatarType || "monkey";
+  const pose = STATUS_POSE[status] || "normal";
+  return `/images/guildos/sprites/${type}-${pose}.png`;
+}
+
 function formatTs(iso) {
   if (iso == null || iso === "") return "—";
   try {
@@ -64,23 +88,41 @@ export default function AdventurerRoomCard({ adventurer: a }) {
     }
   };
 
+  const status = a.session_status || "inactive";
+  const badge = STATUS_BADGE[status] || STATUS_BADGE.inactive;
+  const avatarSrc = getAvatarSrc(a.avatar_url, status);
+
   return (
     <div className="rounded-2xl border border-base-300 bg-base-200/60 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-lg font-semibold">{name}</span>
-            <span className="badge badge-outline badge-sm">{classDisplayLabel(name)}</span>
-          </div>
-          <p className="mt-1 font-mono text-xs text-base-content/50">id: {a.id}</p>
+      <div className="flex items-start gap-4">
+        <div className="relative shrink-0">
+          <img
+            src={avatarSrc}
+            alt={name}
+            className="h-24 w-24 rounded-xl object-contain"
+          />
+          <span className={`badge badge-sm absolute -bottom-1 left-1/2 -translate-x-1/2 ${badge.className}`}>
+            {badge.label}
+          </span>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Link href={editHref} className="btn btn-ghost btn-sm">
-            Edit
-          </Link>
-          <button type="button" className="btn btn-outline btn-sm text-error hover:border-error" onClick={decommission}>
-            Decommission
-          </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-lg font-semibold">{name}</span>
+                <span className="badge badge-outline badge-sm">{classDisplayLabel(name)}</span>
+              </div>
+              <p className="mt-1 font-mono text-xs text-base-content/50">id: {a.id}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Link href={editHref} className="btn btn-ghost btn-sm">
+                Edit
+              </Link>
+              <button type="button" className="btn btn-outline btn-sm text-error hover:border-error" onClick={decommission}>
+                Decommission
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
