@@ -39,17 +39,20 @@ export const skillBook = {
 **When:** initAgent fails due to stale repo, broken environment, or unrecoverable errors.
 
 **Steps:**
-1. Tell the user: "My environment is broken and cannot be repaired. Please create a new Cursor cloud agent at cursor.com for repo [repo name], branch main. Then give me the new agent ID."
-2. Once the user provides the new agent ID, update the adventurer record:
+1. Before giving up, \`git push\` any uncommitted work to preserve progress.
+2. Check which branch you were on: \`git branch --show-current\`. Note this branch name.
+3. Tell the user: "My environment is broken. Please create a new Cursor cloud agent at cursor.com for repo [repo name], branch main. Then give me the new agent ID. My work-in-progress is on branch [branch name]."
+4. Once the user provides the new agent ID, update the adventurer record:
    \`\`\`javascript
    await db.from('adventurers').update({
      session_id: '<new-agent-id>',
      session_status: 'idle'
    }).eq('id', '<adventurer-id>');
    \`\`\`
-3. Send initAgent to the NEW agent session (via Cursor API writeFollowup).
-4. Verify the new agent responds and passes the environment check.
-5. Once confirmed running smoothly, archive the old agent:
+5. Send initAgent to the NEW agent session (via Cursor API writeFollowup).
+6. Tell the new agent to inherit the old branch: "After init, run: git fetch origin && git checkout [old-branch-name] to pick up where the previous session left off."
+7. Verify the new agent responds and passes the environment check.
+8. Once confirmed running smoothly, archive the old agent:
    \`\`\`javascript
    // Update the outpost record if one exists
    await db.from('outposts').update({ status: 'archived' }).eq('session_id', '<old-agent-id>');
@@ -92,8 +95,9 @@ Or via API: \`POST /api/quest/comments\` with \`{ questId, source: "adventurer",
 - Blocked by external dependency
 
 **Steps:**
-1. Post a comment explaining exactly what is blocking you (be specific)
-2. Update the quest stage to 'escalated':
+1. \`git add -A && git commit -m "WIP: <what you were doing>" && git push\` — save your progress first
+2. Post a comment explaining exactly what is blocking you (be specific)
+3. Update the quest stage to 'escalated':
    \`\`\`javascript
    await db.from('quests').update({ stage: 'escalated' }).eq('id', '<quest-id>');
    \`\`\`
@@ -154,6 +158,8 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
     seekHelp: {
       description: "Contact the Questmaster for approval or assistance.",
       howTo: `
+**Before seeking help:** Always `git push` first. Your branch is your work — if the session dies, the branch is the only record.
+
 **When to seek help:**
 - Need approval on a deliverable before moving to review
 - Stuck on something that doesn't warrant full escalation
