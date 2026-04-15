@@ -165,7 +165,9 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
     seekHelp: {
       description: "Contact the Questmaster for approval or assistance.",
       howTo: `
-**Before seeking help:** Always git push first. Your branch is your work — if the session dies, the branch is the only record.
+**Before seeking help or submitting deliverables:**
+1. Git push your branch first — your work must be saved
+2. If the quest has more than 10 comments, run summarizeComments first to keep things clean
 
 **When to seek help:**
 - Need approval on a deliverable before moving to review
