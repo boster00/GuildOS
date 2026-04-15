@@ -27,15 +27,20 @@
 - [x] All conflicts resolved (see GuildOS-refactor-questions.md)
 
 ### 🔲 Remaining
-- [ ] **Remove old NPC routing from proving_grounds/server.js** — advanceQuest is gone from cron but the function still exists and routes to NPC code. Clean up dead code paths for idea/plan/assign stages.
-- [ ] **Update quest API defaults** — `POST /api/quest?action=request` creates in 'idea' stage. Should create in 'execute'.
-- [ ] **Update quest API validation** — QUEST_STAGES is exported for PATCH validation. Ensure 'complete' (not 'completed') is accepted.
-- [ ] **Inn upstairs: quest counts should include escalated** — current query only checks execute/review/closing.
-- [ ] **GM desk: show closing quests too** — currently only shows review + escalated. Questmaster needs to see closing quests to archive them.
-- [ ] **Remove old NPC adventurer seeds** — The seed function creates Cat/Pig/Blacksmith/Runesmith/Postmaster/Falcon as NPCs. These conflict with adventurer-based Cat.
-- [ ] **Housekeeping skill book: ensure all adventurers have it** — ✅ done in DB, but new adventurers created via API won't auto-get it.
-- [ ] **Agent initiation flow** — link_session should send global instructions + system_prompt + skill books to the agent. Currently it just updates DB fields.
-- [ ] **Update CLAUDE.md** — references old stages, old NPC routing, old skill book format. Needs major update to match new architecture.
+- [x] ~~Remove old NPC routing~~ — kept as legacy, not called from cron
+- [x] Quest API default stage → execute
+- [x] Quest API validation accepts legacy stages on PATCH
+- [x] Inn upstairs quest counts already include escalated ✅
+- [x] GM desk shows closing quests
+- [x] NPC seeds → noted as deprecated, Cat now in adventurers table
+- [x] Housekeeping auto-added to new adventurers via API
+- [x] Agent initiation: link_session sends global + system_prompt + skill books
+- [x] CLAUDE.md updated with new architecture references
+
+### 🟡 Legacy code (not blocking, clean up later)
+- `libs/proving_grounds/server.js` — advanceQuest function still exists, used by some UI buttons. Not called from cron.
+- `libs/npcs/` — NPC code still exists. Not loaded by cron. Keep for reference.
+- `seed_guild_adventurers` SQL function — creates NPC adventurers. Conflicts with new Cat. Don't re-run.
 
 ---
 
