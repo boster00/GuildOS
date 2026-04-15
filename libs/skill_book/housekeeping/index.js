@@ -48,7 +48,12 @@ export const skillBook = {
    }).eq('id', '<adventurer-id>');
    \`\`\`
 3. Send initAgent to the NEW agent session (via Cursor API writeFollowup).
-4. The old session is abandoned — no cleanup needed.
+4. Verify the new agent responds and passes the environment check.
+5. Once confirmed running smoothly, archive the old agent:
+   \`\`\`javascript
+   // Update the outpost record if one exists
+   await db.from('outposts').update({ status: 'archived' }).eq('session_id', '<old-agent-id>');
+   \`\`\`
 
 **The user's manual step:** Create the agent at cursor.com. Everything else is automated.
 `,
