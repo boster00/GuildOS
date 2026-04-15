@@ -1,29 +1,26 @@
-# BosterBio Real Run — All Decisions Resolved
+# GuildOS Orchestration — Open Gaps
 
-## Resolved Decisions (all implemented)
+## Critical (blocks autonomous operation)
 
-1. Clone GuildOS repo during initAgent ✅
-2. Priority: system_prompt > skill books > global ✅
-3. Agents do NOT create PRs — Questmaster handles ✅
-4. 3-layer validation: agent self-gate → Questmaster → user ✅
-5. Guildmaster guide formalized ✅
-6. No auto correctRecord — use live chat ✅
-7. No auto env provisioning — agent escalates ✅
-8. Remove advance buttons — pending UI change
-9. Dedup quests — pending implementation
+| # | Gap | Impact |
+|---|-----|--------|
+| 1 | **Cat (Questmaster) never initialized** | No review layer. Agent can't seekHelp, closing quests pile up. Cat has session bc-1a4bfbeb but was never sent initAgent or questmaster instructions. |
+| 2 | **Closing → Asana archival untested** | Quests sit in closing forever. Cron notifies Cat but Cat doesn't know what to do. |
+| 3 | **Stage name inconsistency** | DB has both 'completed' and 'complete'. Agent's getActiveQuests filter misses some. Need migration to standardize. |
 
-## New Observations (round 2)
+## Important (degrades efficiency)
 
-| # | Observation |
-|---|-------------|
-| 10 | .env.local is gitignored — agent clones GuildOS but has no credentials. The "escalate to user" flow works correctly but adds latency. Need a secure way to provision env vars to new agents. |
-| 11 | Secret scanner on Cursor redacts inline credentials in messages. Can't just paste keys. Need alternative delivery (env file in workspace, or encoded). |
-| 12 | Cat (Questmaster) is on GuildOS repo agent bc-1a4bfbeb. For closing/Asana archival, Cat needs to be able to call Asana weapon. Untested. |
-| 13 | "Approve → Close" button correctly sends to closing stage now. Cron notifies Cat. But Cat hasn't been initialized with Questmaster instructions yet. |
-| 14 | Agent correctly followed the full initAgent flow: clone repo, read instructions, detect missing env, escalate. The skill book instructions work. |
-| 15 | Mark done previously went straight to complete, skipping closing/Asana archival. Fixed button label and behavior. Old quests moved back to closing. |
-| 16 | Base64 encoding bypasses the secret scanner for credential delivery. Validated workaround. Document in Guildmaster guide. |
-| 17 | Agent found DB uses 'completed' but code filters for 'complete' — stage name mismatch. The migration set stage to 'complete' but some old quests still have 'completed'. Need consistency. |
-| 18 | System_prompt said "NOT Supabase" for products but current code reads from Supabase boster_products. Fixed to reflect reality: Supabase for product display, Medusa PostgreSQL for commerce. |
-| 19 | Agent found quest fa9f5893 via getActiveQuests and started working on it autonomously. The full initAgent → clone GuildOS → env setup → getActiveQuests → execute flow WORKS. |
-| 20 | System_prompt changed 3 times for infra context (Supabase → not Supabase → both → all local PostgreSQL). User says "resolve conflicts: website DB lives local." Lesson: get infra facts right the first time. When unsure, ASK the user during system_prompt creation, don't guess. |
+| # | Gap | Impact |
+|---|-----|--------|
+| 4 | **No quest dedup** | Multiple quests for same task created manually. Need check-before-create. |
+| 5 | **Guildmaster can't auto-resolve escalations** | Agent escalates missing env vars, GM has to manually base64-encode and send. Not automated. |
+| 6 | **Comment summarization not implemented** | Quests will flood over time. housekeeping.summarizeComments defined but never called. |
+| 7 | **Quest advance buttons still in UI** | Old pipeline buttons confuse the new agent-driven model. Remove from quest detail page. |
+
+## Nice to have (ergonomic)
+
+| # | Gap | Impact |
+|---|-----|--------|
+| 8 | **Inn UI missing "Re-init" button** | Can't re-init agent from UI — must send manual messages. |
+| 9 | **No multi-agent coordination** | Agents work in isolation. No handoff or artifact sharing between agents. |
+| 10 | **System_prompt changed 3 times for infra** | Lesson: verify infra facts with user before writing system_prompt. Don't guess. |
