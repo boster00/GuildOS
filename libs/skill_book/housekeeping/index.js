@@ -3,7 +3,11 @@
  */
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
 
-const ACTIVE_STAGES = new Set(["execute", "escalated", "review", "closing"]);
+/** Stages a worker can run or advance (default for getActiveQuests). */
+const RUNNABLE_STAGES = new Set(["execute", "review", "closing"]);
+
+/** Stages that may appear when include_escalated is true (Questmaster / full queue view). */
+const EXPANDED_ACTIVE_STAGES = new Set(["execute", "escalated", "review", "closing"]);
 
 /** @param {unknown} v @returns {"high"|"medium"|"low"} */
 function normalizePriority(v) {
@@ -46,12 +50,14 @@ export const skillBook = {
   toc: {
     getActiveQuests: {
       description:
-        "Return quests owned by the user (or filtered by assignee) in active stages (execute, escalated, review, closing), sorted by priority high→medium→low then updated_at.",
+        "Return quests owned by the user in runnable stages (execute, review, closing) by default — sorted by priority high→medium→low then updated_at. Set include_escalated: true to also list escalated (blocked) quests for Questmaster dashboards.",
       input: {
         assignee_name: "string — optional; when set, filter by assigned_to",
+        include_escalated: "boolean — optional; when true, include stage escalated in the list",
       },
       output: {
         quests: "string — JSON array of { id, title, stage, priority, updated_at, assigned_to }",
+        escalated_count: "string — when include_escalated is false: count of escalated quests for same owner (same filters), for visibility",
       },
     },
     escalateBlockedQuest: {
@@ -75,6 +81,8 @@ export const skillBook = {
 export async function getActiveQuests(userId, input) {
   const inObj = typeof input === "object" && input ? input : {};
   const assigneeFilter = String(inObj.assignee_name || inObj.assigneeName || "").trim();
+  const includeEscalated =
+    inObj.include_escalated === true || inObj.include_escalated === "true" || inObj.includeEscalated === true;
 
   if (!userId) return skillActionErr("userId is required.");
 
@@ -90,15 +98,25 @@ export async function getActiveQuests(userId, input) {
   if (error) return skillActionErr(error.message || String(error));
 
   const list = Array.isArray(rows) ? rows : [];
+  const allowedStages = includeEscalated ? EXPANDED_ACTIVE_STAGES : RUNNABLE_STAGES;
+
+  const sameAssignee = (r) => {
+    if (!assigneeFilter) return true;
+    const at = String(/** @type {{ assigned_to?: unknown }} */ (r).assigned_to || "").trim();
+    return at === assigneeFilter;
+  };
+
+  const escalatedCount = list.filter((r) => {
+    if (!r || typeof r !== "object") return false;
+    if (String(/** @type {{ stage?: unknown }} */ (r).stage || "") !== "escalated") return false;
+    return sameAssignee(r);
+  }).length;
+
   const filtered = list.filter((r) => {
     if (!r || typeof r !== "object") return false;
     const stage = String(/** @type {{ stage?: unknown }} */ (r).stage || "");
-    if (!ACTIVE_STAGES.has(stage)) return false;
-    if (assigneeFilter) {
-      const at = String(/** @type {{ assigned_to?: unknown }} */ (r).assigned_to || "").trim();
-      if (at !== assigneeFilter) return false;
-    }
-    return true;
+    if (!allowedStages.has(stage)) return false;
+    return sameAssignee(r);
   });
 
   const enriched = filtered.map((r) => {
@@ -121,9 +139,20 @@ export async function getActiveQuests(userId, input) {
     return String(b.updated_at).localeCompare(String(a.updated_at));
   });
 
+  const escalatedInList = enriched.filter((x) => x.stage === "escalated").length;
+  const parts = includeEscalated
+    ? [`${enriched.length} quest(s) in execute/review/closing/escalated.`]
+    : [`${enriched.length} runnable active quest(s) (execute/review/closing).`];
+  if (!includeEscalated && escalatedCount > 0) {
+    parts.push(`${escalatedCount} escalated (blocked) — pass include_escalated: true to list them.`);
+  }
+
   return skillActionOk(
-    { quests: JSON.stringify(enriched) },
-    `${enriched.length} active quest(s) for owner.`,
+    {
+      quests: JSON.stringify(enriched),
+      escalated_count: String(includeEscalated ? escalatedInList : escalatedCount),
+    },
+    parts.join(" "),
   );
 }
 
@@ -151,8 +180,13 @@ export async function escalateBlockedQuest(userId, input) {
   if (qErr || !quest) return skillActionErr(qErr?.message || "Quest not found or not owned by this user.");
 
   const stage = String(quest.stage || "");
-  if (!ACTIVE_STAGES.has(stage)) {
-    return skillActionErr(`Cannot escalate: quest stage "${stage}" is not an active pipeline stage.`);
+  if (!RUNNABLE_STAGES.has(stage)) {
+    if (stage === "escalated") {
+      return skillActionErr("Quest is already escalated; clear the blocker and return to execute/review/closing before re-escalating.");
+    }
+    return skillActionErr(
+      `Cannot escalate: quest stage "${stage}" is not runnable (need execute, review, or closing).`,
+    );
   }
 
   const { error: upErr } = await updateQuest(questId, { stage: "escalated" }, { client });
