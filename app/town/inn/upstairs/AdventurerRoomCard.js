@@ -7,20 +7,18 @@ import { classDisplayLabel } from "@/libs/proving_grounds/ui.js";
 
 const STATUS_BADGE = {
   idle: { label: "Idle", className: "badge-ghost" },
-  raised_hand: { label: "Ready", className: "badge-success" },
   busy: { label: "Working", className: "badge-info" },
-  confused: { label: "Needs Attention", className: "badge-warning" },
-  error: { label: "Error", className: "badge-error" },
+  confused: { label: "Confused", className: "badge-warning" },
+  ailing: { label: "Ailing", className: "badge-error" },
   inactive: { label: "Inactive", className: "badge-ghost opacity-50" },
 };
 
 const STATUS_POSE = {
   idle: "normal",
   inactive: "normal",
-  raised_hand: "happy",
   busy: "working",
   confused: "attention",
-  error: "attention",
+  ailing: "attention",
 };
 
 function getAvatarSrc(avatarType, status) {

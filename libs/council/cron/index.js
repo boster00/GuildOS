@@ -1,126 +1,128 @@
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
 import { advance as advanceQuest } from "@/libs/quest/index.js";
-import { readAgent } from "@/libs/weapon/cursor/index.js";
+import { readAgent, writeFollowup } from "@/libs/weapon/cursor/index.js";
 
 export async function runCron() {
-  console.log("[cron] pulling quests for quest.advance");
   const db = await database.init("service");
-  const { data: quests, error } = await db
+
+  // ── 1. Advance NPC-assigned quests (old pipeline, NPCs only) ──
+  console.log("[cron] advancing NPC quests");
+  const { data: npcQuests } = await db
     .from(publicTables.quests)
     .select("*")
-    .in("stage", ["idea", "plan", "execute", "closing"])
+    .in("stage", ["idea", "plan", "closing"])
     .limit(20);
 
-  if (error) {
-    console.error("[cron] quest query error:", error.message);
-    return { ok: false, error: error.message, results: [] };
-  }
-
-  if (!quests || quests.length === 0) {
-    console.log("[cron] no quests to advance");
-    return { ok: true, questsProcessed: 0, results: [] };
-  }
-
   const results = [];
-  console.log("[cron] advancing", quests.length, "quest(s) via quest.advance");
-  for (const quest of quests) {
+  for (const quest of npcQuests || []) {
     try {
       const r = await advanceQuest(quest, { client: db });
       results.push({ questId: quest.id, ...r });
     } catch (err) {
-      results.push({
-        questId: quest.id,
-        ok: false,
-        stage: quest.stage,
-        error: err?.message || String(err),
-      });
+      results.push({ questId: quest.id, ok: false, stage: quest.stage, error: err?.message || String(err) });
     }
   }
 
-  console.log("[cron] quest.advance pass done");
+  // ── 2. Derive adventurer statuses ──
+  await deriveAdventurerStatuses(db);
 
-  // --- Adventurer status updater (before nudge) ---
-  await updateAdventurerStatuses(db, quests);
+  // ── 3. Nudge confused adventurers (has quest, not busy) ──
+  await nudgeConfused(db);
 
-  // --- Nudge raised_hand adventurers ---
-  await nudgeRaisedHand(db);
+  // ── 4. Re-derive statuses (catch agents that went busy after nudge) ──
+  await deriveAdventurerStatuses(db);
 
-  // --- Status updater again (after nudge — reflects agents that started working) ---
-  await updateAdventurerStatuses(db, quests);
-
-  return { ok: true, questsProcessed: quests.length, results };
+  return { ok: true, questsProcessed: (npcQuests || []).length, results };
 }
 
-const CONFUSED_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+// ---------------------------------------------------------------------------
+// Derive adventurer status from Cursor API + quest state
+// ---------------------------------------------------------------------------
+//
+// idle:     no quest in execute/review, not busy
+// busy:     has quest, Cursor agent RUNNING
+// confused: has quest but not busy, OR busy but no quest (gets nudged)
+// ailing:   Cursor API unreachable (manual recovery needed)
+// inactive: no session linked (not queried here)
 
-async function updateAdventurerStatuses(db, activeQuests) {
+async function deriveAdventurerStatuses(db) {
   const { data: adventurers } = await db
     .from(publicTables.adventurers)
-    .select("id, session_id, session_status, busy_since")
+    .select("id, session_id, session_status")
     .not("session_id", "is", null);
 
   if (!adventurers?.length) return;
 
-  const executeQuests = (activeQuests || []).filter((q) => q.stage === "execute");
-  const assignedAdventurerIds = new Set(executeQuests.map((q) => q.assignee_id).filter(Boolean));
+  // Load all active quests with assignees
+  const { data: activeQuests } = await db
+    .from(publicTables.quests)
+    .select("assignee_id, stage")
+    .in("stage", ["execute", "review", "escalated"]);
+
+  // Group quests by adventurer
+  const questsByAdventurer = {};
+  for (const q of activeQuests || []) {
+    if (!q.assignee_id) continue;
+    if (!questsByAdventurer[q.assignee_id]) questsByAdventurer[q.assignee_id] = [];
+    questsByAdventurer[q.assignee_id].push(q);
+  }
 
   for (const adv of adventurers) {
-    let newStatus = adv.session_status;
-    let busySince = adv.busy_since;
+    const quests = questsByAdventurer[adv.id] || [];
+    const hasEscalated = quests.some((q) => q.stage === "escalated");
+    const hasActiveQuest = quests.some((q) => q.stage === "execute" || q.stage === "review");
+    let newStatus;
 
-    try {
-      const agent = await readAgent({ agentId: adv.session_id });
-      const isRunning = agent?.status === "RUNNING";
-      const hasExecuteQuest = assignedAdventurerIds.has(adv.id);
+    // Escalated quests are handled by the GM desk, not the adventurer status
+    {
+      try {
+        const agent = await readAgent({ agentId: adv.session_id });
+        const isBusy = agent?.status === "RUNNING";
 
-      if (isRunning && hasExecuteQuest) {
-        if (adv.session_status !== "busy" && adv.session_status !== "confused") {
+        if (hasActiveQuest && isBusy) {
           newStatus = "busy";
-          busySince = new Date().toISOString();
-        } else if (adv.session_status === "busy" && adv.busy_since) {
-          const elapsed = Date.now() - new Date(adv.busy_since).getTime();
-          if (elapsed > CONFUSED_THRESHOLD_MS) newStatus = "confused";
+        } else if (hasActiveQuest && !isBusy) {
+          newStatus = "confused"; // has quest but not working
+        } else if (!hasActiveQuest && isBusy) {
+          newStatus = "confused"; // busy but no quest
+        } else {
+          newStatus = "idle";
         }
-      } else if (hasExecuteQuest) {
-        newStatus = "raised_hand";
-        busySince = null;
-      } else {
-        newStatus = "idle";
-        busySince = null;
+      } catch {
+        newStatus = "ailing";
       }
-    } catch {
-      newStatus = "error";
-      busySince = null;
     }
 
-    if (newStatus !== adv.session_status || busySince !== adv.busy_since) {
+    if (newStatus !== adv.session_status) {
       await db
         .from(publicTables.adventurers)
-        .update({ session_status: newStatus, busy_since: busySince })
+        .update({ session_status: newStatus })
         .eq("id", adv.id);
     }
   }
 }
 
-async function nudgeRaisedHand(db) {
+// ---------------------------------------------------------------------------
+// Nudge confused adventurers (has quest but not busy)
+// ---------------------------------------------------------------------------
+
+async function nudgeConfused(db) {
   const { data: adventurers } = await db
     .from(publicTables.adventurers)
     .select("id, name, session_id, session_status")
-    .eq("session_status", "raised_hand")
+    .eq("session_status", "confused")
     .not("session_id", "is", null);
 
   if (!adventurers?.length) return;
 
   for (const adv of adventurers) {
     try {
-      await readAgent({ agentId: adv.session_id }); // reuse imported readAgent to verify session is alive
-      const { writeFollowup } = await import("@/libs/weapon/cursor/index.js");
       await writeFollowup({
         agentId: adv.session_id,
-        message: "You have quests assigned to you in execute stage but you are not working. If you paused to ask for permission on something you can do — just do it. If you are genuinely blocked and need help, move the quest to escalated stage with a comment explaining the blocker.",
+        message: "You have quests assigned to you but you are not working. If you paused to ask for permission on something you can do — just do it. If you are genuinely blocked and need help, move the quest to escalated stage with a comment explaining the blocker.",
       });
-      console.log(`[cron] nudged raised_hand adventurer: ${adv.name} (${adv.id})`);
+      console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
       console.error(`[cron] nudge failed for ${adv.name}:`, err.message);
     }
