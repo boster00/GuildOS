@@ -29,10 +29,16 @@ export { inventoryRawToMap, inventoryToDisplayRows, PIGEON_LETTERS_KEY } from ".
 // Constants
 // ---------------------------------------------------------------------------
 
-const VALID_STAGES = ["idea", "plan", "assign", "execute", "escalated", "review", "closing", "completed"];
+const VALID_STAGES = ["execute", "escalated", "review", "closing", "complete"];
 
-/** Canonical ordered list for UI and APIs (same as {@link VALID_STAGES}). */
+/** Legacy stages — accepted on read but not for new quests. */
+const LEGACY_STAGES = ["idea", "plan", "assign", "completed"];
+
+/** Canonical ordered list for UI and APIs. */
 export const QUEST_STAGES = VALID_STAGES;
+
+/** All accepted stages (current + legacy) for validation. */
+const ALL_ACCEPTED_STAGES = [...VALID_STAGES, ...LEGACY_STAGES];
 
 /** PATCH handler calls {@link updateQuest} (body: `{ id, stage }`). */
 export const QUEST_PATCH_RELATIVE_URL = "/api/quest";
@@ -49,7 +55,8 @@ export async function createQuest({
   dueDate,
   assigneeId,
   assignedTo,
-  stage = "idea",
+  stage = "execute",
+  priority = "medium",
   client: injected,
 }) {
   const { data, error } = await insertQuest(
@@ -75,7 +82,7 @@ export async function ensureQuestParty(userId, title = "Quest 1: Recent Sales Or
 }
 
 export async function transitionQuestStage(questId, newStage, { client: injected } = {}) {
-  if (!VALID_STAGES.includes(newStage)) {
+  if (!ALL_ACCEPTED_STAGES.includes(newStage)) {
     return { error: new Error(`Invalid stage: ${newStage}`) };
   }
   const { data, error } = await updateQuestStage(questId, newStage, { client: injected });

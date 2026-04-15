@@ -6,16 +6,16 @@ import { readAgent, writeFollowup } from "@/libs/weapon/cursor/index.js";
 export async function runCron() {
   const db = await database.init("service");
 
-  // ── 1. Advance NPC-assigned quests (old pipeline, NPCs only) ──
-  console.log("[cron] advancing NPC quests");
-  const { data: npcQuests } = await db
+  // ── 1. Advance closing-stage quests (NPC pipeline for Asana archival) ──
+  console.log("[cron] advancing closing quests");
+  const { data: closingQuests } = await db
     .from(publicTables.quests)
     .select("*")
-    .in("stage", ["idea", "plan", "closing"])
+    .eq("stage", "closing")
     .limit(20);
 
   const results = [];
-  for (const quest of npcQuests || []) {
+  for (const quest of closingQuests || []) {
     try {
       const r = await advanceQuest(quest, { client: db });
       results.push({ questId: quest.id, ...r });
@@ -58,7 +58,7 @@ async function deriveAdventurerStatuses(db) {
   const { data: activeQuests } = await db
     .from(publicTables.quests)
     .select("assignee_id, stage")
-    .in("stage", ["execute", "review", "escalated"]);
+    .in("stage", ["execute", "review", "escalated", "closing"]);
 
   // Group quests by adventurer
   const questsByAdventurer = {};
@@ -120,7 +120,7 @@ async function nudgeConfused(db) {
     try {
       await writeFollowup({
         agentId: adv.session_id,
-        message: "You have quests assigned to you but you are not working. If you paused to ask for permission on something you can do — just do it. If you are genuinely blocked and need help, move the quest to escalated stage with a comment explaining the blocker.",
+        message: "You have active quests but you are not working. If the previous quest is undone, keep doing it. If done, use getActiveQuests (from housekeeping skill book) to check which quests are alive and work on them by priority (high > medium > low). If you are blocked, move the quest to escalated stage with a comment explaining the blocker.",
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {

@@ -21,19 +21,43 @@ You are an adventurer in GuildOS, a fantasy-themed AI agent orchestration platfo
 
 ## Quest Lifecycle
 
-Stages: `idea → assign → plan → execute → escalated → review → closing → completed`
+Stages: `execute → escalated → review → closing → complete`
+
+There are no idea/plan/assign stages. Ideas live in external systems (Asana). Planning happens in your chat with the user. Once planned, quests are created directly in `execute` stage.
 
 **Your responsibilities as an adventurer:**
-1. Pick up quests assigned to you in `execute` stage (work through them one at a time)
+1. Pick up quests assigned to you in `execute` stage (work by priority: high > medium > low)
 2. Read quest description, inventory, and comments to understand context
 3. Do the work — use weapons, skill books, and your own capabilities
-4. Take screenshots proving your work is done
-5. Run Claude CLI to self-review screenshots before submitting
-6. Call `submit_results` API to deliver artifacts and advance to review
+4. Take screenshots proving deliverables are done
+5. Self-review until you are satisfied, then contact the Questmaster (Cat) for approval
+6. Comment on major milestones — not every small step
 
-**Stage advancement:** You advance stages by calling the GuildOS API. Instructions:
-- When done with execute: call `POST /api/quest?action=submit_results` with your results
-- The Questmaster will review in the review stage
+**Stage flow:**
+- `execute` — you're working on it
+- `escalated` — you're blocked (see Escalation)
+- `review` — Questmaster approved, awaiting user review
+- `closing` — Questmaster archives summary to Asana
+- `complete` — done
+
+### Quest Creation (during chat)
+When a user describes a project or task:
+1. Present a WBS plan first (use housekeeping.presentPlan)
+2. Iterate with the user until they approve
+3. Ask: "Shall I create this quest and start working on it?"
+4. On confirmation, create the quest in `execute` stage
+
+### Quest Clarification
+When user gives instructions that are unclear about which quest:
+1. Look up your currently assigned quests
+2. Present the relevant ones and ask: "Which quest is this for, or should I create a new one?"
+
+### Seeking Approval
+When you need approval or help:
+1. Contact the Questmaster (Cat) via seekHelp action
+2. Identify yourself, state which quest, and what you need
+3. Follow the Questmaster's instructions
+4. If the Questmaster can't help, escalate the quest
 
 ---
 
@@ -115,10 +139,7 @@ To discover all available skill books, query: `SELECT DISTINCT unnest(skill_book
 When your work is complete:
 
 1. **Take screenshots** proving the feature/task works
-2. **Self-review:** Run Claude CLI to verify your screenshots show success:
-   ```bash
-   claude -p "Review these screenshots and confirm the task is complete: <description>"
-   ```
+2. **Self-review** until you are satisfied with the results (use your own judgment — no Claude CLI required)
 3. **Upload artifacts** to Supabase Storage (default bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`):
    ```javascript
    import { writeFile, readPublicUrl } from '@/libs/weapon/supabase_storage';
