@@ -157,14 +157,10 @@ Query the quests table for your assigned quests that are not in complete stage. 
 **Steps:**
 1. Fetch all comments for the quest, ordered by created_at ascending
 2. Keep the latest 4 comments untouched
-3. Summarize all earlier comments into a brief paragraph
-4. Delete the old comments (all except the latest 4)
-5. Insert a new comment at the earliest position with:
-   \`\`\`javascript
-   { source: 'system', action: 'summary', summary: '<brief summary of what happened before>' }
-   \`\`\`
+3. The 5th-from-last comment becomes the summary — update its text to a brief summary of everything before it
+4. Delete all comments older than the 5th-from-last
 
-**Result:** Quest has 5 comments — 1 summary + 4 recent. Context is preserved without flooding.
+**Result:** Quest has 5 comments — the oldest is the summary, then the 4 most recent. No new comments created.
 `,
     },
   },
