@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { QUEST_STAGES, QUEST_PATCH_RELATIVE_URL } from "@/libs/quest";
+const QUEST_STAGES = ["execute", "escalated", "review", "closing", "complete"];
+const QUEST_PATCH_RELATIVE_URL = "/api/quest";
 
 export default function QuestStageMenuClient({ questId, initialStage }) {
   const [stage, setStage] = useState(initialStage);
