@@ -173,8 +173,7 @@ export async function POST(request) {
     userId: user.id,
     title: "New Request",
     description: text.trim(),
-    assignedTo: "cat",
-    stage: "idea",
+    stage: "execute",
   });
 
   if (error) {
@@ -183,9 +182,8 @@ export async function POST(request) {
 
   return Response.json({
     questId: data.id,
-    stage: "idea",
+    stage: "execute",
     title: "New Request",
-    assigned_to: "cat",
   });
 }
 
@@ -297,7 +295,8 @@ export async function PATCH(request) {
     );
   }
 
-  if (updates.stage !== undefined && !QUEST_STAGES.includes(updates.stage)) {
+  const ALL_STAGES = [...QUEST_STAGES, "idea", "plan", "assign", "completed"];
+  if (updates.stage !== undefined && !ALL_STAGES.includes(updates.stage)) {
     return Response.json({ error: "Invalid stage", validStages: [...QUEST_STAGES] }, { status: 400 });
   }
 

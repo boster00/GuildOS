@@ -17,7 +17,7 @@ async function loadReviewQuests(userId) {
     .from("quests")
     .select("id, title, description, stage, assigned_to, assignee_id, inventory, created_at, updated_at")
     .eq("owner_id", userId)
-    .in("stage", ["review", "escalated"])
+    .in("stage", ["review", "escalated", "closing"])
     .order("updated_at", { ascending: false });
 
   if (error) return { quests: [], error: error.message };
