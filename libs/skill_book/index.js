@@ -27,11 +27,17 @@ import {
   interpretIdea,
   selectAdventurer as runSelectAdventurer,
   assign as runAssign,
+  closeQuest as runCloseQuest,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
 import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
 import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEvents } from "./bigquery/index.js";
-import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
+import {
+  skillBook as asanaSkillBook,
+  readProjectTasks as asanaReadProjectTasks,
+  readTaskComments as asanaReadTaskComments,
+  writeTask as asanaWriteTask,
+} from "./asana/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -424,6 +430,7 @@ const questmasterAdventurerActions = {
     const questId = String(inObj.questId || guildos?.quest?.id || "").trim();
     return runAssign(userId, { questId, guildos, client });
   },
+  closeQuest: async (userId, input) => runCloseQuest(userId, /** @type {Record<string, unknown>} */ (input || {})),
 };
 
 const blacksmithAdventurerActions = {
@@ -449,6 +456,7 @@ const ADVENTURER_REGISTRY = {
   asana: { definition: asanaSkillBook, adventurerActions: {
     readProjectTasks: (_userId, input) => asanaReadProjectTasks(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     readTaskComments: (_userId, input) => asanaReadTaskComments(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    writeTask: (_userId, input) => asanaWriteTask(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {

@@ -23,6 +23,59 @@ async function asanaGet(path, params = {}) {
   return { ok: true, data: json.data, next_page: json.next_page };
 }
 
+/**
+ * @param {string} path
+ * @param {Record<string, unknown>} body
+ */
+async function asanaPost(path, body) {
+  const res = await fetch(`${ASANA_BASE}${path}`, {
+    method: "POST",
+    headers: asanaHeaders(),
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: json.errors?.[0]?.message || res.statusText, data: null };
+  return { ok: true, data: json.data };
+}
+
+/**
+ * @param {string} path
+ * @param {Record<string, unknown>} body
+ */
+async function asanaPut(path, body) {
+  const res = await fetch(`${ASANA_BASE}${path}`, {
+    method: "PUT",
+    headers: asanaHeaders(),
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: json.errors?.[0]?.message || res.statusText, data: null };
+  return { ok: true, data: json.data };
+}
+
+/**
+ * Append a plain-text comment to an Asana task (story).
+ * @param {string} taskGid
+ * @param {string} text
+ */
+export async function appendAsanaTaskComment(taskGid, text) {
+  const gid = String(taskGid || "").trim();
+  if (!gid) return { ok: false, error: "task_gid is required" };
+  const t = String(text || "").trim();
+  if (!t) return { ok: false, error: "comment text is required" };
+  return asanaPost(`/tasks/${gid}/stories`, { data: { text: t.slice(0, 32000) } });
+}
+
+/**
+ * Mark an Asana task completed.
+ * @param {string} taskGid
+ */
+export async function completeAsanaTask(taskGid) {
+  const gid = String(taskGid || "").trim();
+  if (!gid) return { ok: false, error: "task_gid is required" };
+  return asanaPut(`/tasks/${gid}`, { data: { completed: true } });
+}
+
 export const skillBook = {
   id: "asana",
   title: "Asana",
@@ -50,6 +103,19 @@ export const skillBook = {
       },
       output: {
         comments: "array of { author, text, created_at, type }",
+      },
+    },
+    writeTask: {
+      description:
+        "Append a plain-text comment to an Asana task, or mark it complete. Uses ASANA_ACCESS_TOKEN.",
+      input: {
+        task_gid: "string — Asana task GID",
+        comment_text: "string — optional; if set, posted as a new story on the task",
+        complete: "boolean — if true, marks the task completed after optional comment",
+      },
+      output: {
+        ok: "boolean",
+        message: "string",
       },
     },
   },
@@ -173,4 +239,29 @@ export async function readTaskComments(_userId, input) {
   });
 }
 
-export default { skillBook, readProjectTasks, readTaskComments };
+/**
+ * @param {string} _userId
+ * @param {Record<string, unknown>} input
+ */
+export async function writeTask(_userId, input) {
+  const inObj = typeof input === "object" && input ? input : {};
+  const taskGid = String(inObj.task_gid || inObj.task_id || "").trim();
+  if (!taskGid) return skillActionErr("task_gid (or task_id) is required.");
+  const comment = inObj.comment_text != null ? String(inObj.comment_text).trim() : "";
+  const doComplete = inObj.complete === true || inObj.complete === "true";
+
+  if (comment) {
+    const r = await appendAsanaTaskComment(taskGid, comment);
+    if (!r.ok) return skillActionErr(String(r.error || "Asana comment failed"));
+  }
+  if (doComplete) {
+    const r = await completeAsanaTask(taskGid);
+    if (!r.ok) return skillActionErr(String(r.error || "Asana complete failed"));
+  }
+  if (!comment && !doComplete) {
+    return skillActionErr("Provide comment_text and/or complete: true.");
+  }
+  return skillActionOk({}, comment && doComplete ? "Comment posted and task completed." : doComplete ? "Task completed." : "Comment posted.");
+}
+
+export default { skillBook, readProjectTasks, readTaskComments, writeTask, appendAsanaTaskComment, completeAsanaTask };
