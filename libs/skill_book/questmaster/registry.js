@@ -63,27 +63,31 @@ claude -p "Review this submission for quest '<quest-title>'. The deliverable sho
 - Provide more detailed feedback to the worker agent
 `,
     },
+    createPR: {
+      description: "Create a pull request for the worker agent's branch after review approval.",
+      howTo: [
+        "**When:** After reviewSubmission passes (90%+ satisfied).",
+        "",
+        "1. Identify the worker agent's branch from the quest comments or conversation",
+        "2. Create a PR on GitHub targeting main (or the project's default branch)",
+        "3. Add the quest title and summary as PR description",
+        "4. Record the PR URL in a quest comment",
+        "",
+        "Worker agents do NOT create PRs — only you do, after approval.",
+      ].join("\n"),
+    },
     closeQuest: {
       description: "Archive quest deliverables and summary to Asana, then mark complete.",
-      howTo: `
-**Closing flow:**
-1. Read the quest description, inventory, and key comments
-2. Write a summary suitable for Asana (managerial-level, not technical details)
-3. Check if the quest has an Asana task ID in inventory or description
-4. If yes: update the Asana task with the summary and attach key deliverables
-5. If no: escalate to Guildmaster to identify the right Asana task
-
-**Asana update:**
-\`\`\`javascript
-import { writeTask, writeComment } from '@/libs/weapon/asana';
-await writeComment({ taskId: '<asana-task-id>', text: '<quest summary>' });
-// Optionally update task status
-await writeTask({ taskId: '<asana-task-id>', completed: true });
-\`\`\`
-
-6. After successful Asana archival: move quest to 'complete' stage
-7. Add a comment: "Quest closed. Summary archived to Asana task <id>."
-`,
+      howTo: [
+        "**Closing flow:**",
+        "1. Read the quest description, inventory, and key comments",
+        "2. Write a summary suitable for Asana (managerial-level, not technical details)",
+        "3. Check if the quest has an Asana task reference in the description",
+        "4. If yes: update the Asana task with the summary using the asana weapon",
+        "5. If no: escalate to Guildmaster to identify the right Asana task",
+        "6. After successful Asana archival: move quest to complete stage",
+        "7. Add a comment: Quest closed. Summary archived to Asana.",
+      ].join("\n"),
     },
   },
 };

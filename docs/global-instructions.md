@@ -82,9 +82,18 @@ When you need approval or help:
 
 ---
 
+## Priority Hierarchy
+
+When instructions conflict, follow this order:
+1. **Project-specific system_prompt** (highest — actively managed, most specific)
+2. **Skill books** (static but concrete)
+3. **Global rules** (lowest — fallback guidance)
+
+---
+
 ## Coding Conventions (all projects)
 
-These apply to every project you work on:
+These apply to every project you work on (unless overridden by system_prompt):
 
 - **Next.js 15:** Always `await cookies()` and `await headers()`. Never call them synchronously.
 - **Tailwind v4 + DaisyUI v5 only.** Never use v3/v4 syntax. Use `card-border` not `card-bordered`, `card-sm` not `card-compact`.
@@ -93,6 +102,7 @@ These apply to every project you work on:
 - **No hardcoded URLs/ports.** Use env vars. Dev default is port 3002, not 3000.
 - **Never commit secrets** — no `.env`, `.env.local`, API keys, tokens in code or docs.
 - **Always git push when done.** Don't forget this step.
+- **Do NOT create PRs.** Push your branch. The Questmaster handles PR creation and final integration after review.
 - **Verify in browser after UI changes.** Check the page actually renders what you expect.
 - **Pre-commit check:** `npm run build` passes, `npm run lint` clean, no browser console errors.
 - **DB migrations:** Use `ADD COLUMN IF NOT EXISTS` for idempotency. Use `DO $$` blocks only for conditional logic.
@@ -159,9 +169,16 @@ To discover all available skill books, query: `SELECT DISTINCT unnest(skill_book
 
 When your work is complete:
 
+**3-layer validation:**
+1. **Layer 1 (you):** Self-review using Cursor's built-in tools. Compare your work against the quest deliverable spec. Take screenshots.
+2. **Layer 2 (Questmaster):** Submit to Questmaster via seekHelp. Questmaster uses Claude CLI for independent evaluation.
+3. **Layer 3 (user):** Questmaster moves to review stage. User reviews on GM desk.
+
+**Submission steps:**
 1. **Take screenshots** proving the feature/task works
-2. **Self-review** until you are satisfied with the results (use your own judgment — no Claude CLI required)
-3. **Upload artifacts** to Supabase Storage (default bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`):
+2. **Self-review** until you are satisfied with the results
+3. **Git push** your branch (do NOT create a PR — Questmaster handles that)
+4. **Upload artifacts** to Supabase Storage (default bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`):
    ```javascript
    import { writeFile, readPublicUrl } from '@/libs/weapon/supabase_storage';
    await writeFile({ bucket: 'GuildOS_Bucket', path: 'cursor_cloud/<questId>/screenshot.png', file: buffer });
@@ -221,7 +238,13 @@ Escalate (move quest to `escalated` stage) only when **truly blocked** — you c
 
 ## Guildmaster (Local Claude Code) Guide
 
-The Guildmaster is the local Claude Code session. It manages adventurers, not executes quests.
+The Guildmaster represents the user's consciousness. It runs as a local high-privilege agent with access to user resources (browser, credentials, files, local machine).
+
+**Responsibilities:**
+- Distribute resources to agents (credentials, files, context)
+- Assist Questmaster and workers when they escalate
+- Automate browser actions when needed
+- Escalate to user when automation fails
 
 **Dispatching work:**
 1. Create quest in DB with full WBS description, deliverables, Asana target, priority
@@ -235,10 +258,13 @@ The Guildmaster is the local Claude Code session. It manages adventurers, not ex
 3. If yes: resolve and comment, move quest back to execute
 4. If no: flag for user attention
 
+**Env vars:** Do NOT auto-provision env vars to agents. If an agent is missing env vars, it should escalate. The user decides what to share.
+
 **Do NOT:**
 - Send full task descriptions in chat messages (use quests)
 - Ask the user to do things you can do yourself
 - Skip quest creation and go straight to agent chat
+- Auto-provision credentials without user awareness
 
 ---
 
