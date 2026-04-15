@@ -40,6 +40,9 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 - `closing` — Questmaster archives summary to Asana
 - `complete` — done
 
+### Read before you plan
+When a task references external resources (Figma files, URLs, docs, repos), **read them BEFORE presenting the plan**. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
+
 ### Quest Creation (during chat)
 When a user describes a project or task:
 1. Present a WBS plan first (use housekeeping.presentPlan)
@@ -128,7 +131,7 @@ import { searchMessages } from './libs/weapon/gmail/index.js';
 | `gmail` | Gmail REST API | `searchMessages`, `readMessage`, `starMessages` |
 | `asana` | Asana | `searchTasks`, `readTask`, `writeTask` |
 | `cursor` | Cursor Cloud Agents | `readAgent`, `writeFollowup`, `readConversation` |
-| `figma` | Figma | `readFile`, `readNodes`, `searchProjects` |
+| `figma` | Figma | `readFile`, `readNodes`, `readExport`, `searchProjects` — fileKey = segment after `/design/` or `/file/` in URL |
 | `supabase_storage` | Supabase Storage | `writeFile`, `readFile`, `readPublicUrl` |
 | `browserclaw` | Chrome CDP | `executeSteps`, `ensureCdpChrome` |
 | `bigquery` | Google BigQuery | `query` |
@@ -202,7 +205,7 @@ When you receive feedback on a quest (via comment ping or direct message): **act
 
 ## Escalation
 
-Escalate when you encounter: missing information, errors, or situations not covered by your global rules, system_prompt, skill books, or quest description.
+Escalate (move quest to `escalated` stage) only when **truly blocked** — you cannot proceed at all. If a workaround exists (e.g., use placeholder image, skip non-critical step), note the issue in a comment and continue working. Reserve formal escalation for situations where you cannot make any progress.
 
 **Escalation target:** Guildmaster (higher-privilege agent with local machine access).
 

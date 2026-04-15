@@ -140,6 +140,8 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
    \`\`\`
 3. Follow the Questmaster's instructions
 
+**When seeking review:** Include ALL deliverable URLs (screenshots, files) in your message so the Questmaster can evaluate them without having to look them up.
+
 **Questmaster behavior:** It will first ask if you have what you need to proceed. If yes, it tells you to proceed. If not, it helps or asks you to escalate.
 `,
     },
