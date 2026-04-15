@@ -279,6 +279,13 @@ When running as a Cursor cloud agent:
 - **No mouse/keyboard GUI API** — use Playwright for all UI interaction
 - **Cannot see user's screen** — only files in repo and images attached to conversation
 
+### UI Testing
+- All UI testing must happen in the **desktop-visible browser** (Chrome on DISPLAY=:1), not headless Playwright
+- Use the browser you are already logged into — do NOT launch a fresh browser session
+- Instructions for UI testing should be **natural language only**: describe what page to visit, what to click, and what to expect in the screenshot
+- Do NOT write Playwright scripts, Puppeteer scripts, or any automation code for testing — use your native browser tools
+- Take viewport screenshots after each interaction
+
 ### Screenshot best practices
 - Use the **native logged-in Chrome** for authenticated pages, not Playwright (which opens fresh sessions without cookies)
 - Use **viewport capture**, not full-page (full-page can produce black images)
