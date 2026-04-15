@@ -76,6 +76,16 @@
 - [x] Quest comment API pings adventurer's live session when user/guildmaster posts feedback
 - [x] Loop prevention: skips ping for adventurer/agent/system source comments
 
+### Knowledge Migration (docs consolidation)
+- [x] Audited all docs across 4 repos (GuildOS, CJGEO, Boster Nexus, BosterBio)
+- [x] Created knowledge-migration-catalog.md with point-by-point categorization
+- [x] Updated global-instructions.md with coding conventions, NPC def, weapon rules, Cursor env
+- [x] Created 3 project skill books: cjgeo, nexus, bosterbio
+- [x] Registered new skill books in libs/skill_book/index.js
+- [x] Deleted 22 obsolete/merged docs
+- [x] docs/ reduced from 26 files to 5
+- [x] Created 3 project adventurers (CJGEO Dev, Nexus Armor Dev, BosterBio Website Dev) with strategic system_prompts and linked Cursor sessions
+
 ## Files Created
 - `supabase/migrations/20260414200000_add_adventurer_session_fields.sql`
 - `supabase/migrations/20260414201000_add_adventurer_avatar.sql`
