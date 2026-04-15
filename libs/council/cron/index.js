@@ -40,8 +40,11 @@ export async function runCron() {
 
   console.log("[cron] quest.advance pass done");
 
-  // --- Adventurer status updater ---
+  // --- Adventurer status updater (must run before nudger) ---
   await updateAdventurerStatuses(db, quests);
+
+  // --- Nudge raised_hand adventurers ---
+  await nudgeRaisedHand(db);
 
   return { ok: true, questsProcessed: quests.length, results };
 }
@@ -93,6 +96,43 @@ async function updateAdventurerStatuses(db, activeQuests) {
         .from(publicTables.adventurers)
         .update({ session_status: newStatus, busy_since: busySince })
         .eq("id", adv.id);
+    }
+  }
+}
+
+const NUDGE_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
+
+async function nudgeRaisedHand(db) {
+  const { data: adventurers } = await db
+    .from(publicTables.adventurers)
+    .select("id, name, session_id, session_status, last_nudged_at")
+    .eq("session_status", "raised_hand")
+    .not("session_id", "is", null);
+
+  if (!adventurers?.length) return;
+
+  const now = Date.now();
+
+  for (const adv of adventurers) {
+    if (adv.last_nudged_at && now - new Date(adv.last_nudged_at).getTime() < NUDGE_COOLDOWN_MS) {
+      continue;
+    }
+
+    try {
+      const { writeFollowup } = await import("@/libs/weapon/cursor/index.js");
+      await writeFollowup({
+        agentId: adv.session_id,
+        message: "You have quests assigned to you in execute stage but you are not working. If you paused to ask for permission on something you can do — just do it. If you are genuinely blocked and need help, move the quest to escalated stage with a comment explaining the blocker.",
+      });
+
+      await db
+        .from(publicTables.adventurers)
+        .update({ last_nudged_at: new Date().toISOString() })
+        .eq("id", adv.id);
+
+      console.log(`[cron] nudged raised_hand adventurer: ${adv.name} (${adv.id})`);
+    } catch (err) {
+      console.error(`[cron] nudge failed for ${adv.name}:`, err.message);
     }
   }
 }
