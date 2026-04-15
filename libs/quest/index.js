@@ -29,7 +29,17 @@ export { inventoryRawToMap, inventoryToDisplayRows, PIGEON_LETTERS_KEY } from ".
 // Constants
 // ---------------------------------------------------------------------------
 
-const VALID_STAGES = ["idea", "plan", "assign", "execute", "review", "closing", "completed"];
+const VALID_STAGES = [
+  "idea",
+  "plan",
+  "assign",
+  "execute",
+  "escalated",
+  "review",
+  "closing",
+  "complete",
+  "completed",
+];
 
 /** Canonical ordered list for UI and APIs (same as {@link VALID_STAGES}). */
 export const QUEST_STAGES = VALID_STAGES;

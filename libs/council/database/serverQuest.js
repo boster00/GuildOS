@@ -313,7 +313,7 @@ export async function selectQuestsForOwnerList(userId, { client: injected } = {}
   return client
     .from(publicTables.quests)
     .select(
-      "id, title, description, deliverables, due_date, stage, assignee_id, assigned_to, created_at, updated_at, parent_quest_id",
+      "id, title, description, deliverables, due_date, stage, assignee_id, assigned_to, created_at, updated_at, parent_quest_id, success_criteria",
     )
     .eq("owner_id", userId)
     .order("updated_at", { ascending: false });

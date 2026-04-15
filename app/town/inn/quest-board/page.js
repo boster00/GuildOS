@@ -3,9 +3,10 @@ import { getCurrentUser } from "@/libs/council/auth/server";
 import { getQuestsForOwner } from "@/libs/quest";
 
 function stageBadgeClass(stage) {
-  if (stage === "completed") return "badge-success";
+  if (stage === "completed" || stage === "complete") return "badge-success";
   if (stage === "idea" || stage === "plan") return "badge-ghost";
   if (stage === "review" || stage === "closing") return "badge-warning";
+  if (stage === "escalated") return "badge-error";
   return "badge-primary";
 }
 

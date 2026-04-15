@@ -112,7 +112,7 @@ function buildClosingManagerSummary(quest, comments) {
     lines.push("");
   }
   lines.push(
-    "**Manager read:** Work is complete enough to leave the active pipeline; GuildOS stage will move to **complete** after this Asana update.",
+    "**Manager read:** Work is complete enough to leave the active pipeline; GuildOS stage will move to **completed** after this Asana update.",
   );
   return lines.join("\n").slice(0, 28000);
 }
@@ -204,7 +204,7 @@ export async function closeQuest(userId, input) {
     return { data: null, error: new Error(String(completeRes.error)) };
   }
 
-  const up = await updateQuest(questId, { stage: "complete" }, { client });
+  const up = await updateQuest(questId, { stage: "completed" }, { client });
   if (up.error) {
     return { data: null, error: up.error instanceof Error ? up.error : new Error(String(up.error)) };
   }
@@ -221,7 +221,7 @@ export async function closeQuest(userId, input) {
   );
 
   return {
-    data: { questId, asana_task_gid: taskGid, stage: "complete", owner_id: quest.owner_id },
+    data: { questId, asana_task_gid: taskGid, stage: "completed", owner_id: quest.owner_id },
     error: null,
   };
 }
@@ -279,7 +279,7 @@ export const definition = {
     },
     closeQuest: {
       description:
-        "Closing → complete: read quest + comments, build a managerial summary, post it to the Asana task linked in the quest text (or asana_task_gid / asana_task_id), mark that Asana task complete, then set quest stage to complete. (Product registry label: questmaster_registry.)",
+        "Closing → completed: read quest + comments, build a managerial summary, post it to the Asana task linked in the quest text (or asana_task_gid / asana_task_id), mark that Asana task complete, then set quest stage to completed. (Product registry label: questmaster_registry.)",
       input: {
         questId: "string — GuildOS quest UUID",
         asana_task_gid: "string — optional override if not parseable from description",
@@ -287,7 +287,7 @@ export const definition = {
       output: {
         questId: "string",
         asana_task_gid: "string",
-        stage: "complete",
+        stage: "completed",
       },
     },
     interpretIdea: {

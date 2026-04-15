@@ -39,6 +39,11 @@ import {
   writeTask as asanaWriteTask,
 } from "./asana/index.js";
 import { questmasterRegistry } from "./questmaster/registry.js";
+import {
+  definition as housekeepingDef,
+  getActiveQuests as housekeepingGetActiveQuests,
+  escalateBlockedQuest as housekeepingEscalateBlockedQuest,
+} from "./housekeeping/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -306,6 +311,7 @@ export const SKILL_BOOKS = {
   bigquery: bigquerySkillBook,
   claudeCLI: claudeCLISkillBook,
   asana: asanaSkillBook,
+  housekeeping: housekeepingDef,
   questmaster_registry: questmasterRegistry,
 };
 
@@ -439,6 +445,13 @@ const questmasterRegistryAdventurerActions = {
   closeQuest: async (userId, input) => runCloseQuest(userId, /** @type {Record<string, unknown>} */ (input || {})),
 };
 
+const housekeepingAdventurerActions = {
+  getActiveQuests: (_userId, input) =>
+    housekeepingGetActiveQuests(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  escalateBlockedQuest: (_userId, input) =>
+    housekeepingEscalateBlockedQuest(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+};
+
 const blacksmithAdventurerActions = {
   plan: (_userId, input) => blacksmithPlan(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   review: (_userId, input) => blacksmithReview(_userId, /** @type {Record<string, unknown>} */ (input || {})),
@@ -465,6 +478,7 @@ const ADVENTURER_REGISTRY = {
     writeTask: (_userId, input) => asanaWriteTask(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   questmaster_registry: { definition: questmasterRegistry, adventurerActions: questmasterRegistryAdventurerActions },
+  housekeeping: { definition: housekeepingDef, adventurerActions: housekeepingAdventurerActions },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {
       const { execSync } = await import("child_process");
