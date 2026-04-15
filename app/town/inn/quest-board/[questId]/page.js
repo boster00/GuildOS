@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Script from "next/script";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { database } from "@/libs/council/database";
@@ -122,143 +121,12 @@ function ExecutionPlanTable({ plan }) {
 }
 
 /** Stage changes use PATCH /api/quest → updateQuest (cookies). Inline script drives optimistic UI + saving + tick. */
+import QuestStageMenuClient from "./QuestStageMenuClient.js";
+
 function QuestStageMenu({ questId, currentStage }) {
-  const rootId = `quest-stage-root-${questId}`;
-  const scriptId = `quest-stage-init-${questId}`;
-
-  return (
-    <div
-      id={rootId}
-      className="flex flex-wrap items-center gap-2"
-      data-quest-id={questId}
-      data-stage={currentStage}
-      data-patch-url={QUEST_PATCH_RELATIVE_URL}
-    >
-      <details className="dropdown dropdown-end group relative">
-        <summary className="badge badge-primary cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-          <span className="qsm-label">{currentStage}</span>
-          <span className="ml-1 text-[0.65em] opacity-70" aria-hidden>
-            ▾
-          </span>
-        </summary>
-        <div className="dropdown-content absolute end-0 z-50 mt-2 min-w-[12rem] rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
-          <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-base-content/50">Set stage</p>
-          <ul className="menu menu-compact w-full p-0">
-            {QUEST_STAGES.map((s) => (
-              <li key={s}>
-                <button
-                  type="button"
-                  className="qsm-opt w-full justify-start text-left font-normal"
-                  data-stage={s}
-                  disabled={s === currentStage}
-                >
-                  {s}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </details>
-      <span
-        className="qsm-saved hidden inline-flex items-center gap-1 text-sm font-medium text-success pointer-events-none"
-        aria-live="polite"
-      >
-        <span aria-hidden>✓</span> Saved
-      </span>
-      <Script id={scriptId} strategy="afterInteractive">{`
-(function () {
-  var root = document.getElementById(${JSON.stringify(rootId)});
-  if (!root || root.dataset.qsmReady === "1") return;
-  root.dataset.qsmReady = "1";
-  var questId = root.dataset.questId;
-  var patchUrl = root.dataset.patchUrl || "/api/quest";
-  var committed = root.dataset.stage || "";
-  var summaryLabel = root.querySelector(".qsm-label");
-  var savedEl = root.querySelector(".qsm-saved");
-  var details = root.querySelector("details");
-  var saveHideTimer;
-
-  function syncDisabled() {
-    root.querySelectorAll(".qsm-opt").forEach(function (b) {
-      b.disabled = b.getAttribute("data-stage") === committed;
-    });
-  }
-
-  function setLabel(text) {
-    if (summaryLabel) summaryLabel.textContent = text;
-  }
-
-  function showSavedTick() {
-    if (!savedEl) return;
-    clearTimeout(saveHideTimer);
-    savedEl.classList.remove("hidden");
-    savedEl.style.transition = "none";
-    savedEl.style.opacity = "1";
-    void savedEl.offsetHeight;
-    savedEl.style.transition = "opacity 3s ease-out";
-    requestAnimationFrame(function () {
-      savedEl.style.opacity = "0";
-    });
-    saveHideTimer = setTimeout(function () {
-      savedEl.classList.add("hidden");
-      savedEl.style.transition = "";
-      savedEl.style.opacity = "";
-    }, 3000);
-  }
-
-  // Close dropdown when clicking outside
-  document.addEventListener("click", function (e) {
-    if (details && details.open && !details.contains(e.target)) {
-      details.open = false;
-    }
-  });
-
-  root.querySelectorAll(".qsm-opt").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var next = btn.getAttribute("data-stage");
-      if (!next || next === committed) return;
-      var prev = committed;
-      var prevText = btn.textContent;
-      committed = next;
-      root.dataset.stage = next;
-      setLabel(next);
-      syncDisabled();
-      btn.disabled = true;
-      btn.textContent = "Saving…";
-      if (details) details.open = false;
-
-      fetch(patchUrl, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ id: questId, stage: next }),
-      })
-        .then(function (res) {
-          btn.textContent = prevText;
-          if (!res.ok) {
-            committed = prev;
-            root.dataset.stage = prev;
-            setLabel(prev);
-            syncDisabled();
-            return;
-          }
-          syncDisabled();
-          showSavedTick();
-        })
-        .catch(function () {
-          btn.textContent = prevText;
-          committed = prev;
-          root.dataset.stage = prev;
-          setLabel(prev);
-          syncDisabled();
-        });
-    });
-  });
-})();
-      `}</Script>
-    </div>
-  );
+  return <QuestStageMenuClient questId={questId} initialStage={currentStage} />;
 }
+
 
 export default async function QuestDetailPage({ params }) {
   const { questId } = await params;
