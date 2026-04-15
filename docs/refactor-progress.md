@@ -60,9 +60,21 @@
 - [x] Guildmaster = local Claude Code session, triages escalated tasks
 - [x] Triage button: classifies autonomous vs needs-user
 - [x] Updated global instructions with escalation flow
-- [ ] DB migration: add `escalated` to valid stages
-- [ ] API: `triage_escalated` and `resolve_escalation` actions
-- [ ] GM room UI with escalated quests and triage button
+- [x] `escalated` added to VALID_STAGES in `libs/quest/index.js`
+- [x] Proving grounds: escalated stage handler (no-op, awaits triage)
+- [x] Cron: includes escalated in polling
+- [x] API: `triage_escalated` (pattern-match autonomous vs needs-user) and `resolve_escalation` (comment + return to execute)
+- [x] GM Desk: shows escalated quests with "Triage All" button, classification badges (Can resolve / Needs you), resolve action for autonomous items
+
+### Phase 2 (partial): Adventurer Chat UI
+- [x] Inn upstairs cards redesigned: no system prompt, quest stage counts, skill books inline
+- [x] Chat button opens inline chat panel with conversation history (DaisyUI chat bubbles)
+- [x] "Open in Cursor" link in chat panel when session is linked
+- [x] Green dot indicator for session-linked adventurers
+
+### Feedback → Adventurer Ping
+- [x] Quest comment API pings adventurer's live session when user/guildmaster posts feedback
+- [x] Loop prevention: skips ping for adventurer/agent/system source comments
 
 ## Files Created
 - `supabase/migrations/20260414200000_add_adventurer_session_fields.sql`

@@ -32,6 +32,11 @@ import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/ind
 import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
 import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEvents } from "./bigquery/index.js";
 import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
+import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
+import { skillBook as gmailSkillBook, searchInbox as gmailSearchInbox, readMessage as gmailReadMessage, triageInbox as gmailTriageInbox, writeStars as gmailWriteStars } from "./gmail/index.js";
+import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
+import { skillBook as nexusSkillBook } from "./nexus/index.js";
+import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -299,6 +304,11 @@ export const SKILL_BOOKS = {
   bigquery: bigquerySkillBook,
   claudeCLI: claudeCLISkillBook,
   asana: asanaSkillBook,
+  cursor: cursorSkillBook,
+  gmail: gmailSkillBook,
+  cjgeo: cjgeoSkillBook,
+  nexus: nexusSkillBook,
+  bosterbio: bosterbioSkillBook,
 };
 
 /**
@@ -449,6 +459,18 @@ const ADVENTURER_REGISTRY = {
   asana: { definition: asanaSkillBook, adventurerActions: {
     readProjectTasks: (_userId, input) => asanaReadProjectTasks(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     readTaskComments: (_userId, input) => asanaReadTaskComments(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  cursor: { definition: cursorSkillBook, adventurerActions: {
+    dispatchTask: (_userId, input) => cursorDispatchTask(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readStatus: (_userId, input) => cursorReadStatus(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readConversation: (_userId, input) => cursorReadConversation(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    dispatchPptGeneration: (_userId, input) => cursorDispatchPptGeneration(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  gmail: { definition: gmailSkillBook, adventurerActions: {
+    searchInbox: (_userId, input) => gmailSearchInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readMessage: (_userId, input) => gmailReadMessage(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    triageInbox: (_userId, input) => gmailTriageInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    writeStars: (_userId, input) => gmailWriteStars(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {

@@ -15,6 +15,7 @@ You are an adventurer in GuildOS, a fantasy-themed AI agent orchestration platfo
 | **Inventory** | Quest state storage — artifacts, results, screenshots | `quests.inventory` (JSONB) |
 | **Pigeon Post** | Async job queue for background tasks | `pigeon_letters` table |
 | **Potions** | Temporary auth tokens (OAuth) | `potions` table |
+| **NPC** | System-defined agent (code in `libs/npcs/`). NOT in `adventurers` table | `libs/npcs/<slug>/index.js` |
 
 ---
 
@@ -36,6 +37,25 @@ Stages: `idea → assign → plan → execute → escalated → review → closi
 
 ---
 
+## Coding Conventions (all projects)
+
+These apply to every project you work on:
+
+- **Next.js 15:** Always `await cookies()` and `await headers()`. Never call them synchronously.
+- **Tailwind v4 + DaisyUI v5 only.** Never use v3/v4 syntax. Use `card-border` not `card-bordered`, `card-sm` not `card-compact`.
+- **Remove unused imports** before committing. Don't leave commented-out imports.
+- **React hook deps:** Move Supabase client creation inside `useEffect`, not outside with empty dep array.
+- **No hardcoded URLs/ports.** Use env vars. Dev default is port 3002, not 3000.
+- **Never commit secrets** — no `.env`, `.env.local`, API keys, tokens in code or docs.
+- **Always git push when done.** Don't forget this step.
+- **Verify in browser after UI changes.** Check the page actually renders what you expect.
+- **Pre-commit check:** `npm run build` passes, `npm run lint` clean, no browser console errors.
+- **DB migrations:** Use `ADD COLUMN IF NOT EXISTS` for idempotency. Use `DO $$` blocks only for conditional logic.
+- **Small, reviewable diffs.** Prefer minimal edits. Use file paths and line numbers when describing changes.
+- **Action naming:** Six verbs only — `read`, `write`, `delete`, `search`, `transform`, `normalize`. No synonyms.
+
+---
+
 ## Using Weapons
 
 Weapons are JS modules that connect to external services. Import and call them directly:
@@ -51,11 +71,12 @@ import { searchMessages } from './libs/weapon/gmail/index.js';
 
 **@/ alias:** Only works in Next.js. For standalone scripts, use `npx tsx` with the project's `tsconfig.json` paths, or use relative imports.
 
-**Auth:** Weapons handle authentication internally. They read credentials from:
-- `profiles.env_vars` — permanent API keys
-- `potions` table — temporary OAuth tokens (auto-refreshed)
+**Auth:** Weapons handle authentication internally via `profiles.env_vars` (permanent keys) or `potions` table (OAuth tokens, auto-refreshed). You need a `userId` to pass to most weapon functions.
 
-You need a `userId` to pass to most weapon functions. Query the `profiles` table if you don't have one.
+**Architecture rules:**
+- One weapon per external service (e.g., one `zoho` weapon covers Books + CRM)
+- Max 2 files per weapon: `libs/weapon/<name>/index.js` + optional `app/api/weapon/<name>/route.js`
+- Weapons handle credential checks internally — call `checkCredentials()` if unsure
 
 ### Available Weapons
 
@@ -80,7 +101,7 @@ You need a `userId` to pass to most weapon functions. Query the `profiles` table
 Skill books are knowledge registries — they describe HOW to accomplish specific tasks. Check the relevant skill book before starting work:
 
 1. Read the skill book's table of contents to find relevant actions
-2. Follow the instructions for each action (weapon imports, parameters, workflow)
+2. Follow the `howTo` instructions for each action (weapon imports, parameters, workflow)
 3. Skill books may contain domain-specific rules and gotchas
 
 Skill books live in `libs/skill_book/<name>/`. Each has a `skillBook` definition with a `toc` (table of contents) describing available actions.
@@ -98,7 +119,7 @@ When your work is complete:
    ```bash
    claude -p "Review these screenshots and confirm the task is complete: <description>"
    ```
-3. **Upload artifacts** to Supabase Storage:
+3. **Upload artifacts** to Supabase Storage (default bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`):
    ```javascript
    import { writeFile, readPublicUrl } from '@/libs/weapon/supabase_storage';
    await writeFile({ bucket: 'GuildOS_Bucket', path: 'cursor_cloud/<questId>/screenshot.png', file: buffer });
@@ -134,12 +155,6 @@ Key tables: `quests`, `adventurers`, `profiles`, `potions`, `pigeon_letters`
 
 ---
 
-## Action Naming Convention
-
-Use these six verbs only: `read`, `write`, `delete`, `search`, `transform`, `normalize`. Do not use synonyms (get, fetch, list, find, create, update).
-
----
-
 ## Handling Feedback
 
 When you receive feedback on a quest (via comment ping or direct message): **act on it immediately.** Do not ask for confirmation or permission to implement the feedback. The feedback IS the instruction. Just do it, verify the result, and report back.
@@ -158,29 +173,22 @@ If you cannot complete a task (missing credentials, need local machine access, b
 
 ---
 
-## How to Communicate with Adventurers
+## Cursor Agent Environment
 
-When dispatching tasks to adventurers (Cursor cloud agents), use **natural language**, not scripts. Describe WHAT to do and the success criteria — the agent decides HOW.
+When running as a Cursor cloud agent:
+- **OS:** Linux with X11 desktop (DISPLAY=:1, 1920x1200)
+- **System Chrome** at `/usr/local/bin/google-chrome` — use for headed browsing
+- **Node.js** 22.x, **npm** 10.x, **Python** 3.12, **pnpm** 10, **ffmpeg**, **git**
+- **Claude CLI** available as subprocess
+- **No mouse/keyboard GUI API** — use Playwright for all UI interaction
+- **Cannot see user's screen** — only files in repo and images attached to conversation
 
-**Good:** "Navigate to the Inn upstairs page and take a screenshot showing the adventurer cards with their avatars"
-**Bad:** "Write a Playwright script that does chromium.launch({...}) then page.goto(...) then page.screenshot({...})"
+### Screenshot best practices
+- Use the **native logged-in Chrome** for authenticated pages, not Playwright (which opens fresh sessions without cookies)
+- Use **viewport capture**, not full-page (full-page can produce black images)
+- **Self-check every screenshot** — verify it shows what's expected (not blank, not sign-in page, not error)
+- Never create new Cursor agents without user permission
 
-The agent has its own tools and preferred workflows. Prescribing implementation details causes friction and failures. Just describe the goal.
-
-### Common pitfalls when working with Cursor agents
-
-1. **Don't use Playwright for authenticated pages** — Playwright opens a fresh browser without login cookies. Pages behind auth will redirect to /signin. Instead, tell the agent to use the native Chrome browser that's already logged in on the desktop (DISPLAY=:1).
-
-2. **Secret scanner redaction** — The Cursor repo has a secret scanner that corrupts strings containing package names or API keys. Don't ask agents to write scripts with Supabase client code inline. Instead, have them save files to the repo and push, then handle uploads from the manager side.
-
-3. **Always ask the agent to self-check** — After taking screenshots or producing artifacts, tell the agent to look at them and verify they show what's expected (not blank, not a sign-in page, not an error page). Then double-check yourself before presenting to the user.
-
-4. **Stop and redirect** — If the agent is going down a wrong path (e.g., fighting the secret scanner for 10 minutes), send a followup message telling it to stop and try a different approach. Don't let it spin.
-
-## Environment
-
-- **Node.js** 22.x, **npm** 10.x
-- **Next.js** 15.x with React 19, Turbopack (port 3002)
-- **Chrome** available for headed browsing (use Playwright)
-- **Claude CLI** available as subprocess for code review
-- **Git** — always push your changes when done
+### Common pitfalls
+- **Secret scanner:** Cursor repos have secret scanners that corrupt inline API keys/package names. Save files and push instead of writing scripts with credentials inline.
+- **Stuck agents:** If you're going in circles, escalate rather than retrying the same approach.
