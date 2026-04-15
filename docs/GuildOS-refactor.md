@@ -1,193 +1,167 @@
 # GuildOS Refactor Notes
 
 ## Date Started: 2026-04-14
+## Last Updated: 2026-04-15
 
 ## Why
 
 AI agents are far more capable than initially assumed. The current GuildOS architecture — skill books defining modular actions orchestrated by one-shot AI calls — is fundamentally **script-driven**. It doesn't support the **iterative, back-and-forth process** that real productivity requires.
 
-What works well today: **manager agents** (Claude Code) directing **worker agents** (Cursor cloud agents) with natural language, reviewing results, and nudging until done. This is agent-driven, not script-driven.
-
-The current quest pipeline (predefined steps → predefined goals) doesn't match the nature of our tasks, which are exploratory and iterative.
-
 **Old paradigm:** Script/skill-book-driven action execution, one-shot AI orchestration
 **New paradigm:** Manager-worker agent hierarchy, iterative natural language dispatch, review-and-nudge loops
 
-## Old Paradigm Details
+## Knowhow Layers (confirmed)
 
-**Knowhow storage:** Scattered across various docs — mix of tactical and strategic advice. No clear separation.
+1. **Global** → `docs/global-instructions.md` — universal rules for all adventurers
+2. **Strategic** → `adventurers.system_prompt` — project identity, conventions, workflow patterns
+3. **Tactical** → skill books — action-level instructions (how to do specific things)
 
-**Weapons:** Work well as-is. External service connectors with clean interfaces.
-
-**How Claude Code triggers actions today:**
-- **Cron pipeline (automated):** `/api/council/cron/trigger` → `advanceQuest()` → spawns Claude CLI subprocess via `libs/weapon/claudecli/` (`claude --print`). One-shot, non-iterative.
-- **Interactive (ad-hoc):** Claude Code directly imports weapons/skill books as JS modules and calls functions natively. Flexible but unstructured.
-- **Skill books:** Registered action functions called directly in JS — not via API routes or scripts.
-
-**Key limitation:** The cron pipeline is one-shot per stage advance. No back-and-forth. No review-and-nudge loop.
-
-## Open Question: Can Cursor agents call GuildOS weapons natively?
-
-Test dispatched (2026-04-14) to agent bc-1a4bfbeb: pull 5 sales orders from Zoho Books by importing `libs/weapon/zoho`.
-
-Three possible outcomes:
-1. **Does it by default** — agent naturally imports and calls GuildOS JS modules without being told how
-2. **Can do it after instruction** — agent can run inline JS/Node scripts but needs to be told about the weapon pattern
-3. **Cannot do it** — some environment limitation prevents it (unlikely since it has shell + Node.js)
-
-Outcome (1) would mean the agent already understands the codebase conventions. (2) means we need to include weapon usage patterns in task prompts. (3) would require API-based wrappers.
-
-**Result: Situation (2) confirmed.** Agent succeeded after instruction. Used `npx tsx` with tsconfig path aliases. Also found and fixed a bug (`getZohoBooksAppCredentials` used `database.init("server")` which calls `cookies()` — breaks outside Next.js). PR #7.
-
-## Decisions
-- If situation (2): skill books must include clear descriptions of how to import and call weapon functions natively (import path, function signature, required params, auth handling). Skill books become agent-readable documentation, not just action registries.
-
-## Knowhow Layers
-
-The refactor is about structuring **knowhow** (instructions for agents) and mapping core concepts to workflows.
-
-### Layer 1: Global knowhow (world building)
-Single document introducing:
-- What entities exist in GuildOS (quests, adventurers, weapons, skill books, etc.)
-- That agents can use weapon actions to do things
-- How to read and follow skill book instructions
-- Import patterns and auth handling
-
-Lives in one doc. Confirmed: `.md` files are accessible via `fs.readFileSync` in server-side code on Vercel (bundled with serverless functions, Node.js runtime only — not edge).
-
-### Layer 2: Strategic knowhow (per-adventurer)
-Lives in adventurer's `system_prompt` in DB. Read once at session init. Adventurer keeps a local md copy and syncs significant changes back to DB.
-
-### Layer 3: Tactical knowhow (skill books)
-Skill book markdown docs describing how to accomplish specific objectives. Loaded at session init based on adventurer's `skill_books[]`. Agents can also discover and request additional skill books at runtime.
+Separation rule: system_prompt handles **how to work**, quest handles **what to do**.
 
 ## Workflow Mapping
 
-### Adventurers → Live Worker Agents
+### Adventurers → Live Worker Agents (confirmed, implemented)
+Each adventurer maps to a live Cursor VM session. DB has `session_id`, `worker_type`, `session_status`.
 
-**Old model:** Adventurer = background context (system prompt, personality, skill book assignment) woven into a big prompt for one-shot execution during quest advance.
+### Quest Stages (UPDATED 2026-04-15)
 
-**New model:** Adventurer = a persistent, addressable worker agent mapped to a real compute session.
+~~Old: `idea → assign → plan → execute → escalated → review → closing → completed`~~
 
-- Each adventurer has a **session ID** (e.g., Cursor agent ID `bc-xxxxxxxx`) linking it to a live VM
-- Adventurers are **always-on entities** you can talk to, not prompt fragments
-- GuildOS UI provides a **direct messaging interface** per adventurer → messages route to the underlying agent session (e.g., Cursor API followup)
-- Future: worker environments beyond Cursor — GPU runpods, other cloud VMs
-- The adventurer record in the DB holds the session ID, worker type, and status
+**New: `execute → escalated → review → closing → complete`**
 
-### Adventurer Status Model (managed by Vercel cron)
-| Status | Condition |
-|--------|-----------|
-| `inactive` | No live session linked, or session terminated |
-| `idle` | Live session, no quest assigned in execute stage |
-| `raised_hand` | Has quest assigned in execute, not yet dispatched |
-| `busy` | Active dispatch in progress (Cursor agent RUNNING) |
-| `confused` | `busy` longer than threshold (e.g., 30 min) |
-| `error` | Cursor API returned error or session unreachable |
+- **idea and plan stages removed.** Ideas live in external systems (Asana). Planning happens in user chat with the agent. Once planned, quest is created directly in `execute`.
+- **Quest creation flow:** User chats with agent → agent presents WBS plan → user iterates until satisfied → agent creates quest in `execute` stage.
 
-Inn UI shows `raised_hand` adventurers prominently (future: avatars).
+### Priority Field (NEW)
+Quests have a priority field. When nudged, agent works on highest-priority active quest first.
 
-### Two codebases, one repo
-1. **Project management layer** — deployed to Vercel. Quest pipeline, status cron, UI, Asana reporting.
-2. **Adventurer empowerment layer** — read by agents in their environments. Global instructions, skill book docs, weapon imports. GuildOS repo available in each agent's workspace.
+### Questmaster → Separate Cursor Agent (UPDATED)
 
-### Implications
-- Adventurer DB schema needs: `session_id`, `worker_type` (cursor_cloud, runpod, etc.), `session_status`
-- UI needs: per-adventurer chat view that sends/receives messages
-- Quest execution changes: instead of injecting adventurer context into a prompt, **send the task to the adventurer's live session**
-- Adventurers can be re-used across quests (they persist)
-- Status management runs on Vercel cron, polling Cursor agent status and cross-referencing quest assignments
+~~Previous: Questmaster = NPC Cat with code-defined behavior, or local Claude Code~~
 
-### Weapons → No change
-Weapons remain external service connectors with clean JS interfaces. Agents call them natively via import.
+**New: Questmaster is a dedicated Cursor cloud agent.** Has Claude CLI installed for second opinions. Responsibilities:
+1. **approveOrEscalate** — When agents seek help, first ask "do you have what you need to proceed?" before providing assistance
+2. **reviewSubmission** — Validate deliverables against quest description (screenshots by default). Use Claude CLI for complex judgment. Don't settle until 90% satisfied.
+3. **getSecondOpinion** — Launch Claude CLI for independent evaluation
 
-### Skill Books → Knowledge Registries
+### Guildmaster (Pig) → Local Claude Code (ADJUSTED)
+Still the local Claude Code session. But the Questmaster (separate Cursor agent) now handles routine approvals and reviews. Guildmaster focuses on obstacle removal that requires local machine access.
 
-**Old model:** Skill book = collection of JS action functions (`search()`, `dispatchTask()`, `triageInbox()`) that execute predefined logic. Code-heavy, script-driven.
+### Comment System (NEW detail)
+Comments are responsible for:
+1. Reporting major milestone completion
+2. Escalating problems
+3. NOT for every small update — only significant events
 
-**New model:** Skill book = a **knowledge registry** — curated prompt content describing how to accomplish tactical objectives. Literally "books" that agents read, not code they execute.
+**Comment summarization:** When a quest has >10 comments, keep latest 4 and summarize the rest into the 5th comment. Prevents comment flooding.
 
-- Contains: step-by-step guidance, weapon usage patterns, domain context, success criteria, gotchas
-- Agents read the relevant skill book, then decide how to act (using weapons, their own tools, etc.)
-- No more action dispatch — the agent IS the executor, the skill book is the reference material
-- Think of it as: weapons = tools on the shelf, skill books = the manual for when/how to use them
+## Skill Books (UPDATED 2026-04-15)
 
-### Guildmaster (Pig) → Local Claude Code Session
+### housekeeping (NEW — shared by all adventurers)
+| Action | Description |
+|--------|-------------|
+| `initAgent` | Read global instructions, read agent system_prompt, read all registered skill books |
+| `comment` | Post a comment to a quest |
+| `escalate` | Move quest to escalated stage with blocker description |
+| `presentPlan` | Present WBS-format plan (1, 1.1, 1.2, 2...) with clear deliverables and measurement criteria |
+| `createQuest` | Create a quest in execute stage after user approves the plan |
+| `seekHelp` | Contact the questmaster for approval or assistance |
+| `getActiveQuests` | List all non-complete quests. If >10 comments, trigger summarizeComments |
+| `summarizeComments` | Keep latest 4 comments, summarize rest into 5th comment |
 
-**Old model:** Pig is an NPC with code-defined behavior in `libs/npcs/guildmaster/`. Handles adventurer setup and review escalations.
+### questmaster (REWRITTEN — for Questmaster Cursor agent)
+| Action | Description |
+|--------|-------------|
+| `approveOrEscalate` | When agent seeks help: first ask if it has what it needs. If yes → proceed. If not → help or escalate |
+| `reviewSubmission` | Validate deliverables (screenshots default) against quest description. 90% bar. Claude CLI for complex judgment |
+| `getSecondOpinion` | Launch Claude CLI for independent evaluation of submission |
 
-**New model:** The Guildmaster is powered by **the local Claude Code session** (this session). Its main purpose is to **remove obstacles for adventurers**.
+## Global Instructions (UPDATED 2026-04-15)
 
-- New stage: `escalated` (between `execute` and `review`). When an adventurer is stuck, they move the quest to `escalated`.
-- GM's room shows all quests in `escalated` stage, grouped by adventurer.
-- **"Triage" button:** Evaluates all escalated tasks and classifies each:
-  - **Can handle autonomously** — simple stuff like providing credentials, running local prompts, checking configs. Claude Code resolves these without user input.
-  - **Needs user** — requires human decision, external access, or judgement calls. User chats with the adventurer directly to resolve.
-- After triage, auto-resolvable tasks get handled immediately, quest goes back to `execute`. User-needed tasks stay visible for manual intervention.
+Add to global-instructions.md:
+- **Quest creation:** During chat, after user describes task, present plan first, iterate, then create quest upon approval
+- **Quest clarification:** When instructions are ambiguous, look up agent's current quests and ask user which one or if new
+- **Seeking help:** Contact questmaster agent, identify yourself, state quest and what you need. Follow its instructions.
 
-### Quests → Mostly unchanged
+## Cron (UPDATED 2026-04-15)
 
-- Quests remain the unit of work with stage-based progression
-- Map to **Asana tasks** for reporting and archiving
-- Output goal: surface **managerial decision-enabling summaries** into Asana — not raw details, but actionable conclusions and status
-- Quest pipeline stays, but execution stage now means "send task to adventurer's live session" instead of "run skill book actions"
-- **New stage:** `escalated` between `execute` and `review`. Adventurers move quests here when stuck.
-- **Stages now:** `idea → assign → plan → execute → escalated → review → closing → completed`
-- **Closing stage change:** Questmaster summarizes the quest outcome and writes the report to the mapped Asana task. Successfully archiving to Asana = closing criteria for exiting the closing stage.
+1. **Roll call:** Poll all live Cursor agents → update adventurer status. Cross-reference with quest stages to derive: idle, busy, confused, ailing.
+2. **Nudge confused:** For agents with active quests but not busy: "If previous quest is undone, keep doing it. If done, use getActiveQuests to check which quest is alive and work on them by priority."
 
-## Architecture Decisions (Resolved)
+NPC-driven advanceQuest is kept for closing stage only (Asana archival). All other stages are agent-driven.
 
-### Session recovery
-No special recovery logic. Quest state lives in quest description, inventory, and comments. On session restart, adventurer reads all assigned quests in `execute` stage and picks up from there. Works through them one at a time until none remain.
+## Agent Initiation (NEW)
 
-### Manager pattern → Implicit, two-tier review
-No explicit manager agent. Instead, two safeguards:
-1. **Internal gate:** Global instructions require that before submitting for review, the adventurer runs Claude CLI to review screenshots. The "submit for review" action checks for a Claude-approved stamp — rejects if missing.
-2. **Questmaster review:** Quest enters `review` stage → assigned to Questmaster (another live Cursor agent session). Questmaster checks screenshots against quest requirements. Pass → advance. Fail → comments with feedback, kicks quest back to `execute` stage for the adventurer.
+Separate from agent creation. Initiation:
+1. Tell the agent which adventurer it represents
+2. Fetch the adventurer profile (system_prompt, skill_books)
+3. Send global instructions + system_prompt + skill book content
+4. Agent stores context and is ready to work
 
-### Skill book discovery
-Skill book list lives in database. When no skill book matches AND the task can't be done natively, before escalating the adventurer scans all available skill books to see if any is suitable. Extra token cost is acceptable.
+Can be re-run to refresh context or repurpose an agent for a different project.
+Agent creation remains manual for now; later becomes a Guildmaster capability.
 
-### Stage advancement
-Adventurers and Questmaster are responsible for advancing stages. How-to lives in global instructions.
+## Cross-Cutting Contracts (UPDATED)
 
-### Session lifecycle
-Cursor VMs have no cost. Assume always-live. If a session dies, fire up a new one. Status check on object init is cheap and scriptable. Sessions are kept alive via:
-- User chatting to adventurers in the Inn (UI)
-- Cron-triggered spot checks ("are you still working on what you should be?")
+- **Assignment:** `quests.assignee_id` is canonical.
+- **No conversation parsing:** Agents use skill book actions (comment, escalate, submit) to communicate formally.
+- **Session bootstrap mandatory** before first dispatch (initAgent action).
+- **Dispatch token:** ~~Every dispatch generates a UUID token~~ **REMOVED for now** — adds complexity without proven need. Can add back if double-processing becomes an issue.
+- **Fallback:** ~~Claude CLI fallback when no session~~ **REMOVED** — all execution goes through live sessions. No fallback to old pipeline.
 
-### Local ↔ DB sync
-`system_prompt` travels to local only on init and on-demand pull. No reactive sync needed for now.
+---
 
-## Cross-Cutting Contracts
+## CONFLICTS TO RESOLVE
 
-- **Assignment:** `quests.assignee_id` is canonical. One active dispatch per quest. Adventurer may have N assigned quests but only 1 running dispatch at a time.
-- **Dispatch token:** Every dispatch generates a UUID token stored on quest. Only matching token may submit results.
-- **Atomic transitions:** `UPDATE quests SET stage = $new WHERE id = $id AND stage = $current AND dispatch_token = $token`
-- **No conversation parsing:** Agents call `submit_results` API explicitly. Cron only monitors and nudges.
-- **Fallback:** No session or error/inactive → Claude CLI fallback. Comments record execution path.
-- **Session bootstrap mandatory** before first live dispatch.
+### 1. Questmaster: Who is it?
+**Previous:** Questmaster = NPC Cat (code-defined) OR local Claude Code session
+**New:** Questmaster = dedicated Cursor cloud agent with Claude CLI
 
-## docs/ Consolidation (required for acceptance)
+**Conflict:** The old NPC code (`libs/npcs/questmaster/`) still exists and is called by the cron. The GM desk triage we built yesterday uses local API pattern-matching, not a Cursor agent.
 
-Currently 22 md files in docs/. Target: 1 file (`global-instructions.md`), plus `GuildOS-refactor.md` during refactor only.
+**Decision needed:** Do we:
+- (a) Replace Cat NPC entirely with the Cursor agent Questmaster?
+- (b) Keep Cat NPC for the automated pipeline stages (idea/plan) and have Cursor agent for review?
+- (c) Since idea/plan stages are being removed, Cat NPC becomes obsolete?
 
-**Absorb into global instructions:**
-- `project-architecture-documentation.md` (entity model, pipeline)
-- `adventurer-creed.md`, `adventurer-claude-non-development-guideline.md`
-- `browser-automation-guideline.md`, `skill-book-guideline.md`, `weapon-crafting-guideline.md`
-- `pigeon-letter-drafting-guide.md`
-- `cursor-cloud-agent-capabilities.md`
+### 2. Stages: What about idea/plan/assign?
+**Previous refactor:** Kept all stages, added escalated
+**New spec:** Remove idea, plan, assign entirely. Stages = execute, escalated, review, closing, complete.
 
-**Absorb into skill book docs (stored in skill_book/ dirs or DB):**
-- `weapon-usage-*.md` (8 files) → into their respective skill books
-- `gmail-processing-preferences.md` → into gmail skill book
+**Conflict:** We already implemented `escalated` between execute and review. The VALID_STAGES array still has idea/plan/assign. NPC code routes quests through these stages.
 
-**Archive or delete:**
-- `dependency-loop-rollout-plan.md`, `manual context.md`, `quest-trace-bigquery.md`
-- `feature-test.md`, `feature-test-results.md`
-- `GuildOS-refactor.md` (remove after refactor complete)
+**Decision needed:** Do we:
+- (a) Remove idea/plan/assign from VALID_STAGES immediately? This breaks existing quests in those stages.
+- (b) Keep them in code but mark as legacy/deprecated? New quests skip them.
+- (c) Remove them and migrate any existing quests in those stages to execute or complete?
 
-## Plan
+### 3. Guildmaster vs Questmaster roles
+**Previous:** Guildmaster (local Claude Code) does triage on escalated quests
+**New:** Questmaster (Cursor agent) handles approvals and reviews. Guildmaster removes obstacles.
 
-See `.claude/plans/rustling-pondering-snowglobe.md` for the full 8-phase implementation plan (Phases 0-7).
+**Conflict:** The GM desk triage button we built calls a local API that pattern-matches escalation comments. In the new model, the Questmaster agent should be doing this, not a local API.
+
+**Decision needed:** Does the GM desk triage button:
+- (a) Send the escalated quests to the Questmaster Cursor agent for triage?
+- (b) Stay as local pattern-matching (the Guildmaster is local Claude Code after all)?
+- (c) Both — pattern match first, send to Questmaster for anything it can't auto-resolve?
+
+### 4. Dispatch token / atomic transitions
+**Previous:** Dispatch tokens + atomic stage transitions for concurrency control
+**New spec:** Not mentioned. Simpler model — agents manage their own quests.
+
+**Decision needed:** Remove the dispatch_token column and the atomic transition guards? Or keep as insurance?
+
+### 5. Internal self-review gate
+**Previous:** Adventurer must run Claude CLI to self-review before submitting. Submit rejects without stamp.
+**New spec:** Adventurer self-reviews until satisfied, then submits to Questmaster. No explicit Claude CLI gate — the Questmaster uses Claude CLI for second opinions.
+
+**Decision needed:** Drop the self-review gate requirement? Or keep it as a best practice in global instructions without enforcing it in code?
+
+### 6. Comment ping to adventurers
+**Previous (implemented):** When user/guildmaster posts feedback, ping the adventurer's session.
+**New spec:** The seekHelp/escalate flow goes through the Questmaster agent, not direct pings.
+
+**Conflict:** These aren't mutually exclusive. Direct feedback pings still make sense for user→adventurer communication. SeekHelp is adventurer→questmaster. Both can coexist.
+
+**Decision:** No conflict — keep both. Feedback ping = user to adventurer. SeekHelp = adventurer to questmaster.
