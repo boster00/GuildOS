@@ -100,7 +100,7 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
       <div className="flex items-start gap-4">
         {/* Avatar + status */}
         <div className="relative shrink-0">
-          <img src={avatarSrc} alt={name} className="h-24 w-24 rounded-xl object-contain" />
+          <img src={avatarSrc} alt={name} className="h-48 w-48 rounded-xl object-contain" />
           <span className={`badge badge-sm absolute -bottom-1 left-1/2 -translate-x-1/2 ${badge.className}`}>
             {badge.label}
           </span>
