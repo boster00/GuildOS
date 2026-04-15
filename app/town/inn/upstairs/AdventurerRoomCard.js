@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 
 const STATUS_BADGE = {
@@ -39,7 +39,9 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState(null);
+  const [pendingMessages, setPendingMessages] = useState([]);
   const [chatBusy, setChatBusy] = useState(false);
+  const pollRef = useRef(null);
 
   const name = typeof a.name === "string" ? a.name : "—";
   const status = a.session_status || "inactive";
@@ -63,14 +65,31 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
     } catch { toast.error("Request failed"); }
   };
 
-  const loadConversation = async () => {
-    if (!hasSession) return;
+  const loadConversation = useCallback(async () => {
+    if (!hasSession) return [];
     try {
       const res = await fetch(`/api/adventurer?action=conversation&adventurerId=${a.id}`);
       const json = await res.json();
-      if (json.ok) setChatMessages(json.data?.messages || []);
-    } catch { /* ignore */ }
-  };
+      const msgs = json.ok ? (json.data?.messages || []) : [];
+      setChatMessages(msgs);
+      return msgs;
+    } catch { return []; }
+  }, [a.id, hasSession]);
+
+  // Poll while there are pending messages
+  useEffect(() => {
+    if (!chatOpen || pendingMessages.length === 0) {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      return;
+    }
+    pollRef.current = setInterval(async () => {
+      const msgs = await loadConversation();
+      // Check which pending messages are now reflected in the conversation
+      const allTexts = msgs.map((m) => m.text || "");
+      setPendingMessages((prev) => prev.filter((p) => !allTexts.some((t) => t.includes(p.text.substring(0, 50)))));
+    }, 5000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [chatOpen, pendingMessages.length, loadConversation]);
 
   const openChat = async () => {
     setChatOpen(true);
@@ -80,6 +99,9 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
   const sendMessage = async () => {
     const msg = chatInput.trim();
     if (!msg || !hasSession) return;
+    const pendingId = `pending-${Date.now()}`;
+    setPendingMessages((prev) => [...prev, { id: pendingId, text: msg }]);
+    setChatInput("");
     setChatBusy(true);
     try {
       await fetch("/api/adventurer?action=message", {
@@ -87,8 +109,6 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adventurerId: a.id, message: msg }),
       });
-      setChatInput("");
-      await loadConversation();
     } catch { toast.error("Send failed"); }
     setChatBusy(false);
   };
@@ -171,19 +191,29 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
           </div>
 
           {/* Messages */}
-          <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg bg-base-200/50 p-2">
+          <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg bg-base-200/50 p-2">
             {chatMessages === null ? (
               <p className="text-xs text-base-content/40">Loading...</p>
-            ) : chatMessages.length === 0 ? (
+            ) : chatMessages.length === 0 && pendingMessages.length === 0 ? (
               <p className="text-xs text-base-content/40">No messages yet</p>
             ) : (
-              chatMessages.slice(-20).map((m) => (
-                <div key={m.id} className={`chat ${m.type === "user_message" ? "chat-end" : "chat-start"}`}>
-                  <div className={`chat-bubble chat-bubble-sm ${m.type === "user_message" ? "chat-bubble-primary" : ""}`}>
-                    {m.text?.substring(0, 500) || "..."}
+              <>
+                {chatMessages.slice(-20).map((m) => (
+                  <div key={m.id} className={`chat ${m.type === "user_message" ? "chat-end" : "chat-start"}`}>
+                    <div className={`chat-bubble chat-bubble-sm ${m.type === "user_message" ? "chat-bubble-primary" : ""}`}>
+                      {m.text?.substring(0, 500) || "..."}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {pendingMessages.map((p) => (
+                  <div key={p.id} className="chat chat-end">
+                    <div className="chat-bubble chat-bubble-sm chat-bubble-primary opacity-60">
+                      {p.text.substring(0, 500)}
+                      <span className="loading loading-dots loading-xs ml-2" />
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </div>
 
