@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import toast from "react-hot-toast";
-import { classDisplayLabel } from "@/libs/proving_grounds/ui.js";
 
 const STATUS_BADGE = {
   idle: { label: "Idle", className: "badge-ghost" },
@@ -21,53 +21,35 @@ const STATUS_POSE = {
   ailing: "attention",
 };
 
+const STAGE_LABELS = {
+  execute: { label: "Executing", className: "badge-info" },
+  escalated: { label: "Escalated", className: "badge-warning" },
+  review: { label: "In Review", className: "badge-accent" },
+  closing: { label: "Closing", className: "badge-ghost" },
+};
+
 function getAvatarSrc(avatarType, status) {
   const type = avatarType || "monkey";
   const pose = STATUS_POSE[status] || "normal";
   return `/images/guildos/sprites/${type}-${pose}.png`;
 }
 
-function formatTs(iso) {
-  if (iso == null || iso === "") return "—";
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return String(iso);
-  }
-}
-
-/**
- * @param {{
- *   adventurer: {
- *     id: string,
- *     name?: string | null,
- *     system_prompt?: string | null,
- *     backstory?: string | null,
- *     skill_books?: string[] | null,
- *     capabilities?: string | null,
- *     created_at?: string | null,
- *     updated_at?: string | null,
- *   },
- * }} props
- */
-export default function AdventurerRoomCard({ adventurer: a }) {
+export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
   const router = useRouter();
-  const prompt = typeof a.system_prompt === "string" ? a.system_prompt : "";
-  const backstory = typeof a.backstory === "string" ? a.backstory : "";
-  const caps = typeof a.capabilities === "string" ? a.capabilities : "";
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState(null);
+  const [chatBusy, setChatBusy] = useState(false);
+
   const name = typeof a.name === "string" ? a.name : "—";
-  const editHref = `/town/inn/upstairs/${a.id}`;
+  const status = a.session_status || "inactive";
+  const badge = STATUS_BADGE[status] || STATUS_BADGE.inactive;
+  const avatarSrc = getAvatarSrc(a.avatar_url, status);
+  const hasSession = !!a.session_id;
+  const cursorUrl = hasSession ? `https://cursor.com/agents/${a.session_id}` : null;
 
   const decommission = async () => {
-    const label = name.trim() || "this adventurer";
-    if (!window.confirm(`Decommission ${label}? They will be removed from your roster.`)) {
-      return;
-    }
-    if (
-      !window.confirm(`Final confirmation: permanently remove ${label}? This cannot be undone.`)
-    ) {
-      return;
-    }
+    if (!window.confirm(`Decommission ${name}? This cannot be undone.`)) return;
     try {
       const res = await fetch("/api/adventurer?action=decommission", {
         method: "POST",
@@ -75,91 +57,153 @@ export default function AdventurerRoomCard({ adventurer: a }) {
         body: JSON.stringify({ adventurerId: a.id }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error || "Could not decommission");
-        return;
-      }
-      toast.success("Adventurer decommissioned.");
+      if (!res.ok) { toast.error(json.error || "Failed"); return; }
+      toast.success("Decommissioned.");
       router.refresh();
-    } catch {
-      toast.error("Request failed");
-    }
+    } catch { toast.error("Request failed"); }
   };
 
-  const status = a.session_status || "inactive";
-  const badge = STATUS_BADGE[status] || STATUS_BADGE.inactive;
-  const avatarSrc = getAvatarSrc(a.avatar_url, status);
+  const loadConversation = async () => {
+    if (!hasSession) return;
+    try {
+      const res = await fetch(`/api/adventurer?action=conversation&adventurerId=${a.id}`);
+      const json = await res.json();
+      if (json.ok) setChatMessages(json.data?.messages || []);
+    } catch { /* ignore */ }
+  };
+
+  const openChat = async () => {
+    setChatOpen(true);
+    await loadConversation();
+  };
+
+  const sendMessage = async () => {
+    const msg = chatInput.trim();
+    if (!msg || !hasSession) return;
+    setChatBusy(true);
+    try {
+      await fetch("/api/adventurer?action=message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adventurerId: a.id, message: msg }),
+      });
+      setChatInput("");
+      await loadConversation();
+    } catch { toast.error("Send failed"); }
+    setChatBusy(false);
+  };
+
+  const stageEntries = Object.entries(questCounts || {}).filter(([, count]) => count > 0);
 
   return (
     <div className="rounded-2xl border border-base-300 bg-base-200/60 p-4">
       <div className="flex items-start gap-4">
+        {/* Avatar + status */}
         <div className="relative shrink-0">
-          <img
-            src={avatarSrc}
-            alt={name}
-            className="h-24 w-24 rounded-xl object-contain"
-          />
+          <img src={avatarSrc} alt={name} className="h-24 w-24 rounded-xl object-contain" />
           <span className={`badge badge-sm absolute -bottom-1 left-1/2 -translate-x-1/2 ${badge.className}`}>
             {badge.label}
           </span>
         </div>
+
+        {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-lg font-semibold">{name}</span>
-                <span className="badge badge-outline badge-sm">{classDisplayLabel(name)}</span>
-              </div>
-              <p className="mt-1 font-mono text-xs text-base-content/50">id: {a.id}</p>
+              <span className="text-lg font-semibold">{name}</span>
+              {hasSession && (
+                <span className="ml-2 inline-block h-2 w-2 rounded-full bg-success" title="Session linked" />
+              )}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <Link href={editHref} className="btn btn-ghost btn-sm">
+              {hasSession && (
+                <button type="button" className="btn btn-primary btn-sm" onClick={openChat}>
+                  Chat
+                </button>
+              )}
+              <Link href={`/town/inn/upstairs/${a.id}`} className="btn btn-ghost btn-sm">
                 Edit
               </Link>
-              <button type="button" className="btn btn-outline btn-sm text-error hover:border-error" onClick={decommission}>
+              <button type="button" className="btn btn-outline btn-xs text-error hover:border-error" onClick={decommission}>
                 Decommission
               </button>
             </div>
           </div>
+
+          {/* Quest stage counts */}
+          {stageEntries.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {stageEntries.map(([stage, count]) => {
+                const sl = STAGE_LABELS[stage] || { label: stage, className: "badge-ghost" };
+                return (
+                  <span key={stage} className={`badge badge-sm ${sl.className}`}>
+                    {count} {sl.label}
+                  </span>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-base-content/40">No active quests</p>
+          )}
+
+          {/* Skill books */}
+          {(a.skill_books || []).length > 0 && (
+            <p className="mt-2 text-xs text-base-content/50">
+              Skills: {a.skill_books.join(", ")}
+            </p>
+          )}
         </div>
       </div>
 
-      <dl className="mt-3 space-y-2 text-sm">
-        <div>
-          <dt className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">System prompt</dt>
-          <dd className="mt-0.5 whitespace-pre-wrap text-base-content/80">
-            {prompt.trim() ? prompt : <span className="text-base-content/45">—</span>}
-          </dd>
-        </div>
-        {backstory.trim() ? (
-          <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Backstory</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-base-content/75">{backstory}</dd>
+      {/* Chat panel */}
+      {chatOpen && (
+        <div className="mt-4 rounded-xl border border-base-300 bg-base-100 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Chat with {name}</h3>
+            <div className="flex items-center gap-2">
+              {cursorUrl && (
+                <a href={cursorUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs">
+                  Open in Cursor ↗
+                </a>
+              )}
+              <button type="button" className="btn btn-ghost btn-xs" onClick={() => setChatOpen(false)}>Close</button>
+            </div>
           </div>
-        ) : null}
-        {caps.trim() ? (
-          <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Capabilities</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-base-content/75">{caps}</dd>
-          </div>
-        ) : null}
-        <div>
-          <dt className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Skill books</dt>
-          <dd className="mt-0.5 text-base-content/75">
-            {(a.skill_books || []).length > 0 ? (a.skill_books || []).join(", ") : "—"}
-          </dd>
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-content/55">
-          <span>Created {formatTs(a.created_at)}</span>
-          <span>Updated {formatTs(a.updated_at)}</span>
-        </div>
-      </dl>
 
-      <p className="mt-3">
-        <Link href={editHref} className="text-xs font-medium text-primary hover:underline">
-          Open room →
-        </Link>
-      </p>
+          {/* Messages */}
+          <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg bg-base-200/50 p-2">
+            {chatMessages === null ? (
+              <p className="text-xs text-base-content/40">Loading...</p>
+            ) : chatMessages.length === 0 ? (
+              <p className="text-xs text-base-content/40">No messages yet</p>
+            ) : (
+              chatMessages.slice(-20).map((m) => (
+                <div key={m.id} className={`chat ${m.type === "user_message" ? "chat-end" : "chat-start"}`}>
+                  <div className={`chat-bubble chat-bubble-sm ${m.type === "user_message" ? "chat-bubble-primary" : ""}`}>
+                    {m.text?.substring(0, 500) || "..."}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              className="input input-bordered input-sm flex-1"
+              placeholder="Send a message..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              disabled={chatBusy}
+            />
+            <button type="button" className="btn btn-primary btn-sm" onClick={sendMessage} disabled={chatBusy || !chatInput.trim()}>
+              {chatBusy ? <span className="loading loading-spinner loading-xs" /> : "Send"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

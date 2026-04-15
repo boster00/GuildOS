@@ -1,17 +1,37 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { listAdventurers } from "@/libs/proving_grounds/server.js";
+import { database } from "@/libs/council/database";
 import AdventurerRoomCard from "./AdventurerRoomCard.js";
+
+async function loadQuestCountsByAdventurer(userId) {
+  const db = await database.init("server");
+  const { data: quests } = await db
+    .from("quests")
+    .select("assignee_id, stage")
+    .eq("owner_id", userId)
+    .not("assignee_id", "is", null)
+    .in("stage", ["execute", "escalated", "review", "closing"]);
+
+  const counts = {};
+  for (const q of quests || []) {
+    if (!counts[q.assignee_id]) counts[q.assignee_id] = {};
+    counts[q.assignee_id][q.stage] = (counts[q.assignee_id][q.stage] || 0) + 1;
+  }
+  return counts;
+}
 
 export default async function InnUpstairsPage() {
   const user = await getCurrentUser();
   let adventurers = [];
   let loadError = null;
+  let questCounts = {};
 
   if (user) {
     const { data, error } = await listAdventurers(user.id);
     if (error) loadError = error.message || "Could not load adventurers";
     else adventurers = data || [];
+    questCounts = await loadQuestCountsByAdventurer(user.id);
   }
 
   return (
@@ -72,7 +92,7 @@ export default async function InnUpstairsPage() {
           <ul className="mt-8 space-y-4">
             {adventurers.map((a) => (
               <li key={a.id}>
-                <AdventurerRoomCard adventurer={a} />
+                <AdventurerRoomCard adventurer={a} questCounts={questCounts[a.id] || {}} />
               </li>
             ))}
           </ul>
