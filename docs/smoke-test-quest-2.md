@@ -1,303 +1,224 @@
 # GuildOS UI Smoke Test — WBS
 
-## Resolved — all 7 removals approved and executed
-Pages removed: sales-orders, zoho-activation, potion-formulars, quest-workflow, ccc-test, review-queue
+## UI Restructure (applied before testing)
+
+### Renames & Merges
+- **Inn → Tavern** — shows adventurers (what was "upstairs"). No more "main hall" concept.
+- **Upstairs → removed** — adventurer list moves to Tavern page
+- **Quest board** — adopts Kanban style (what was the Inn's quest board section)
+- **GM Chamber + Desk → Guildmaster's Room** — single page showing what the desk shows (review/escalated/closing quests). No separate desk page.
+- **Commission adventurer → Tavern button** — "Add Adventurer" button above adventurer list, shows "future feature" popup
+
+### Nav changes
+- Top nav: replace "Inn" with "Tavern", remove "Upstairs", remove "GM Desk" (now "GM Room" or just navigable from Town map)
+- Forge and Library: read-only, no nav links, only accessible as Town Square sub-pages
+- World Map: owns pigeon letters and outposts (future feature placeholders)
 
 ---
 
-## Legend
-- **TEST** — active feature, test as described
-- **REMOVE** — obsolete, pending user confirmation above
-- **UPDATE** — needs changes, test after update
-
----
-
-## 1. Navigation & Layout
+## 1. Navigation
 
 ### 1.1 Top nav bar
-**Where:** Top of every /town/* page
-**Test:** Click each link: Town map, Inn, Upstairs, Quest board, GM Desk, Proving grounds, Town square, Forge, Council hall, World map
-**Expect:** Each navigates correctly. No 404s.
-**Screenshot:** Nav bar fully visible
+**Where:** All /town/* pages
+**Test:** Click each link: Town map, Tavern, Quest board, Proving grounds, Town square, Council hall, World map
+**Expect:** All navigate correctly. No "Inn", "Upstairs", or "GM Desk" links.
+**Screenshot:** Nav bar
 
 ### 1.2 Town map (/town)
-**Where:** /town
-**Test:** Click each location card
-**Expect:** All cards navigate correctly
-**Screenshot:** Town map with all cards
+**Test:** Location cards: Tavern, Town Square, Council Hall, Guildmaster's Room, World map
+**Screenshot:** Town map
 
 ---
 
-## 2. Inn
+## 2. Tavern (/town/tavern)
 
-### 2.1 Inn main (/town/inn)
-**Where:** /town/inn
-**Test:** Verify place cards (Quest board, Upstairs, Request desk) render
-**Expect:** Cards visible with links
-**Screenshot:** Inn main page
+### 2.1 Adventurer list
+**Test:** All adventurers show with chibi avatars, status badges, quest counts, skill books
+**Expect:** Same content as old upstairs page
+**Screenshot:** Tavern with adventurers
 
-### 2.2 Quest board (/town/inn/quest-board)
-**Where:** /town/inn/quest-board
-**Test:** Verify quests list with stage badges. Click one to open detail.
-**Expect:** Quests visible, clickable, badges colored by stage
-**Screenshot:** Quest board with 2+ quests
+### 2.2 Add Adventurer button
+**Test:** Click "Add Adventurer" above the list
+**Expect:** Popup/modal saying "Coming in a future update"
+**Screenshot:** Popup visible
 
-### 2.3 Quest detail (/town/inn/quest-board/[questId])
-**Where:** Click any quest
+### 2.3 Chat — open
+**Test:** Click "Chat" on adventurer with session
+**Expect:** Chat panel opens with conversation history
 
-**2.3.1 Stage dropdown**
-**Test:** Click stage badge → dropdown opens → select a stage → dropdown closes → badge updates → checkmark
-**Expect:** Immediate update, saves to DB
-**Screenshot:** Dropdown open, then closed with new stage
-
-**2.3.2 Edit title**
-**Test:** Click title → type "Smoke Test Title" → save
-**Expect:** Title updates on page
-**Demo entry:** "Smoke Test Title"
-
-**2.3.3 Edit description**
-**Test:** Click description → type "Smoke test description" → save
-**Expect:** Description updates
-**Demo entry:** "Smoke test description"
-
-**2.3.4 Add comment**
-**Test:** Type "Smoke test comment" → Add
-**Expect:** Comment appears with source "user", action "note"
-**Demo entry:** "Smoke test comment"
-
-**2.3.5 Edit comment**
-**Test:** Click edit on comment → change text → Save
-**Expect:** Text updates, edit UI closes
-**Demo entry:** "Edited smoke test comment"
-
-**2.3.6 Delete comment**
-**Test:** Click X → confirm
-**Expect:** Comment removed
-
-**2.3.7 Summarize comments (if >5)**
-**Test:** Click "Summarize" button
-**Expect:** Message sent to assigned adventurer
-
-**2.3.8 Verify no advance buttons**
-**Test:** Confirm no "Run >> next step" buttons anywhere on the page
-**Expect:** Only stage dropdown for stage changes
-
-**Screenshot:** Quest detail with title, description, stage dropdown, comments section
-
-### 2.4 Request desk (/town/inn/request-desk)
-**UPDATE** — verify quest creates in execute stage (not idea), no Cat assignment
-**Where:** /town/inn/request-desk
-**Test:** Click "Load Demo" → "Submit Request"
-**Expect:** Quest created in execute stage
-**Demo entry:** "Smoke test quest from request desk"
-**Screenshot:** Request desk before and after submit
-
-### 2.5 Sales orders (/town/inn/sales-orders)
-**REMOVE** — Zoho demo page
-
-### 2.6 Upstairs (/town/inn/upstairs)
-**Where:** /town/inn/upstairs
-
-**2.6.1 Adventurer cards**
-**Test:** Verify all adventurers show with chibi avatars, status badges, quest counts, skill books
-**Expect:** Cards render with correct data
-**Screenshot:** Upstairs with 2+ adventurers
-
-**2.6.2 Chat — open**
-**Test:** Click "Chat" on adventurer with linked session
-**Expect:** Chat panel opens, shows conversation history
-
-**2.6.3 Chat — send message**
+### 2.4 Chat — send message
 **Test:** Type "Smoke test" → Send
-**Expect:** Message appears as pending (faded, loading dots). Polls every 5s.
+**Expect:** Pending bubble with loading dots, polls for confirmation
 **Demo entry:** "Smoke test"
 
-**2.6.4 Chat — message confirmed**
-**Test:** Wait for poll to pick up the sent message in conversation
-**Expect:** Pending indicator removed, message shows solid
-
-**2.6.5 Open in Cursor**
+### 2.5 Chat — Open in Cursor
 **Test:** Click "Open in Cursor ↗"
-**Expect:** Opens cursor.com/agents/... in new tab
+**Expect:** New tab to cursor.com/agents/...
 
-**2.6.6 Commission link**
-**Test:** Click "Commission new adventurer"
-**Expect:** Navigates to commission page
-
-**Screenshot:** Chat panel open with pending message
-
-### 2.7 Adventurer detail (/town/inn/upstairs/[adventurerId])
-**Where:** Click "Edit" on any adventurer
-
-**2.7.1 Edit name**
-**Test:** Change name → Save
-**Demo entry:** "Test Agent Renamed"
-
-**2.7.2 Edit system prompt**
-**Test:** Change text → Save
-**Demo entry:** "Updated system prompt for smoke test"
-
-**2.7.3 Edit skill books**
-**Test:** Toggle a skill book → Save
-
-**2.7.4 Decommission**
-**Test:** Click Decommission → confirm both dialogs
-**Expect:** Adventurer removed (test on a disposable adventurer only)
-
-**Screenshot:** Edit form with fields filled
+### 2.6 Adventurer detail (Edit)
+**Test:** Click Edit → change name → Save
+**Demo entry:** "Test Rename"
+**Expect:** Name updates
 
 ---
 
-## 3. Guildmaster's Chamber
+## 3. Quest Board (/town/quest-board)
 
-### 3.1 GM room hub (/town/guildmaster-room)
-**Where:** /town/guildmaster-room
-**Test:** Verify links to Desk and Commission
-**Screenshot:** GM room page
+### 3.1 Kanban view
+**Test:** Quests displayed in columns by stage (execute, escalated, review, closing, complete)
+**Expect:** Cards in correct columns with title, assignee, priority badge
+**Screenshot:** Kanban board
 
-### 3.2 GM Desk (/town/guildmaster-room/desk)
-**Where:** /town/guildmaster-room/desk
+### 3.2 Click quest
+**Test:** Click a quest card
+**Expect:** Opens quest detail page
 
-**3.2.1 Review quests**
-**Test:** Verify review-stage quests show with screenshot carousel, title link, Approve → Close, Feedback
-**Expect:** Cards render with images
-**Screenshot:** GM desk with quest + carousel
+### 3.3 Quest detail — stage dropdown
+**Test:** Click stage badge → select new stage → closes → updates
+**Screenshot:** Stage dropdown
 
-**3.2.2 Title link**
-**Test:** Click quest title
-**Expect:** Opens detail in new tab
+### 3.4 Quest detail — add comment
+**Test:** Type "Smoke test" → Add
+**Demo entry:** "Smoke test comment"
+**Expect:** Comment appears
 
-**3.2.3 Feedback**
-**Test:** Click Feedback → type "Test feedback" → Send
+### 3.5 Quest detail — edit comment
+**Test:** Edit → change text → Save → edit UI closes
+**Demo entry:** "Edited smoke test"
+
+### 3.6 Quest detail — delete comment
+**Test:** Click X → confirm → removed
+
+### 3.7 Quest detail — summarize (if >5 comments)
+**Test:** Click Summarize
+**Expect:** Message sent to assigned adventurer
+
+### 3.8 Verify no advance buttons
+**Test:** No "Run >> next step" anywhere
+**Expect:** Only stage dropdown
+
+---
+
+## 4. Guildmaster's Room (/town/guildmaster-room)
+
+### 4.1 Review quests
+**Test:** Review-stage quests with screenshot carousel, title links (new tab), Approve → Close, Feedback
+**Screenshot:** GM room with quest + carousel
+
+### 4.2 Title link
+**Test:** Click title → new tab to quest detail
+
+### 4.3 Feedback
+**Test:** Feedback → type → Send
+**Demo entry:** "Test feedback"
 **Expect:** Comment posted, adventurer pinged
-**Demo entry:** "Test feedback from smoke test"
 
-**3.2.4 Approve → Close**
-**Test:** Click on a review quest
-**Expect:** Quest moves to closing, disappears from review section
+### 4.4 Approve → Close
+**Test:** Click on review quest
+**Expect:** Moves to closing
 
-**3.2.5 Triage escalated**
-**Test:** (need escalated quests) Click "Triage All"
-**Expect:** Shows Issue, Proposed Solution, Recent Comments, badge per quest
+### 4.5 Triage escalated
+**Test:** Click "Triage All" (need escalated quests)
+**Expect:** Issue, Proposed Solution, Recent Comments, badge
 
-**3.2.6 Resolve escalation**
-**Test:** Type resolution → Resolve & Return to Execute
-**Expect:** Comment posted, quest back to execute, adventurer pinged
-**Demo entry:** "Resolved: test resolution"
+### 4.6 Resolve escalation
+**Test:** Type resolution → Resolve
+**Demo entry:** "Test resolution"
+**Expect:** Comment posted, quest to execute, adventurer pinged
 
-**3.2.7 Closing quests visible**
-**Test:** Verify closing-stage quests appear on desk
-**Expect:** Shown alongside review and escalated
-
-**Screenshot:** GM desk with triage results expanded
-
-### 3.3 Commission adventurer (/town/guildmaster-room/commission-new-adventurer)
-**Where:** /town/guildmaster-room/commission-new-adventurer
-**Test:** Fill form → Commission
-**Demo entries:** Name: "Smoke Test Agent", System prompt: "Test adventurer", Skill books: housekeeping
-**Expect:** Created with housekeeping auto-added
-**Screenshot:** Form filled, then success
-
-### 3.4 Zoho activation
-**REMOVE** — superseded by weapons
-
-### 3.5 Potion formulars
-**REMOVE** — redirect duplicate
+### 4.7 Closing quests visible
+**Test:** Closing-stage quests appear
+**Screenshot:** GM room with all sections
 
 ---
 
-## 4. Town Square
+## 5. Town Square (/town/town-square)
 
-### 4.1 Hub (/town/town-square)
-**Test:** Verify links to Forge, Library, Apothecary
-**Screenshot:** Town square page
+### 5.1 Hub
+**Test:** Links to Forge, Library, Apothecary
+**Screenshot:** Town square
 
-### 4.2 Forge (/town/town-square/forge)
-**Test:** Verify weapon list with names, descriptions, status badges
-**Screenshot:** Forge with weapon list
+### 5.2 Forge (/town/town-square/forge)
+**Test:** Read-only weapon list. No edit controls.
+**Screenshot:** Forge
 
-### 4.3 Weapon detail — Zoho (/town/town-square/forge/zoho)
-**UPDATE** — verify OAuth form still renders
-**Test:** Check form: Client ID, Client Secret, Region dropdown
-**Demo entries:** Client ID: "test-id", Client Secret: "test-secret", Region: "com"
-**Screenshot:** Zoho weapon form
+### 5.3 Library (/town/town-square/library)
+**Test:** Read-only skill book list. All books visible.
+**Screenshot:** Library
 
-### 4.4 Library (/town/town-square/library)
-**Test:** Verify all skill books listed (housekeeping, questmaster_registry, gmail, zoho, cjgeo, nexus, bosterbio, etc.)
-**Screenshot:** Library page
-
-### 4.5 Apothecary (/town/town-square/apothecary)
-**Test:** Verify OAuth token table renders
-**Screenshot:** Apothecary page
+### 5.4 Apothecary (/town/town-square/apothecary)
+**Test:** Token table renders
+**Screenshot:** Apothecary
 
 ---
 
-## 5. Council Hall
+## 6. Council Hall (/town/council-hall)
 
-### 5.1 Hub (/town/council-hall)
+### 6.1 Hub
 **Test:** Links to Formulary and Dungeon master
-**Screenshot:** Council hall page
+**Screenshot:** Council hall
 
-### 5.2 Formulary (/town/council-hall/formulary)
-**5.2.1 Add:** Name: "SMOKE_TEST_KEY", Value: "test-value" → Commit
-**5.2.2 Edit:** Click edit → change value → Save
-**5.2.3 Delete:** Click delete → confirm
-**Expect:** CRUD works, values masked after save
+### 6.2 Formulary
+**Test:** Add key → edit → delete
+**Demo entries:** Name: "SMOKE_TEST_KEY", Value: "test-value"
 **Screenshot:** Formulary with test key
 
-### 5.3 Dungeon master (/town/council-hall/dungeon-master)
-**Test:** Verify LLM settings form renders
-**Screenshot:** Dungeon master page
+### 6.3 Dungeon master
+**Test:** Settings form renders
+**Screenshot:** Dungeon master
 
 ---
 
-## 6. Proving Grounds
+## 7. Proving Grounds (/town/proving-grounds)
 
-### 6.1 Hub (/town/proving-grounds)
-**Test:** Links to test suites render
-**Screenshot:** Proving grounds page
+### 7.1 Hub
+**Test:** Links to test suites
+**Screenshot:** Proving grounds
 
-### 6.2 Quest workflow
-**REMOVE** — old pipeline testing
-
-### 6.3 Browserclaw (/town/proving-grounds/browserclaw)
+### 7.2 Browserclaw
 **Test:** Interface loads
-**Screenshot:** Browserclaw test page
+**Screenshot:** Browserclaw
 
-### 6.4 BigQuery (/town/proving-grounds/weapons/bigquery)
-**Test:** Click "Test credentials"
-**Screenshot:** BigQuery test with result
+### 7.3 BigQuery
+**Test:** Test credentials button
+**Screenshot:** BigQuery test
 
-### 6.5 CCC Test
-**REMOVE** — Make 24 demo
-
-### 6.6 Asana review (/town/proving-grounds/asana)
+### 7.4 Asana review
 **Test:** Task list loads
-**Screenshot:** Asana review page
+**Screenshot:** Asana
 
 ---
 
-## 7. Other
+## 8. World Map (/town/world-map)
 
-### 7.1 World map (/town/world-map)
-**Test:** Placeholder zones display
+### 8.1 Placeholder zones
+**Test:** Shows zones including Pigeon Post and Outposts as "Coming in future updates"
 **Screenshot:** World map
 
-### 7.2 Review queue (/town/review-queue)
-**UPDATE** — may duplicate GM desk. Check if needed.
-**Test:** Renders without error
-**Screenshot:** Review queue page
+---
 
-### 7.3 Sign-in (/signin)
+## 9. Other
+
+### 9.1 Sign-in (/signin)
 **Test:** Sign-in form renders
 **Screenshot:** Sign-in page
+
+### 9.2 Request desk (/town/tavern/request-desk or removed)
+**UPDATE** — evaluate if still needed after tavern restructure
 
 ---
 
 ## Totals
 
-| | Count |
-|---|---|
-| Tests | 37 |
-| Updates needed | 3 |
-| Removals pending | 5 |
+| Section | Tests |
+|---------|-------|
+| Navigation | 2 |
+| Tavern | 6 |
+| Quest Board | 8 |
+| GM Room | 7 |
+| Town Square | 4 |
+| Council Hall | 3 |
+| Proving Grounds | 4 |
+| World Map | 1 |
+| Other | 2 |
+| **Total** | **37** |
