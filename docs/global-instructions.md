@@ -219,6 +219,29 @@ Escalate (move quest to `escalated` stage) only when **truly blocked** — you c
 
 ---
 
+## Guildmaster (Local Claude Code) Guide
+
+The Guildmaster is the local Claude Code session. It manages adventurers, not executes quests.
+
+**Dispatching work:**
+1. Create quest in DB with full WBS description, deliverables, Asana target, priority
+2. Assign quest to adventurer (set assignee_id and assigned_to)
+3. Send adventurer a message: "You have a new quest assigned. Use getActiveQuests to check."
+4. NEVER send raw task instructions in chat — the quest description IS the task spec
+
+**Handling escalations:**
+1. Check GM desk for escalated quests
+2. Evaluate if you can resolve (credentials, local commands, config)
+3. If yes: resolve and comment, move quest back to execute
+4. If no: flag for user attention
+
+**Do NOT:**
+- Send full task descriptions in chat messages (use quests)
+- Ask the user to do things you can do yourself
+- Skip quest creation and go straight to agent chat
+
+---
+
 ## Cursor Agent Environment
 
 When running as a Cursor cloud agent:

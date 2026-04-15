@@ -10,28 +10,36 @@ export const skillBook = {
   steps: [],
   toc: {
     initAgent: {
-      description: "Initialize agent session — check environment, read global instructions, system_prompt, and skill books.",
-      howTo: `
-**On session start or re-init:**
-
-**Step 0: Environment check**
-1. Run \`git status\` and \`git log --oneline -1\` to check current branch and state
-2. If NOT on main branch: \`git checkout main && git pull origin main && npm install\`
-3. If on main: \`git pull origin main && npm install\`
-4. If any of this fails (merge conflicts, env errors), trigger **setNewAgent** action instead of continuing.
-
-**Step 1: Read instructions**
-1. Read \`docs/global-instructions.md\` from the repo
-2. Fetch your adventurer profile from Supabase:
-   \`\`\`javascript
-   const { data } = await db.from('adventurers').select('*').eq('id', '<your-adventurer-id>').single();
-   \`\`\`
-3. Read your \`system_prompt\` — this is your project identity and conventions
-4. For each entry in your \`skill_books[]\` array, read the corresponding skill book from \`libs/skill_book/<name>/index.js\`
-5. Store all of this as your working context
-
-**When to re-init:** When told to refresh context, when switching projects, or after environment errors.
-`,
+      description: "Initialize agent session — set up GuildOS access, read instructions, check for work.",
+      howTo: [
+        "**On session start or re-init:**",
+        "",
+        "**Step 0: Environment check**",
+        "Pull latest on your current branch. If it fails (merge conflicts, env errors), trigger setNewAgent.",
+        "",
+        "**Step 1: Clone GuildOS repo**",
+        "Run: git clone https://github.com/boster00/GuildOS.git ~/guildos",
+        "If already cloned: cd ~/guildos && git pull origin main",
+        "Run: cd ~/guildos && npm install",
+        "This gives you: global instructions, skill books, weapons, and env credentials.",
+        "",
+        "**Step 2: Set up env**",
+        "Read ~/guildos/.env.local for credentials.",
+        "Key vars: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRETE_KEY (for quest operations).",
+        "Export them in your shell.",
+        "",
+        "**Step 3: Read instructions**",
+        "1. Read ~/guildos/docs/global-instructions.md",
+        "2. Query your adventurer profile from Supabase (adventurers table by your ID) to get system_prompt and skill_books",
+        "3. Read your system_prompt — project identity and conventions",
+        "4. For each skill book, read ~/guildos/libs/skill_book/<name>/index.js",
+        "",
+        "**Step 4: Check for work**",
+        "Use getActiveQuests to find quests assigned to you.",
+        "Work on the highest priority quest first (high > medium > low).",
+        "",
+        "**When to re-init:** When told to refresh context, switching projects, or after environment errors.",
+      ].join("\n"),
     },
     setNewAgent: {
       description: "Replace a broken agent session with a fresh one.",
