@@ -202,7 +202,7 @@ function ReviewCard({ quest, comments, onUpdate }) {
             onClick={markDone}
             disabled={busy}
           >
-            {busy ? <span className="loading loading-spinner loading-sm" /> : "Mark done"}
+            {busy ? <span className="loading loading-spinner loading-sm" /> : "Approve \u2192 Close"}
           </button>
         </div>
       </div>
