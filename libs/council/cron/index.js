@@ -100,36 +100,23 @@ async function updateAdventurerStatuses(db, activeQuests) {
   }
 }
 
-const NUDGE_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
-
 async function nudgeRaisedHand(db) {
   const { data: adventurers } = await db
     .from(publicTables.adventurers)
-    .select("id, name, session_id, session_status, last_nudged_at")
+    .select("id, name, session_id, session_status")
     .eq("session_status", "raised_hand")
     .not("session_id", "is", null);
 
   if (!adventurers?.length) return;
 
-  const now = Date.now();
-
   for (const adv of adventurers) {
-    if (adv.last_nudged_at && now - new Date(adv.last_nudged_at).getTime() < NUDGE_COOLDOWN_MS) {
-      continue;
-    }
-
     try {
+      await readAgent({ agentId: adv.session_id }); // reuse imported readAgent to verify session is alive
       const { writeFollowup } = await import("@/libs/weapon/cursor/index.js");
       await writeFollowup({
         agentId: adv.session_id,
         message: "You have quests assigned to you in execute stage but you are not working. If you paused to ask for permission on something you can do — just do it. If you are genuinely blocked and need help, move the quest to escalated stage with a comment explaining the blocker.",
       });
-
-      await db
-        .from(publicTables.adventurers)
-        .update({ last_nudged_at: new Date().toISOString() })
-        .eq("id", adv.id);
-
       console.log(`[cron] nudged raised_hand adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
       console.error(`[cron] nudge failed for ${adv.name}:`, err.message);
