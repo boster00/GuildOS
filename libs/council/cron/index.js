@@ -1,6 +1,6 @@
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
-import { readAgent, writeFollowup } from "@/libs/weapon/cursor/index.js";
+import { readAgent, writeFollowup, readConversation } from "@/libs/weapon/cursor/index.js";
 
 export async function runCron() {
   const db = await database.init("service");
@@ -85,6 +85,8 @@ async function deriveAdventurerStatuses(db) {
 // Nudge confused adventurers
 // ---------------------------------------------------------------------------
 
+const NUDGE_PREFIX = "[NUDGE]";
+
 async function nudgeConfused(db) {
   const { data: adventurers } = await db
     .from(publicTables.adventurers)
@@ -94,11 +96,37 @@ async function nudgeConfused(db) {
 
   if (!adventurers?.length) return;
 
+  // Get quests assigned to each adventurer
+  const { data: activeQuests } = await db
+    .from(publicTables.quests)
+    .select("id, title, assignee_id, stage, priority")
+    .in("stage", ["execute", "escalated", "review", "closing"]);
+
+  const questsByAdventurer = {};
+  for (const q of activeQuests || []) {
+    if (!q.assignee_id) continue;
+    if (!questsByAdventurer[q.assignee_id]) questsByAdventurer[q.assignee_id] = [];
+    questsByAdventurer[q.assignee_id].push(q);
+  }
+
   for (const adv of adventurers) {
+    const advQuests = questsByAdventurer[adv.id];
+    if (!advQuests?.length) continue;
+
     try {
+      // Check if last message is already a nudge — skip if so
+      const conv = await readConversation({ agentId: adv.session_id });
+      const msgs = conv?.messages || [];
+      const lastUserMsg = msgs.filter((m) => m.type === "user_message").pop();
+      if (lastUserMsg?.text?.startsWith(NUDGE_PREFIX)) {
+        console.log(`[cron] skipping nudge for ${adv.name} — already in queue`);
+        continue;
+      }
+
+      const questList = advQuests.map((q) => `- [${q.priority}] "${q.title}" (${q.stage})`).join("\n");
       await writeFollowup({
         agentId: adv.session_id,
-        message: "You have active quests but you are not working. If the previous quest is undone, keep doing it. If done, use getActiveQuests (from housekeeping skill book) to check which quests are alive and work on them by priority (high > medium > low). If you are blocked, move the quest to escalated stage with a comment explaining the blocker.",
+        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. If blocked, escalate with a comment.`,
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {

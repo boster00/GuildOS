@@ -71,6 +71,21 @@ export async function POST(request) {
     return Response.json({ ok: true, data });
   }
 
+  if (action === "message_assigned") {
+    const { questId, message } = body || {};
+    if (!questId || !message) {
+      return Response.json({ error: "questId and message are required" }, { status: 400 });
+    }
+    const { getQuest } = await import("@/libs/quest/index.js");
+    const { data: quest } = await getQuest(questId);
+    if (!quest || quest.owner_id !== user.id) return Response.json({ error: "Quest not found" }, { status: 404 });
+    if (!quest.assignee_id) return Response.json({ error: "Quest has no assigned adventurer" }, { status: 400 });
+    const { data: adv } = await selectAdventurerForOwner(quest.assignee_id, user.id, { client: db });
+    if (!adv?.session_id) return Response.json({ error: "Adventurer has no live session" }, { status: 400 });
+    const result = await writeFollowup({ agentId: adv.session_id, message });
+    return Response.json({ ok: true, data: result });
+  }
+
   if (action === "message") {
     const { adventurerId, message } = body || {};
     if (!adventurerId || !message) {

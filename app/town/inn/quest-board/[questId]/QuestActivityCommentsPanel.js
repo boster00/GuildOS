@@ -45,44 +45,22 @@ export default function QuestActivityCommentsPanel({ questId, initialComments })
     setError(null);
     setPending("summarize");
     try {
-      // Keep latest 4, summarize the rest into one
-      const sorted = [...comments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      const toSummarize = sorted.slice(0, -4);
-      const summaryText = toSummarize.map((c) => `[${c.source}/${c.action}] ${c.summary}`).join("\n");
-
-      // Delete old comments
-      for (const c of toSummarize) {
-        await fetch("/api/quest/comments", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questId, commentId: c.id }),
-        });
-      }
-
-      // Insert summary comment
-      await fetch("/api/quest/comments", {
+      const res = await fetch("/api/adventurer?action=message_assigned", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           questId,
-          source: "system",
-          action: "summary",
-          summary: `Summary of prior activity:\n${summaryText}`,
+          message: `Summarize the comments on this quest. Follow the summarizeComments action from your housekeeping skill book: keep the latest 4 comments, summarize everything before them into one comment, delete the old ones. Quest ID: ${questId}`,
         }),
       });
-
-      router.refresh();
-      // Reload comments
-      const res = await fetch(`/api/quest?action=get&id=${questId}`);
-      const quest = await res.json();
-      if (quest?.comments) setComments(quest.comments);
-      else router.refresh();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Summarize failed");
     } finally {
       setPending(null);
     }
-  }, [questId, comments, router]);
+  }, [questId, comments]);
 
   const clearAll = useCallback(async () => {
     if (comments.length === 0) return;
