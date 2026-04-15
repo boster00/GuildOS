@@ -2,6 +2,41 @@
  * Housekeeping skill book — shared by ALL adventurers.
  * Core operational actions for quest management, communication, and self-management.
  */
+import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
+import { publicTables } from "@/libs/council/publicTables";
+
+const ACTIVE_STAGES = ["execute", "escalated", "review", "closing"];
+
+/** @param {unknown} row */
+function priorityFromQuestRow(row) {
+  if (row && typeof row === "object" && !Array.isArray(row)) {
+    const r = /** @type {Record<string, unknown>} */ (row);
+    const col = typeof r.priority === "string" ? r.priority.trim().toLowerCase() : "";
+    if (col === "high" || col === "medium" || col === "low") return col;
+    const sc = r.success_criteria;
+    if (sc && typeof sc === "object" && !Array.isArray(sc)) {
+      const p = String(/** @type {Record<string, unknown>} */ (sc).priority || "").trim().toLowerCase();
+      if (p === "high" || p === "medium" || p === "low") return p;
+    }
+  }
+  return "medium";
+}
+
+/** @param {string} p */
+function priorityRank(p) {
+  if (p === "high") return 0;
+  if (p === "medium") return 1;
+  return 2;
+}
+
+async function resolveDbClient(injected) {
+  if (injected) return injected;
+  const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
+  const ctx = getAdventurerExecutionContext()?.client;
+  if (ctx) return ctx;
+  const { database } = await import("@/libs/council/database");
+  return database.init("service");
+}
 
 export const skillBook = {
   id: "housekeeping",
@@ -192,9 +227,19 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
 `,
     },
     getActiveQuests: {
-      description: "Get all quests assigned to you that are not complete.",
+      description:
+        "List active quests: default owner scope (quests you own in execute/review/closing/escalated); pass assignee_id to filter by assignee. Sorted high > medium > low then updated_at. Prefer this action over raw SQL.",
+      input: {
+        limit: "number — max rows (default 50, max 200)",
+        assignee_id: "string — optional adventurer UUID for assignee-scoped queue",
+      },
+      output: {
+        quests: "JSON string — array of { id, title, stage, priority, updated_at }",
+      },
       howTo: `
-**Query:**
+**Runtime:** Call housekeeping.getActiveQuests from adventurer execution context (or pass client in input for scripts).
+
+**Manual query (assignee):**
 \`\`\`javascript
 const { data: quests } = await db.from('quests')
   .select('id, title, stage, priority, description')
@@ -207,6 +252,17 @@ const { data: quests } = await db.from('quests')
 
 **Priority order:** Work on highest-priority quests first (high > medium > low).
 `,
+    },
+    escalateBlockedQuest: {
+      description: "Set quest stage to escalated and record a system comment with the blocker text.",
+      input: {
+        questId: "string — quest UUID",
+        blocker: "string — why work cannot continue",
+      },
+      output: {
+        questId: "string",
+        stage: "escalated",
+      },
     },
     summarizeComments: {
       description: "Compress old comments to prevent flooding. Keep latest 4, summarize the rest.",
@@ -228,3 +284,117 @@ const { data: quests } = await db.from('quests')
     },
   },
 };
+
+/**
+ * @param {string} userId
+ * @param {Record<string, unknown>} input
+ */
+export async function getActiveQuests(userId, input) {
+  const uid = String(userId || "").trim();
+  if (!uid) return skillActionErr("getActiveQuests requires execution user id.");
+
+  const inObj = typeof input === "object" && input ? input : {};
+  const limit = Math.min(Math.max(Number(inObj.limit) || 50, 1), 200);
+  const assigneeFilter = String(inObj.assignee_id || inObj.assigneeId || "").trim();
+
+  const db = await resolveDbClient(
+    /** @type {import("@/libs/council/database/types.js").DatabaseClient | undefined} */ (inObj.client),
+  );
+
+  let q = db
+    .from(publicTables.quests)
+    .select("id, title, stage, priority, success_criteria, updated_at, owner_id, assignee_id")
+    .in("stage", ACTIVE_STAGES)
+    .order("updated_at", { ascending: false })
+    .limit(500);
+
+  if (assigneeFilter) {
+    q = q.eq("assignee_id", assigneeFilter);
+  } else {
+    q = q.eq("owner_id", uid);
+  }
+
+  const { data: rows, error } = await q;
+  if (error) return skillActionErr(error.message || "Failed to list quests.");
+
+  const enriched = (rows || []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    stage: r.stage,
+    priority: priorityFromQuestRow(r),
+    updated_at: r.updated_at,
+  }));
+
+  enriched.sort((a, b) => {
+    const pr = priorityRank(a.priority) - priorityRank(b.priority);
+    if (pr !== 0) return pr;
+    const ta = a.updated_at ? Date.parse(String(a.updated_at)) : 0;
+    const tb = b.updated_at ? Date.parse(String(b.updated_at)) : 0;
+    return tb - ta;
+  });
+
+  const sliced = enriched.slice(0, limit);
+  return skillActionOk(
+    { quests: JSON.stringify(sliced) },
+    `Found ${sliced.length} active quest(s) (${assigneeFilter ? "assignee" : "owner"} scope, priority-sorted, cap ${limit}).`,
+  );
+}
+
+/**
+ * @param {string} userId
+ * @param {Record<string, unknown>} input
+ */
+export async function escalateBlockedQuest(userId, input) {
+  const uid = String(userId || "").trim();
+  const inObj = typeof input === "object" && input ? input : {};
+  const questId = String(inObj.questId || inObj.quest_id || "").trim();
+  const blocker = String(inObj.blocker || inObj.reason || "").trim();
+
+  if (!questId) return skillActionErr("questId is required.");
+  if (!blocker) return skillActionErr("blocker (or reason) is required.");
+
+  const db = await resolveDbClient(
+    /** @type {import("@/libs/council/database/types.js").DatabaseClient | undefined} */ (inObj.client),
+  );
+
+  const { data: row, error: readErr } = await db
+    .from(publicTables.quests)
+    .select("id, owner_id, stage")
+    .eq("id", questId)
+    .maybeSingle();
+
+  if (readErr || !row) return skillActionErr(readErr?.message || "Quest not found.");
+  if (uid && String(row.owner_id) !== uid) {
+    return skillActionErr("escalateBlockedQuest: quest owner mismatch.");
+  }
+
+  const { updateQuest, recordQuestComment } = await import("@/libs/quest");
+  const up = await updateQuest(questId, { stage: "escalated" }, { client: db });
+  if (up.error) {
+    return skillActionErr(up.error instanceof Error ? up.error.message : String(up.error));
+  }
+
+  await recordQuestComment(
+    questId,
+    {
+      source: "system",
+      action: "escalateBlockedQuest",
+      summary: blocker.slice(0, 2000),
+      detail: { escalated: true },
+    },
+    { client: db },
+  );
+
+  return skillActionOk({ questId, stage: "escalated" }, "Quest moved to escalated with blocker comment.");
+}
+
+export const definition = skillBook;
+
+const housekeeping = {
+  definition,
+  skillBook,
+  getActiveQuests,
+  escalateBlockedQuest,
+};
+
+export default housekeeping;

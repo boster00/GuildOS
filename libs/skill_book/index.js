@@ -34,7 +34,11 @@ import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEve
 import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
 import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
 import { skillBook as gmailSkillBook, searchInbox as gmailSearchInbox, readMessage as gmailReadMessage, triageInbox as gmailTriageInbox, writeStars as gmailWriteStars } from "./gmail/index.js";
-import { skillBook as housekeepingSkillBook } from "./housekeeping/index.js";
+import {
+  definition as housekeepingDef,
+  getActiveQuests as housekeepingGetActiveQuests,
+  escalateBlockedQuest as housekeepingEscalateBlockedQuest,
+} from "./housekeeping/index.js";
 import { questmasterRegistry } from "./questmaster/registry.js";
 import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
 import { skillBook as nexusSkillBook } from "./nexus/index.js";
@@ -311,7 +315,7 @@ export const SKILL_BOOKS = {
   cjgeo: cjgeoSkillBook,
   nexus: nexusSkillBook,
   bosterbio: bosterbioSkillBook,
-  housekeeping: housekeepingSkillBook,
+  housekeeping: housekeepingDef,
   questmaster_registry: questmasterRegistry,
 };
 
@@ -447,6 +451,13 @@ const blacksmithAdventurerActions = {
   updateProvingGrounds: (_userId, input) => updateProvingGrounds(_userId, /** @type {Record<string, unknown>} */ (input || {})),
 };
 
+const housekeepingAdventurerActions = {
+  getActiveQuests: (_userId, input) =>
+    housekeepingGetActiveQuests(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  escalateBlockedQuest: (_userId, input) =>
+    housekeepingEscalateBlockedQuest(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+};
+
 const ADVENTURER_REGISTRY = {
   default: { definition: defaultDef, adventurerActions: {
     escalate: (userId, input) => defaultEscalate(userId, /** @type {Record<string, unknown>} */ (input || {})),
@@ -476,6 +487,7 @@ const ADVENTURER_REGISTRY = {
     triageInbox: (_userId, input) => gmailTriageInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     writeStars: (_userId, input) => gmailWriteStars(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
+  housekeeping: { definition: housekeepingDef, adventurerActions: housekeepingAdventurerActions },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {
       const { execSync } = await import("child_process");
