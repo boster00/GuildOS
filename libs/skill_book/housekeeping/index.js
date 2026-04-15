@@ -10,10 +10,18 @@ export const skillBook = {
   steps: [],
   toc: {
     initAgent: {
-      description: "Initialize agent session — read global instructions, system_prompt, and skill books.",
+      description: "Initialize agent session — check environment, read global instructions, system_prompt, and skill books.",
       howTo: `
 **On session start or re-init:**
-1. Read \`docs/global-instructions.md\` from the GuildOS repo
+
+**Step 0: Environment check**
+1. Run \`git status\` and \`git log --oneline -1\` to check current branch and state
+2. If NOT on main branch: \`git checkout main && git pull origin main && npm install\`
+3. If on main: \`git pull origin main && npm install\`
+4. If any of this fails (merge conflicts, env errors), trigger **setNewAgent** action instead of continuing.
+
+**Step 1: Read instructions**
+1. Read \`docs/global-instructions.md\` from the repo
 2. Fetch your adventurer profile from Supabase:
    \`\`\`javascript
    const { data } = await db.from('adventurers').select('*').eq('id', '<your-adventurer-id>').single();
@@ -22,7 +30,27 @@ export const skillBook = {
 4. For each entry in your \`skill_books[]\` array, read the corresponding skill book from \`libs/skill_book/<name>/index.js\`
 5. Store all of this as your working context
 
-**When to re-init:** When told to refresh context, or when switching to a different project.
+**When to re-init:** When told to refresh context, when switching projects, or after environment errors.
+`,
+    },
+    setNewAgent: {
+      description: "Replace a broken agent session with a fresh one.",
+      howTo: `
+**When:** initAgent fails due to stale repo, broken environment, or unrecoverable errors.
+
+**Steps:**
+1. Tell the user: "My environment is broken and cannot be repaired. Please create a new Cursor cloud agent at cursor.com for repo [repo name], branch main. Then give me the new agent ID."
+2. Once the user provides the new agent ID, update the adventurer record:
+   \`\`\`javascript
+   await db.from('adventurers').update({
+     session_id: '<new-agent-id>',
+     session_status: 'idle'
+   }).eq('id', '<adventurer-id>');
+   \`\`\`
+3. Send initAgent to the NEW agent session (via Cursor API writeFollowup).
+4. The old session is abandoned — no cleanup needed.
+
+**The user's manual step:** Create the agent at cursor.com. Everything else is automated.
 `,
     },
     comment: {
