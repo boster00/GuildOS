@@ -59,7 +59,9 @@ export async function POST(request) {
   }
 
   // Ping the assigned adventurer's live session about new comments
-  if (quest.assignee_id) {
+  // Only ping when the comment is NOT from the adventurer itself (prevents loops)
+  const isFromAdventurer = source === "adventurer" || source === "agent" || source === "system";
+  if (quest.assignee_id && !isFromAdventurer) {
     try {
       const { data: adv } = await selectAdventurerById(quest.assignee_id, { client });
       if (adv?.session_id && adv.session_status !== "inactive") {
