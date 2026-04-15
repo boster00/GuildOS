@@ -151,7 +151,9 @@ export default function QuestActivityCommentsPanel({ questId, initialComments })
       if (row && typeof row === "object" && row.id) {
         setComments((prev) => prev.map((c) => (c.id === row.id ? row : c)));
       }
-      cancelEdit();
+      setEditingId(null);
+      setEditDraft("");
+      setError(null);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save comment");
