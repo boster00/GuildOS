@@ -2,10 +2,8 @@ import Link from "next/link";
 
 const TABS = [
   { key: "cloud-agents", label: "Cloud Agents", href: "/town/proving-grounds" },
-  { key: "quest-workflow", label: "Quest Workflow", href: "/town/proving-grounds/quest-workflow" },
   { key: "browserclaw", label: "Browserclaw", href: "/town/proving-grounds/browserclaw" },
   { key: "browserclaw-test", label: "Pigeon Test", href: "/town/proving-grounds/browserclaw-test" },
-  { key: "ccc-test", label: "CCC Test", href: "/town/proving-grounds/ccc-test" },
   { key: "bigquery", label: "BigQuery", href: "/town/proving-grounds/weapons/bigquery" },
   { key: "asana", label: "Asana Review", href: "/town/proving-grounds/asana" },
 ];

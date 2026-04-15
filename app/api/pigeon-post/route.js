@@ -4,12 +4,12 @@
  * POST deliver: session or `X-Pigeon-Key` (see handler for owner checks).
  */
 import { requireUser } from "@/libs/council/auth/server";
-import { getPendingPigeonLetters, createPigeonLetter } from "@/libs/pigeon_post";
+import { getPendingPigeonLetters, createPigeonLetter, searchReviewItems, writeReviewVerdict } from "@/libs/pigeon_post";
 import { deliverPigeonResult } from "@/libs/weapon/pigeon";
 import { getQuest } from "@/libs/quest";
 
-const GET_ACTIONS = ["pending"];
-const POST_ACTIONS = ["deliver", "create"];
+const GET_ACTIONS = ["pending", "review"];
+const POST_ACTIONS = ["deliver", "create", "review"];
 
 const LOG = "[pigeon-post]";
 
@@ -73,6 +73,11 @@ export async function GET(request) {
 
   if (action === "pending") {
     const data = await getPendingPigeonLetters(userId);
+    return Response.json(data);
+  }
+
+  if (action === "review") {
+    const data = await searchReviewItems(userId);
     return Response.json(data);
   }
 
@@ -182,6 +187,29 @@ export async function POST(request) {
     }
     console.info(`${LOG} POST deliver: success`, { questId, delivered });
     return Response.json({ ok: true, delivered });
+  }
+
+  if (action === "review") {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const { letterId, verdict, reason } = body;
+    if (!letterId) return Response.json({ error: "letterId is required" }, { status: 400 });
+    if (!["approved", "rejected"].includes(verdict)) {
+      return Response.json({ error: "verdict must be 'approved' or 'rejected'" }, { status: 400 });
+    }
+    let user;
+    try {
+      user = await requireUser();
+    } catch {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { data, error } = await writeReviewVerdict(letterId, user.id, { verdict, reason });
+    if (error) return Response.json({ error: error.message }, { status: 400 });
+    return Response.json({ ok: true, ...data });
   }
 
   if (action === "create") {

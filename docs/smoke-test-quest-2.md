@@ -1,16 +1,7 @@
 # GuildOS UI Smoke Test — WBS
 
-## Questions for User
-
-| # | Question |
-|---|----------|
-| 1 | **Remove /town/inn/sales-orders?** Zoho demo page, not part of agent-driven model. |
-| 2 | **Remove /town/guildmaster-room/zoho-activation?** Static OAuth setup guide, superseded by weapons. |
-| 3 | **Remove /town/guildmaster-room/potion-formulars?** Just redirects to formulary. |
-| 4 | **Remove /town/proving-grounds/quest-workflow?** Old pipeline testing, agent-driven now. |
-| 5 | **Remove /town/proving-grounds/ccc-test?** Make 24 demo, no ongoing use. |
-| 6 | **Review queue (/town/review-queue) — keep or consolidate into GM desk?** Seems to duplicate GM desk functionality. |
-| 7 | **Request desk (/town/inn/request-desk) — still useful?** Creates quests via form. In new model, quests are created through agent chat. Keep as a quick-create tool or remove? |
+## Resolved — all 7 removals approved and executed
+Pages removed: sales-orders, zoho-activation, potion-formulars, quest-workflow, ccc-test, review-queue
 
 ---
 
