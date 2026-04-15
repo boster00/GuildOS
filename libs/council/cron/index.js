@@ -27,7 +27,7 @@ export async function runCron() {
 // idle:     no active quest, not busy
 // busy:     has quest, Cursor agent RUNNING
 // confused: has quest but not busy, OR busy but no quest (gets nudged)
-// ailing:   Cursor API unreachable (manual recovery needed)
+// sick:   Cursor API unreachable (manual recovery needed)
 // inactive: no session linked (not queried here)
 
 async function deriveAdventurerStatuses(db) {
@@ -69,7 +69,7 @@ async function deriveAdventurerStatuses(db) {
         newStatus = "idle";
       }
     } catch {
-      newStatus = "ailing";
+      newStatus = "sick";
     }
 
     if (newStatus !== adv.session_status) {

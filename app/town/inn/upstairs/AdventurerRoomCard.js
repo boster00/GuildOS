@@ -9,7 +9,7 @@ const STATUS_BADGE = {
   idle: { label: "Idle", className: "badge-ghost" },
   busy: { label: "Working", className: "badge-info" },
   confused: { label: "Confused", className: "badge-warning" },
-  ailing: { label: "Ailing", className: "badge-error" },
+  sick: { label: "Ailing", className: "badge-error" },
   inactive: { label: "Inactive", className: "badge-ghost opacity-50" },
 };
 
@@ -18,7 +18,7 @@ const STATUS_POSE = {
   inactive: "normal",
   busy: "working",
   confused: "attention",
-  ailing: "attention",
+  sick: "attention",
 };
 
 const STAGE_LABELS = {
