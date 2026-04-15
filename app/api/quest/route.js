@@ -95,28 +95,51 @@ export async function POST(request) {
       commentsByQuest[c.quest_id].push(c);
     }
 
-    const AUTONOMOUS_PATTERNS = [
-      /missing.*(?:key|token|credential|secret|password|env)/i,
-      /(?:need|require).*(?:env|variable|config)/i,
-      /auth.*(?:expired|refresh|renew)/i,
-      /(?:run|execute).*(?:locally|on.*local|on.*machine)/i,
-      /(?:install|npm|package).*(?:missing|not found)/i,
-      /permission.*denied/i,
-    ];
-
     const results = quests.map((q) => {
       const qComments = (commentsByQuest[q.id] || []).slice(0, 5);
-      const escalationText = qComments.map((c) => c.summary).join(" ");
-      const canAutoResolve = AUTONOMOUS_PATTERNS.some((p) => p.test(escalationText));
+      const recentComments = qComments.map((c) => `[${c.source}/${c.action}] ${c.summary}`).join("\n");
+
+      // Analyze: what is the issue, what could solve it, can we auto-resolve?
+      const escalationText = qComments.map((c) => c.summary).join(" ").toLowerCase();
+
+      let issue = "Unknown blocker";
+      let proposedSolution = "Review manually";
+      let canAutoResolve = false;
+
+      if (/missing.*(?:key|token|credential|secret|password|env)|supabase.*key|env.*not.*set/i.test(escalationText)) {
+        issue = "Missing credentials or environment variables";
+        proposedSolution = "Provide the required credentials via base64-encoded message or .env.local file";
+        canAutoResolve = true;
+      } else if (/auth.*(?:expired|refresh|failed)|permission.*denied|403|401/i.test(escalationText)) {
+        issue = "Authentication or permission failure";
+        proposedSolution = "Refresh auth tokens or update permissions";
+        canAutoResolve = true;
+      } else if (/(?:install|npm|package|module).*(?:missing|not found|failed)/i.test(escalationText)) {
+        issue = "Missing dependency or build failure";
+        proposedSolution = "Install missing packages or fix build configuration";
+        canAutoResolve = true;
+      } else if (/figma|design.*file|image.*export/i.test(escalationText)) {
+        issue = "Need access to design assets (Figma/images)";
+        proposedSolution = "Provide Figma access token or export the needed assets";
+        canAutoResolve = false;
+      } else if (/decision|choose|which.*option|unclear|ambiguous/i.test(escalationText)) {
+        issue = "Needs a decision or clarification from user";
+        proposedSolution = "User provides direction";
+        canAutoResolve = false;
+      } else {
+        issue = "Agent reported a blocker — see comments below";
+        proposedSolution = "Review the comments and provide guidance";
+        canAutoResolve = false;
+      }
+
       return {
         questId: q.id,
         title: q.title,
         assignedTo: q.assigned_to,
-        classification: canAutoResolve ? "autonomous" : "needs_user",
-        reason: canAutoResolve
-          ? "Matches autonomous resolution pattern (credentials/config/local action)"
-          : "Requires user decision or manual intervention",
-        latestComment: qComments[0]?.summary || null,
+        issue,
+        proposedSolution,
+        canAutoResolve,
+        recentComments,
       };
     });
 

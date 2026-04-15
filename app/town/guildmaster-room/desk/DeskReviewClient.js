@@ -334,38 +334,48 @@ function EscalatedSection({ quests, onUpdate }) {
                 )}
               </div>
               {triage && (
-                <span className={`badge badge-sm ${triage.classification === "autonomous" ? "badge-success" : "badge-warning"}`}>
-                  {triage.classification === "autonomous" ? "Can resolve" : "Needs you"}
+                <span className={`badge badge-sm ${triage.canAutoResolve ? "badge-success" : "badge-warning"}`}>
+                  {triage.canAutoResolve ? "Can resolve" : "Needs you"}
                 </span>
               )}
             </div>
-            {q.description && (
-              <p className="mt-2 text-sm text-base-content/70 line-clamp-3">{q.description}</p>
-            )}
-            {triage && (
-              <div className="mt-3 rounded-lg border border-base-300/50 bg-base-200/30 p-3 text-sm">
-                <p className="text-base-content/60">{triage.reason}</p>
-                {triage.latestComment && (
-                  <p className="mt-1 text-base-content/80">Last comment: {triage.latestComment}</p>
-                )}
-                <div className="mt-2 space-y-2">
-                  <textarea
-                    className="textarea textarea-bordered textarea-sm w-full"
-                    placeholder="Resolution: what was done or what the agent needs to know..."
-                    value={resolutionTexts[q.id] || ""}
-                    onChange={(e) => setResolutionTexts((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    rows={2}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-success btn-sm"
-                    onClick={() => resolveEscalation(q.id, resolutionTexts[q.id]?.trim() || "Resolved by Guildmaster")}
-                    disabled={busy || !resolutionTexts[q.id]?.trim()}
-                  >
-                    Resolve & Return to Execute
-                  </button>
+
+            {triage ? (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-lg border border-base-300/50 bg-base-200/30 p-3 text-sm space-y-2">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Issue</span>
+                    <p className="text-base-content/80">{triage.issue}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Proposed Solution</span>
+                    <p className="text-base-content/80">{triage.proposedSolution}</p>
+                  </div>
+                  {triage.recentComments && (
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Recent Comments</span>
+                      <pre className="mt-1 whitespace-pre-wrap text-xs text-base-content/60">{triage.recentComments}</pre>
+                    </div>
+                  )}
                 </div>
+                <textarea
+                  className="textarea textarea-bordered textarea-sm w-full"
+                  placeholder="Your feedback / resolution for the agent..."
+                  value={resolutionTexts[q.id] || ""}
+                  onChange={(e) => setResolutionTexts((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                  rows={3}
+                />
+                <button
+                  type="button"
+                  className="btn btn-success btn-sm"
+                  onClick={() => resolveEscalation(q.id, resolutionTexts[q.id]?.trim())}
+                  disabled={busy || !resolutionTexts[q.id]?.trim()}
+                >
+                  Resolve & Return to Execute
+                </button>
               </div>
+            ) : (
+              <p className="mt-2 text-sm text-base-content/70 line-clamp-3">{q.description}</p>
             )}
           </div>
         );

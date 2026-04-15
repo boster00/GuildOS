@@ -40,6 +40,50 @@ export default function QuestActivityCommentsPanel({ questId, initialComments })
     [questId],
   );
 
+  const summarizeComments = useCallback(async () => {
+    if (comments.length <= 5) return;
+    setError(null);
+    setPending("summarize");
+    try {
+      // Keep latest 4, summarize the rest into one
+      const sorted = [...comments].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const toSummarize = sorted.slice(0, -4);
+      const summaryText = toSummarize.map((c) => `[${c.source}/${c.action}] ${c.summary}`).join("\n");
+
+      // Delete old comments
+      for (const c of toSummarize) {
+        await fetch("/api/quest/comments", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questId, commentId: c.id }),
+        });
+      }
+
+      // Insert summary comment
+      await fetch("/api/quest/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questId,
+          source: "system",
+          action: "summary",
+          summary: `Summary of prior activity:\n${summaryText}`,
+        }),
+      });
+
+      router.refresh();
+      // Reload comments
+      const res = await fetch(`/api/quest?action=get&id=${questId}`);
+      const quest = await res.json();
+      if (quest?.comments) setComments(quest.comments);
+      else router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Summarize failed");
+    } finally {
+      setPending(null);
+    }
+  }, [questId, comments, router]);
+
   const clearAll = useCallback(async () => {
     if (comments.length === 0) return;
     if (
@@ -147,20 +191,36 @@ export default function QuestActivityCommentsPanel({ questId, initialComments })
         <h2 className="text-xs font-semibold uppercase tracking-wide text-base-content/55">
           Comments ({count})
         </h2>
-        {count > 0 ? (
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs text-error hover:bg-error/10"
-            onClick={clearAll}
-            disabled={interactionsLocked}
-          >
-            {pending === "clear" ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              "Clear all"
-            )}
-          </button>
-        ) : null}
+        <div className="flex gap-2">
+          {count > 5 ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs text-info hover:bg-info/10"
+              onClick={summarizeComments}
+              disabled={interactionsLocked}
+            >
+              {pending === "summarize" ? (
+                <span className="loading loading-spinner loading-xs" />
+              ) : (
+                "Summarize"
+              )}
+            </button>
+          ) : null}
+          {count > 0 ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs text-error hover:bg-error/10"
+              onClick={clearAll}
+              disabled={interactionsLocked}
+            >
+              {pending === "clear" ? (
+                <span className="loading loading-spinner loading-xs" />
+              ) : (
+                "Clear all"
+              )}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-3 rounded-xl border border-base-300 bg-base-200/20 p-3">
