@@ -70,3 +70,17 @@ Date: 2026-04-15
 | 23 | Agent self-fixes bugs (routing loops, null data, cache issues) | Works |
 | 24 | Agent pushes code to GitHub | Works |
 | 25 | Nudge system (cron → confused → nudge message) | Works (needs real-world verification) |
+
+### Final Outcome
+- **Quest:** "BosterBio Website — Figma Conversion & Product Catalog" (25481ccb) in review stage
+- **Agent:** bc-18c56ad0 (replaced bc-fb70e14d which was ERROR)
+- **Branch:** cursor/pending-instructions-definition-bb93, PR #7
+- **Deliverables:** 48 screenshots pushed to repo, 6 key screenshots uploaded to Supabase for GM desk
+- **Remaining gaps:** Catalog shows 4 products (not 5), Tailwind still v3, no Figma pixel comparison, products from Supabase not Medusa
+
+### Top Improvement Priorities (from this run)
+1. **initAgent must provision env vars** — agent wasted time on missing Supabase key
+2. **System_prompt must accurately describe infra** — wrong DB info (Supabase vs PostgreSQL) caused confusion
+3. **Separate init from task dispatch** — send init, confirm ready, then send task
+4. **Add createAgent to cursor weapon** — we discovered the API endpoint exists
+5. **Global: system_prompt overrides global for project-specific conventions** — prevents Tailwind v3/v4 conflicts
