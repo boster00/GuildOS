@@ -2,7 +2,9 @@
 export const TOWN_NAV_LINKS = [
   { href: "/town", label: "Town map" },
   { href: "/town/inn", label: "Inn" },
+  { href: "/town/inn/upstairs", label: "Upstairs" },
   { href: "/town/inn/quest-board", label: "Quest board" },
+  { href: "/town/guildmaster-room/desk", label: "GM Desk" },
   { href: "/town/proving-grounds", label: "Proving grounds" },
   { href: "/town/town-square", label: "Town square" },
   { href: "/town/town-square/forge", label: "Forge" },
