@@ -40,11 +40,14 @@ export async function runCron() {
 
   console.log("[cron] quest.advance pass done");
 
-  // --- Adventurer status updater (must run before nudger) ---
+  // --- Adventurer status updater (before nudge) ---
   await updateAdventurerStatuses(db, quests);
 
   // --- Nudge raised_hand adventurers ---
   await nudgeRaisedHand(db);
+
+  // --- Status updater again (after nudge — reflects agents that started working) ---
+  await updateAdventurerStatuses(db, quests);
 
   return { ok: true, questsProcessed: quests.length, results };
 }
