@@ -15,6 +15,8 @@
 ## What Worked
 - Agent creation via Cursor API, setNewAgent flow, cron nudge, autonomous coding, self-bug-fixing, honest gap reporting
 
+| 8 | **Duplicate quests created.** Multiple quests for the same web dev task exist because quest creation was done ad-hoc without checking for existing ones. Need dedup — before creating a quest, check if one with similar title/Asana task already exists. | Pending |
+
 ## What Didn't
 - Quest never created in DB (Guildmaster skipped the step)
 - Agent couldn't access skill books (wrong repo)
