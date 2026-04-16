@@ -95,8 +95,12 @@ This is a gap in the checklist: steps 12-15 (feedback loop) were skipped entirel
 - Cat approved on first pass — need to fix Cat's review behavior
 
 ### What Needs Implementation
-1. **Cat system_prompt**: must add review notes TO EACH inventory item (not just quest comments). Each inventory item gets a `review` field with pass/fail + note.
-2. **questmaster reviewSubmission skill book**: Cat updates quest inventory: for each item, add `review: { passed: true/false, note: "..." }`. These show up in the GM desk carousel next to each screenshot.
+1. **Cat system_prompt**: must add review notes TO EACH inventory item (not just quest comments). Each inventory item gets a `review` field with verifiable details.
+2. **questmaster reviewSubmission skill book**: Cat updates quest inventory: for each item, add `review: { passed: true/false, score: "8/10", note: "...", comparedTo: "..." }`. The review must be specific and verifiable:
+   - If compared to a design: which design/page, what matched, what didn't
+   - If checking functionality: what was tested, what the screenshot proves
+   - If rating quality: numeric score with reasoning (e.g., "8/10 — layout matches but footer spacing is off")
+   - NOT acceptable: "looks good", "approved", "matches design" without specifics
 3. **GM desk UI (DeskReviewClient)**: carousel must display Cat's review note under each screenshot (from inventory item's `review` field).
 4. **First submission rule**: On first purrview, always provide at least one improvement suggestion per deliverable type. Approve only on second or later pass.
 
