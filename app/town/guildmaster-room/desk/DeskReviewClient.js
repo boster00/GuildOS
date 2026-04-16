@@ -182,7 +182,7 @@ function ReviewCard({ quest, comments, onUpdate }) {
       {/* Header — full width */}
       <div className="flex items-start justify-between gap-3 border-b border-base-300/50 px-5 py-3">
         <div className="min-w-0 flex-1">
-          <a href={`/town/inn/quest-board/${quest.id}`} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold leading-snug hover:underline">{quest.title || "Untitled"}</a>
+          <a href={`/town/quest-board/${quest.id}`} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold leading-snug hover:underline">{quest.title || "Untitled"}</a>
           {quest.assigned_to && (
             <p className="mt-0.5 text-xs text-base-content/50">Adventurer: {quest.assigned_to}</p>
           )}
@@ -328,7 +328,7 @@ function EscalatedSection({ quests, onUpdate }) {
           <div key={q.id} className="rounded-2xl border border-warning/30 bg-warning/5 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <a href={`/town/inn/quest-board/${q.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{q.title || "Untitled"}</a>
+                <a href={`/town/quest-board/${q.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{q.title || "Untitled"}</a>
                 {q.assigned_to && (
                   <p className="text-xs text-base-content/50">Adventurer: {q.assigned_to}</p>
                 )}

@@ -13,7 +13,7 @@ const COLUMNS = [
 function QuestCard({ quest }) {
   return (
     <Link
-      href={`/town/inn/quest-board/${quest.id}`}
+      href={`/town/quest-board/${quest.id}`}
       className="block rounded-lg border border-base-300 bg-base-100/95 p-3 shadow-sm transition hover:border-primary/40"
     >
       <h3 className="text-sm font-semibold leading-snug">{quest.title || "Untitled"}</h3>

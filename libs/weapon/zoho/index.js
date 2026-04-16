@@ -114,7 +114,7 @@ function getAuthLinks() {
   const base = getSiteUrl().replace(/\/$/, "");
   return {
     connectZoho: `${base}/api/weapon/zoho?action=connect`,
-    inn: `${base}/town/inn`,
+    inn: `${base}/town/tavern`,
     forgeZoho: `${base}/town/town-square/forge/zoho`,
     status: `${base}/api/weapon/zoho?action=status`,
   };

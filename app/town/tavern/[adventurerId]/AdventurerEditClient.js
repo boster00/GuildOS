@@ -130,7 +130,7 @@ export default function AdventurerEditClient({ adventurerId, initialDraft }) {
         <button type="button" className="btn btn-primary" disabled={!ready || saving} onClick={save}>
           {saving ? "Saving…" : "Save changes"}
         </button>
-        <Link href="/town/inn/upstairs" className="btn btn-ghost btn-sm">
+        <Link href="/town/tavern" className="btn btn-ghost btn-sm">
           Back to upstairs
         </Link>
       </div>

@@ -107,7 +107,7 @@ export default async function GuildmasterDeskPage() {
             <p className="text-base-content/75">
               Your desk is clear—no letters or reports need your seal right now.
             </p>
-            <Link href="/town/inn" className="btn btn-ghost btn-sm mt-4">
+            <Link href="/town/tavern" className="btn btn-ghost btn-sm mt-4">
               Visit the Inn (full quest board)
             </Link>
           </div>

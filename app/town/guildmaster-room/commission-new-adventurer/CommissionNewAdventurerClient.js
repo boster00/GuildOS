@@ -113,7 +113,7 @@ export default function CommissionNewAdventurerClient() {
         return;
       }
       toast.success("Adventurer recruited.");
-      router.push("/town/inn/upstairs");
+      router.push("/town/tavern");
       router.refresh();
     } finally {
       setRecruitLoading(false);

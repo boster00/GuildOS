@@ -6,6 +6,15 @@ const __dirname = path.dirname(__filename);
 
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: "/town/tavern/request-desk",
+        destination: "/town/inn/request-desk",
+        permanent: false,
+      },
+    ];
+  },
   // Don't bundle these in API routes; load from node_modules at runtime (fixes "Can't resolve '@sparticuz/chromium'" on build)
   serverExternalPackages: ['@sparticuz/chromium', 'playwright-core'],
   images: {

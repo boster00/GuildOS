@@ -141,7 +141,7 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
                   Chat
                 </button>
               )}
-              <Link href={`/town/inn/upstairs/${a.id}`} className="btn btn-ghost btn-sm">
+              <Link href={`/town/tavern/${a.id}`} className="btn btn-ghost btn-sm">
                 Edit
               </Link>
               <button type="button" className="btn btn-outline btn-xs text-error hover:border-error" onClick={decommission}>

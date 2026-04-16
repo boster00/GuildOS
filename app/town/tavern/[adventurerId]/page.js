@@ -8,18 +8,18 @@ export async function generateMetadata({ params }) {
   const { adventurerId: id } = await params;
   const user = await getCurrentUser();
   if (!user || !id) {
-    return { title: "Adventurer · Inn" };
+    return { title: "Adventurer · Tavern" };
   }
   const { data } = await getAdventurerForOwner(id, user.id);
   const name = data?.name && typeof data.name === "string" ? data.name : "Adventurer";
-  return { title: `${name} · Inn upstairs` };
+  return { title: `${name} · Tavern` };
 }
 
 export default async function InnUpstairsAdventurerPage({ params }) {
   const { adventurerId } = await params;
   const user = await getCurrentUser();
   if (!user) {
-    redirect(`/signin?next=/town/inn/upstairs/${adventurerId}`);
+    redirect(`/signin?next=/town/tavern/${adventurerId}`);
   }
 
   if (!adventurerId || typeof adventurerId !== "string") {
@@ -37,12 +37,12 @@ export default async function InnUpstairsAdventurerPage({ params }) {
     <main className="guild-bg-inn min-h-dvh p-4 md:p-8">
       <section className="mx-auto max-w-3xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <nav className="text-sm text-base-content/60">
-          <Link href="/town/inn" className="link link-hover">
-            The Inn
+          <Link href="/town/tavern" className="link link-hover">
+            Tavern
           </Link>
           <span className="mx-2">/</span>
-          <Link href="/town/inn/upstairs" className="link link-hover">
-            Upstairs
+          <Link href="/town/tavern" className="link link-hover">
+            Adventurers
           </Link>
           <span className="mx-2">/</span>
           <span className="text-base-content">{data.name}</span>
