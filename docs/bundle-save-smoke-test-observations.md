@@ -95,13 +95,15 @@ This is a gap in the checklist: steps 12-15 (feedback loop) were skipped entirel
 - Cat approved on first pass — need to fix Cat's review behavior
 
 ### What Needs Implementation
-1. **Cat system_prompt**: must leave per-deliverable review notes in quest comments (visible on GM desk). Not "approved" — show reasoning for each deliverable category.
-2. **questmaster reviewSubmission skill book**: update review process to require per-deliverable pass/fail with notes in quest comments.
-3. **First submission rule**: On first purrview, always provide at least one improvement suggestion per deliverable type. Approve only on second or later pass.
+1. **Cat system_prompt**: must add review notes TO EACH inventory item (not just quest comments). Each inventory item gets a `review` field with pass/fail + note.
+2. **questmaster reviewSubmission skill book**: Cat updates quest inventory: for each item, add `review: { passed: true/false, note: "..." }`. These show up in the GM desk carousel next to each screenshot.
+3. **GM desk UI (DeskReviewClient)**: carousel must display Cat's review note under each screenshot (from inventory item's `review` field).
+4. **First submission rule**: On first purrview, always provide at least one improvement suggestion per deliverable type. Approve only on second or later pass.
 
 ### Key Files to Modify
 - Cat system_prompt: UPDATE adventurers SET system_prompt WHERE name = 'Cat'
-- libs/skill_book/questmaster/registry.js: reviewSubmission action
+- libs/skill_book/questmaster/registry.js: reviewSubmission action — Cat writes review to inventory items
+- app/town/guildmaster-room/desk/DeskReviewClient.js: carousel shows review notes per screenshot
 - Then initAgent Cat (bc-1a4bfbeb)
 
 ### Key Learnings from This Run
