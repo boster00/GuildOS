@@ -114,14 +114,12 @@ async function nudgeConfused(db) {
     if (!advQuests?.length) continue;
 
     try {
+      // Skip if the most recent user_message is already a nudge
       const conv = await readConversation({ agentId: adv.session_id });
       const msgs = conv?.messages || [];
-
-      // Skip if there's a queued (unprocessed) nudge
-      const lastAssistantIdx = msgs.findLastIndex((m) => m.type === "assistant_message");
-      const queuedMessages = msgs.slice(lastAssistantIdx + 1);
-      if (queuedMessages.some((m) => m.type === "user_message" && m.text?.startsWith(NUDGE_PREFIX))) {
-        console.log(`[cron] skipping nudge for ${adv.name} — nudge queued`);
+      const lastUserMsg = [...msgs].reverse().find((m) => m.type === "user_message");
+      if (lastUserMsg?.text?.startsWith(NUDGE_PREFIX)) {
+        console.log(`[cron] skipping nudge for ${adv.name} — last user msg is already a nudge`);
         continue;
       }
 
