@@ -127,7 +127,7 @@ async function nudgeConfused(db) {
       const questList = advQuests.map((q) => `- [${q.priority}] "${q.title}" (${q.stage})`).join("\n");
       await writeFollowup({
         agentId: adv.session_id,
-        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. When done: store all deliverable URLs in quest inventory (not just comments), verify inventory is populated with a SELECT, then move to purrview. Do not wait for permission. If blocked, escalate.`,
+        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nFirst: pull ~/guildos and re-read docs/global-instructions.md. Then work on the highest priority quest. When done, follow the submitForPurrview action from your housekeeping skill book exactly. Do not wait for permission. If blocked, escalate.`,
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {

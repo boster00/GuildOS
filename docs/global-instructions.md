@@ -42,7 +42,7 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 - `complete` — done
 
 **When you're done:**
-1. Store all deliverable evidence in the quest inventory — screenshots as URLs (raw GitHub or Supabase Storage), not file:// paths. The Questmaster reviews from inventory, not your filesystem.
+1. Store all deliverable evidence in the quest inventory — upload screenshots to Supabase Storage (bucket: GuildOS_Bucket, path: cursor_cloud/<questId>/), then store the public URLs in inventory. NOT file:// paths, NOT raw GitHub URLs. Storage has 30-day retention.
 2. Verify the quest inventory contains the evidence by SELECTing the quest back.
 3. Move the quest to `purrview` stage.
 Do not keep polishing indefinitely — submit for review.
@@ -136,6 +136,10 @@ import { searchMessages } from './libs/weapon/gmail/index.js';
 
 **Auth:** Weapons handle authentication internally via `profiles.env_vars` (permanent keys) or `potions` table (OAuth tokens, auto-refreshed). You need a `userId` to pass to most weapon functions.
 
+**Required credentials for all agents:** CURSOR_API_KEY, SUPABASE_SECRETE_KEY. If missing, prioritize getting access — lack of these is not an acceptable steady-state. Escalate immediately if you don't have them.
+
+**Project-specific credentials** (e.g., FIGMA_ACCESS_TOKEN): if missing, treat as a setup issue to resolve, not a permanent limitation.
+
 **Architecture rules:**
 - One weapon per external service (e.g., one `zoho` weapon covers Books + CRM)
 - Max 2 files per weapon: `libs/weapon/<name>/index.js` + optional `app/api/weapon/<name>/route.js`
@@ -219,6 +223,10 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 ```
 
 Key tables: `quests`, `adventurers`, `quest_comments`, `profiles`, `potions`, `pigeon_letters`
+
+**Re-read on every nudge:** After receiving a nudge, pull ~/guildos and re-read this file. Instructions change — stale context causes errors.
+
+**No test-then-restore writes:** When writing to the database, write what you intend. Do not write test values and restore. Every write is the real operation.
 
 **Critical: verify writes with SELECT.**
 After any UPDATE, do a SELECT on the same row and use the returned values as truth — not the HTTP status, not a boolean, the actual row.
