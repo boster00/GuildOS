@@ -31,12 +31,14 @@ export const questmasterRegistry = {
 **Default assumption:** Every submission should include screenshots unless the quest description explicitly specifies a different deliverable format.
 
 **Review process:**
-1. Read the quest description to understand what was requested
-2. Read the deliverables (usually screenshots in inventory)
-3. Evaluate against the quest requirements:
-   - Does the screenshot show what was asked for?
-   - Is the quality acceptable? (no placeholder content, no errors, no broken layouts)
-   - Are all deliverables present?
+1. Read the quest description to understand what each deliverable should show
+2. Open every screenshot URL in the inventory and actually look at it
+3. For each screenshot, check:
+   - Does it show the page/feature described in the deliverable spec? NOT a login page, NOT an error page, NOT a blank page, NOT a 404
+   - Is real content visible? Not placeholder text, not "lorem ipsum", not empty states that should have data
+   - Does the layout match what was asked for? (correct page, correct elements visible)
+4. REJECT if any screenshot shows: a sign-in/login redirect, an error message, a blank/black image, a 404 page, or a page that is clearly not what the deliverable describes
+5. If unsure whether a screenshot shows the right thing, use Claude CLI (getSecondOpinion) — describe what the screenshot should show and ask if it matches
 
 **Decision:**
 - **Pass (90%+ satisfied):** Move quest to 'review' stage. Add a comment: "Deliverables approved. Moving to review."
