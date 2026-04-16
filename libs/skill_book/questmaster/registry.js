@@ -49,7 +49,7 @@ export const questmasterRegistry = {
 - Example good: "Missing: screenshot of /products page showing 5 antibodies. Take the screenshot and add the URL to quest inventory."
 - Example bad: "WBS 1.3 requires a quest comment listing every page with Figma match status; latest purrview note still defers 9+/10 Figma QC to human without a signed-off waiver in-thread."
 
-**Quality bar:** Do NOT settle until 90% satisfied. But keep feedback short and clear.
+**Quality bar:** Check the quest description or the adventurer's system_prompt for specific quality requirements. If none specified, use your judgment.
 `,
     },
     getSecondOpinion: {
