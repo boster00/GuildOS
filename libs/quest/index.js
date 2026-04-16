@@ -29,7 +29,7 @@ export { inventoryRawToMap, inventoryToDisplayRows, PIGEON_LETTERS_KEY } from ".
 // Constants
 // ---------------------------------------------------------------------------
 
-const VALID_STAGES = ["execute", "escalated", "review", "closing", "complete"];
+const VALID_STAGES = ["execute", "escalated", "purrview", "review", "closing", "complete"];
 
 /** Legacy stages — accepted on read but not for new quests. */
 const LEGACY_STAGES = ["idea", "plan", "assign", "completed"];

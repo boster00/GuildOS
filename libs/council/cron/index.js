@@ -2,22 +2,22 @@ import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
 import { readAgent, writeFollowup, readConversation } from "@/libs/weapon/cursor/index.js";
 
+const IS_PRODUCTION = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+
 export async function runCron() {
   const db = await database.init("service");
 
-  // ── 1. Roll call: derive adventurer statuses ──
+  // ── 1. Roll call: derive adventurer statuses (always runs) ──
   await deriveAdventurerStatuses(db);
 
-  // ── 2. Nudge confused adventurers ──
-  await nudgeConfused(db);
+  // ── 2-3. Nudge + notify only in production (Vercel owns the nudge loop) ──
+  if (IS_PRODUCTION) {
+    await nudgeConfused(db);
+    await notifyQuestmaster(db);
+    await deriveAdventurerStatuses(db);
+  }
 
-  // ── 3. Notify Questmaster of closing-stage quests ──
-  await notifyClosingQuests(db);
-
-  // ── 4. Re-derive statuses (catch agents that went busy after nudge) ──
-  await deriveAdventurerStatuses(db);
-
-  return { ok: true };
+  return { ok: true, production: IS_PRODUCTION };
 }
 
 // ---------------------------------------------------------------------------
@@ -114,21 +114,20 @@ async function nudgeConfused(db) {
     if (!advQuests?.length) continue;
 
     try {
-      // Check for queued nudge: any user_message after the last assistant_message that starts with NUDGE_PREFIX
+      // Skip if the most recent user_message is already a nudge
       const conv = await readConversation({ agentId: adv.session_id });
       const msgs = conv?.messages || [];
-      const lastAssistantIdx = msgs.findLastIndex((m) => m.type === "assistant_message");
-      const queuedMessages = msgs.slice(lastAssistantIdx + 1);
-      const hasQueuedNudge = queuedMessages.some((m) => m.type === "user_message" && m.text?.startsWith(NUDGE_PREFIX));
-      if (hasQueuedNudge) {
-        console.log(`[cron] skipping nudge for ${adv.name} — nudge queued`);
+      const lastUserMsg = [...msgs].reverse().find((m) => m.type === "user_message");
+      if (lastUserMsg?.text?.startsWith(NUDGE_PREFIX)) {
+        console.log(`[cron] skipping nudge for ${adv.name} — last user msg is already a nudge`);
         continue;
       }
+
 
       const questList = advQuests.map((q) => `- [${q.priority}] "${q.title}" (${q.stage})`).join("\n");
       await writeFollowup({
         agentId: adv.session_id,
-        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. If blocked, escalate with a comment.`,
+        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. If you believe all deliverables are met, move the quest to 'purrview' stage for Questmaster review. If blocked, escalate with a comment.`,
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
@@ -138,19 +137,18 @@ async function nudgeConfused(db) {
 }
 
 // ---------------------------------------------------------------------------
-// Notify Questmaster (Cat) about closing-stage quests
+// Notify Questmaster (Cat) about purrview + closing quests
 // ---------------------------------------------------------------------------
 
-async function notifyClosingQuests(db) {
-  const { data: closingQuests } = await db
+async function notifyQuestmaster(db) {
+  const { data: quests } = await db
     .from(publicTables.quests)
-    .select("id, title, assigned_to")
-    .eq("stage", "closing")
+    .select("id, title, stage, assigned_to")
+    .in("stage", ["purrview", "closing"])
     .limit(20);
 
-  if (!closingQuests?.length) return;
+  if (!quests?.length) return;
 
-  // Find Cat (Questmaster)
   const { data: cat } = await db
     .from(publicTables.adventurers)
     .select("session_id, session_status")
@@ -159,15 +157,34 @@ async function notifyClosingQuests(db) {
 
   if (!cat?.session_id || cat.session_status === "inactive") return;
 
-  const questList = closingQuests.map((q) => `- "${q.title}" (id: ${q.id})`).join("\n");
+  // Check for queued nudge to Cat
+  const conv = await readConversation({ agentId: cat.session_id });
+  const msgs = conv?.messages || [];
+  const lastMsg = msgs[msgs.length - 1];
+  const lastAssistantIdx = msgs.findLastIndex((m) => m.type === "assistant_message");
+  const queuedMsgs = msgs.slice(lastAssistantIdx + 1);
+  if (queuedMsgs.some((m) => m.type === "user_message" && m.text?.startsWith("[NUDGE]"))) return;
+
+  const purrviewQuests = quests.filter((q) => q.stage === "purrview");
+  const closingQuests = quests.filter((q) => q.stage === "closing");
+
+  const lines = [];
+  if (purrviewQuests.length) {
+    lines.push(`**Purrview (${purrviewQuests.length})** — review deliverables, approve or send feedback:`);
+    for (const q of purrviewQuests) lines.push(`- "${q.title}" by ${q.assigned_to || "unassigned"} (id: ${q.id})`);
+  }
+  if (closingQuests.length) {
+    lines.push(`**Closing (${closingQuests.length})** — archive to Asana:`);
+    for (const q of closingQuests) lines.push(`- "${q.title}" (id: ${q.id})`);
+  }
 
   try {
     await writeFollowup({
       agentId: cat.session_id,
-      message: `You have ${closingQuests.length} quest(s) in closing stage that need Asana archival:\n${questList}\n\nFor each: read the quest description and comments, write a managerial summary, and archive it to the Asana task specified in the quest description. Then move the quest to 'complete' stage. Use the closeQuest action from your questmaster_registry skill book.`,
+      message: `[NUDGE] You have quests needing attention:\n\n${lines.join("\n")}\n\nFor purrview: read quest description + inventory, evaluate deliverables. If 90%+ satisfied, move to review. If not, add feedback comment and move back to execute.\nFor closing: archive summary to Asana, then move to complete.`,
     });
-    console.log(`[cron] notified Cat about ${closingQuests.length} closing quest(s)`);
+    console.log(`[cron] notified Cat: ${purrviewQuests.length} purrview, ${closingQuests.length} closing`);
   } catch (err) {
-    console.error(`[cron] failed to notify Cat about closing quests:`, err.message);
+    console.error(`[cron] Cat notify failed:`, err.message);
   }
 }
