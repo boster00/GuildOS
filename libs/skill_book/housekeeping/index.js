@@ -152,6 +152,21 @@ Send a message to the Questmaster (Cat) asking for help or approval.
 Query the quests table for your assigned quests that are not in complete stage. Order by priority (high > medium > low).
 `,
     },
+    submitForPurrview: {
+      description: "Submit quest for Questmaster review by moving to purrview stage.",
+      howTo: [
+        "Before moving to purrview, you MUST:",
+        "1. Store ALL deliverable URLs in quest inventory (UPDATE quests SET inventory = ... WHERE id = ...)",
+        "   - Screenshots as raw GitHub URLs or Supabase Storage URLs",
+        "   - NOT file:// paths, NOT in comments only — in inventory",
+        "2. SELECT the quest back and confirm inventory is populated (not empty)",
+        "3. Only then UPDATE stage to purrview",
+        "4. SELECT the quest back and confirm stage is purrview",
+        "",
+        "If inventory is empty when you move to purrview, Cat will reject it immediately.",
+        "The Questmaster reviews from quest inventory, not from comments or your filesystem.",
+      ].join("\n"),
+    },
     summarizeComments: {
       description: "Compress old comments to prevent flooding. Keep latest 4, summarize the rest.",
       howTo: `
