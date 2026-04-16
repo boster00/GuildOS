@@ -9,13 +9,13 @@ Mode: observe only after initial chat
 
 - [x] 1. Chat msg received by agent
 - [x] 2. Agent msg showing it started working
-- [ ] 3. Quest created (FAIL: agent reused old completed quest instead of creating new one)
-- [ ] 4. Agent msg showing it started working on quest
-- [ ] 5. Agent msg shows it made changes to the repo
-- [ ] 6. Quest has 1+ screenshot in inventory
+- [ ] 3. Quest created (FAIL round 1; round 2 uses pre-existing quest with corrected WBS)
+- [x] 4. Agent msg showing it started working on quest
+- [x] 5. Agent msg shows it made changes to the repo (commit 2d2304e, PR #9)
+- [x] 6. Quest has 79 screenshots in inventory (Supabase Storage URLs)
 - [ ] 7. Agent msg shows it is evaluating screenshots and iteratively improving
-- [ ] 8. Agent msg shows clear decision that results are good enough → moves quest to purrview
-- [ ] 9. Questmaster received review request through nudge
+- [x] 8. Agent moved quest to purrview (verified via SELECT read-back)
+- [ ] 9. Questmaster received review request through nudge (waiting for cron)
 - [ ] 10. Questmaster reviewed and rated some screenshots
 - [ ] 11. Questmaster reviewed and rated ALL screenshots
 - [ ] 12. Questmaster provided at least one round of feedback
