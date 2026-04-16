@@ -49,7 +49,7 @@ export default async function QuestBoardPage() {
   }));
 
   return (
-    <main className="guild-bg-inn min-h-dvh p-4 md:p-8">
+    <main className="guild-bg-quest-board min-h-dvh p-4 md:p-8">
       <section className="mx-auto max-w-[1800px] rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <h1 className="text-2xl font-bold">Quest Board</h1>
         <p className="mt-1 text-sm text-base-content/70">All quests by stage.</p>

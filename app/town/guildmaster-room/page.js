@@ -57,7 +57,7 @@ export default async function GuildmasterRoomPage() {
   }
 
   return (
-    <main className="guild-bg-town-map min-h-dvh p-4 md:p-8">
+    <main className="guild-bg-guildmaster-room min-h-dvh p-4 md:p-8">
       <section className="mx-auto w-full max-w-[1800px] rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <div className="flex flex-wrap items-start gap-4">
           <img

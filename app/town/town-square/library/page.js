@@ -5,7 +5,7 @@ export default function LibraryPage() {
   const books = listSkillBooksForLibrary();
 
   return (
-    <main className="guild-bg-town-square min-h-dvh p-4 md:p-8">
+    <main className="guild-bg-library min-h-dvh p-4 md:p-8">
       <section className="mx-auto max-w-4xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <nav className="text-sm text-base-content/60">
           <Link href="/town/town-square" className="link link-hover">

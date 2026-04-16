@@ -21,7 +21,7 @@ export default async function QuestBoardPage() {
   }
 
   return (
-    <main className="guild-bg-inn min-h-dvh p-4 md:p-8">
+    <main className="guild-bg-quest-board min-h-dvh p-4 md:p-8">
       <section className="mx-auto max-w-4xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <nav className="text-sm text-base-content/60">
           <Link href="/town/inn" className="link link-hover">

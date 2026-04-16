@@ -62,7 +62,7 @@ export default async function GuildmasterDeskPage() {
   }
 
   return (
-    <main className="guild-bg-town-map min-h-dvh p-4 md:p-8">
+    <main className="guild-bg-guildmaster-room min-h-dvh p-4 md:p-8">
       <section className="mx-auto w-full max-w-[1800px] rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Link href="/town/guildmaster-room" className="link link-hover">
