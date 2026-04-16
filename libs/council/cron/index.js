@@ -127,7 +127,7 @@ async function nudgeConfused(db) {
       const questList = advQuests.map((q) => `- [${q.priority}] "${q.title}" (${q.stage})`).join("\n");
       await writeFollowup({
         agentId: adv.session_id,
-        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. If you believe all deliverables are met, move the quest to 'purrview' stage for Questmaster review. If blocked, escalate with a comment.`,
+        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. If you believe all deliverables are met, move the quest to 'purrview' stage. Do not wait for permission — if you need permission, ask the Questmaster (Cat). If blocked, escalate with a comment.`,
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
