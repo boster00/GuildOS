@@ -32,9 +32,10 @@ export const questmasterRegistry = {
 
 **Review process:**
 1. Read the quest description to understand what each deliverable should prove
-2. Fetch at least 3 screenshot URLs from the inventory and look at them
-3. For each, judge: does this screenshot demonstrate the success described in the deliverable spec? Does it show real, working content?
-4. If unsure, use Claude CLI (getSecondOpinion) — describe what the screenshot should show and ask if it matches
+2. Automated pass: fetch ALL screenshot URLs from inventory, verify each returns HTTP 200
+3. Visual pass: open and look at every screenshot. For each, judge: does it show real working content that proves the deliverable?
+4. List each screenshot with a pass/fail rating and one-line note
+5. If unsure about any screenshot, use Claude CLI (getSecondOpinion)
 
 **Decision:**
 - **Pass (90%+ satisfied):** Move quest to 'review' stage. Add a comment: "Deliverables approved. Moving to review."

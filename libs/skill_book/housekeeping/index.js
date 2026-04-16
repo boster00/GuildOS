@@ -81,11 +81,17 @@ Only comment for significant events: major milestone completion, escalation, res
     },
     escalate: {
       description: "Move a quest to escalated stage.",
-      howTo: `
-Update the quest stage to escalated. Include a comment explaining the blocker before calling this.
-
-Do NOT escalate for things you can figure out yourself or permission to proceed — just proceed.
-`,
+      howTo: [
+        "Before moving to escalated, post a comment that clearly describes:",
+        "1. What you were trying to do (one sentence)",
+        "2. What went wrong — the exact error or blocker (paste the error message if there is one)",
+        "3. What you need from the Guildmaster to unblock you (specific: a credential, a file, a decision)",
+        "",
+        "Then update the quest stage to escalated.",
+        "",
+        "Do NOT escalate for things you can figure out yourself or permission to proceed — just proceed.",
+        "Do NOT escalate with vague descriptions like 'something went wrong' or 'need help'.",
+      ].join("\n"),
     },
     presentPlan: {
       description: "Present a WBS-format plan with clear deliverables and measurement criteria.",
@@ -164,6 +170,9 @@ Query the quests table for your assigned quests that are not in complete stage. 
         "3. SELECT the quest back and confirm inventory is populated (not empty)",
         "4. Only then UPDATE stage to purrview",
         "5. SELECT the quest back and confirm stage is purrview",
+        "",
+        "If resubmitting after feedback: REPLACE the old inventory with new screenshots, do not append.",
+        "Delete old storage files and upload fresh ones so Cat reviews the latest version only.",
         "",
         "If inventory is empty when you move to purrview, Cat will reject it immediately.",
         "The Questmaster reviews from quest inventory, not from comments or your filesystem.",
