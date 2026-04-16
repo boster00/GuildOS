@@ -19,6 +19,20 @@ export default function QuestStageMenuClient({ questId, initialStage }) {
     return () => document.removeEventListener("click", handleClick);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const maybeOpen = () => {
+      try {
+        if (new URLSearchParams(window.location.search).get("openStage") === "1") setOpen(true);
+      } catch {
+        /* ignore */
+      }
+    };
+    maybeOpen();
+    window.addEventListener("popstate", maybeOpen);
+    return () => window.removeEventListener("popstate", maybeOpen);
+  }, []);
+
   const pickStage = async (next) => {
     if (next === stage || busy) return;
     const prev = stage;

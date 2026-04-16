@@ -1,9 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AddAdventurerButton() {
   const [showPopup, setShowPopup] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const openFromLocation = () => {
+      if (window.location.hash === "#add-adventurer") {
+        setShowPopup(true);
+        return;
+      }
+      try {
+        const q = new URLSearchParams(window.location.search);
+        if (q.get("openAdd") === "1") setShowPopup(true);
+      } catch {
+        /* ignore */
+      }
+    };
+    openFromLocation();
+    window.addEventListener("hashchange", openFromLocation);
+    return () => window.removeEventListener("hashchange", openFromLocation);
+  }, []);
 
   return (
     <>
