@@ -36,5 +36,11 @@ Update status: noted
 12. Smoke test quest reached purrview. Cat reviewed and gave correct feedback (file:// paths not verifiable). But Cat's DB write to move quest back to execute failed silently — quest stayed in purrview. Cat likely lacks proper Supabase service role key or used anon key blocked by RLS. Guildmaster had to move it manually.
 Update status: Cat needs verified DB write access
 
-13. Agents claiming they did a DB write but it didn't actually happen is a dangerous pattern — silent failures with no error feedback. Need: agents should verify their writes succeeded by reading back after update.
-Update status: pending — add to global instructions
+13. Agents claiming they did a DB write but it didn't actually happen — both agents confirmed writes NOW work with service role key. Earlier failures unexplained (possibly stale session or different key). Write verification added to global instructions.
+Update status: resolved — agents can write, verify-writes rule added
+
+14. BosterBio agent's GuildOS clone showed global instructions without purrview — possible stale pull. Agents should always git pull ~/guildos before re-reading instructions.
+Update status: noted
+
+15. Both quests stuck in execute despite agents believing they moved to purrview. Guildmaster cannot directly mutate quests — must rely on agents and cron. Agents need next Vercel cron nudge to trigger the move.
+Update status: waiting for cron cycle
