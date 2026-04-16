@@ -48,6 +48,8 @@ export const questmasterRegistry = {
 - Example bad: "WBS 1.3 requires a quest comment listing every page with Figma match status; latest purrview note still defers 9+/10 Figma QC to human without a signed-off waiver in-thread."
 
 **Quality bar:** Check the quest description or the adventurer's system_prompt for specific quality requirements. If none specified, use your judgment.
+
+**Iteration limit:** Track how many times you have sent a quest back to execute. If after 20 review cycles the deliverables still don't pass, add a comment explaining the recurring issues and escalate the quest instead of sending it back again.
 `,
     },
     getSecondOpinion: {
