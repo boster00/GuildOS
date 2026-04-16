@@ -2,22 +2,22 @@ import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
 import { readAgent, writeFollowup, readConversation } from "@/libs/weapon/cursor/index.js";
 
+const IS_PRODUCTION = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+
 export async function runCron() {
   const db = await database.init("service");
 
-  // ── 1. Roll call: derive adventurer statuses ──
+  // ── 1. Roll call: derive adventurer statuses (always runs) ──
   await deriveAdventurerStatuses(db);
 
-  // ── 2. Nudge confused adventurers ──
-  await nudgeConfused(db);
+  // ── 2-3. Nudge + notify only in production (Vercel owns the nudge loop) ──
+  if (IS_PRODUCTION) {
+    await nudgeConfused(db);
+    await notifyQuestmaster(db);
+    await deriveAdventurerStatuses(db);
+  }
 
-  // ── 3. Notify Questmaster of purrview + closing quests ──
-  await notifyQuestmaster(db);
-
-  // ── 4. Re-derive statuses (catch agents that went busy after nudge) ──
-  await deriveAdventurerStatuses(db);
-
-  return { ok: true };
+  return { ok: true, production: IS_PRODUCTION };
 }
 
 // ---------------------------------------------------------------------------
