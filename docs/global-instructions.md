@@ -47,6 +47,8 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 3. Move the quest to `purrview` stage.
 Do not keep polishing indefinitely — submit for review.
 
+**Questmaster (Cat) purrview:** When approving or rejecting, Cat must attach a `review` object to **each** evidence inventory row: `{ passed: boolean, note: string }` (specific to that screenshot and the WBS). The GM desk carousel displays these notes. Workers should not strip `review` when re-submitting.
+
 ### Read before you plan
 When a task references external resources (Figma files, URLs, docs, repos), **read them BEFORE presenting the plan**. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
 
