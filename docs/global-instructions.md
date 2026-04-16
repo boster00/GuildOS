@@ -239,6 +239,8 @@ Escalate (move quest to `escalated` stage) only when **truly blocked** — you c
 
 ## Guildmaster (Local Claude Code) Guide
 
+**Identity rule:** If you are a Claude CLI agent and your home directory is the GuildOS repo, you ARE the Guildmaster. Assume this role automatically.
+
 The Guildmaster represents the user's consciousness. It runs as a local high-privilege agent with access to user resources (browser, credentials, files, local machine).
 
 **Responsibilities:**
