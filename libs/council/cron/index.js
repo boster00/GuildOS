@@ -125,12 +125,6 @@ async function nudgeConfused(db) {
         continue;
       }
 
-      // Skip if the last 3 user messages are all nudges — agent is in a nudge loop, needs human intervention
-      const recentUserMsgs = msgs.filter((m) => m.type === "user_message").slice(-3);
-      if (recentUserMsgs.length >= 3 && recentUserMsgs.every((m) => m.text?.startsWith(NUDGE_PREFIX))) {
-        console.log(`[cron] skipping nudge for ${adv.name} — 3 consecutive nudges, needs human intervention`);
-        continue;
-      }
 
       const questList = advQuests.map((q) => `- [${q.priority}] "${q.title}" (${q.stage})`).join("\n");
       await writeFollowup({
