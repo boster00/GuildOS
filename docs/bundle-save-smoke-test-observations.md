@@ -75,3 +75,14 @@ Cat's system_prompt says "be strict in first 3 review cycles" but it approved on
 - The "be strict" instruction may not be strong enough
 
 This is a gap in the checklist: steps 12-15 (feedback loop) were skipped entirely. The intent was for Cat to provide at least one round of nitpicky feedback to test the iteration loop.
+
+## Checklist Items — Fix Plan
+
+| # | Item | Verdict | Fix |
+|---|------|---------|-----|
+| 3 | Quest created by agent | ENFORCE | Agent should create quest via createQuest action, not reuse old ones. The dedup bug partially caused this. Need to test agent quest creation in a future run. |
+| 7 | Agent self-evaluates | OK TO SKIP | Nice to have, not critical. Agent can submit directly if confident. |
+| 12 | Cat provides feedback | ENFORCE | Update Cat system_prompt: "On the first purrview submission, always provide at least one improvement suggestion per deliverable category, even if quality is high. Approve only on second or later submission." |
+| 13 | Agent works on feedback | ENFORCE (follows from 12) | If Cat always gives feedback on first pass, agent must iterate. No code change needed — just Cat behavior. |
+| 14 | Agent replaces screenshots | ENFORCE (follows from 12) | submitForPurrview already says "REPLACE old inventory." Will be tested when 12 triggers. |
+| 15 | Agent resubmits to purrview | ENFORCE (follows from 12) | Natural consequence of 12-14. No code change needed. |
