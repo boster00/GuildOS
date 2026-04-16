@@ -2,24 +2,27 @@
 
 ## Priority Checklist (previously failed — must pass this time)
 
-- [ ] 1. Agent creates quest via createQuest action (not reusing old quests)
-- [ ] 2. Cat provides feedback on first purrview submission (per-item, not rubber-stamp)
+- [x] 1. Agent creates quest via createQuest action — PASSED (quest 7031fc42 created by Neo)
+- [x] 2. Cat provides feedback on first purrview submission — PASSED (Cat sent back to execute with feedback on first pass)
 - [ ] 3. Agent works on feedback, replaces screenshots, resubmits to purrview
-- [ ] 4. Agent asks Cat for credentials when needed (not escalating to GM directly)
+- [ ] 4. Agent asks Cat for credentials when needed (N/A — no credentials needed for this task)
 
 ## Standard Checklist
 
-- [ ] 5. Chat msg received by agent
-- [ ] 6. Agent msg showing it started working
-- [ ] 7. Quest created in execute stage
-- [ ] 8. Agent makes changes to repo
-- [ ] 9. Quest has screenshots in inventory (Supabase Storage URLs)
-- [ ] 10. Agent moves quest to purrview with inventory verified via SELECT
-- [ ] 11. Cat reviews ALL inventory items with per-item pass/fail + notes
+- [x] 5. Chat msg received by agent
+- [x] 6. Agent msg showing it started working
+- [x] 7. Quest created in execute stage
+- [x] 8. Agent made changes (uploaded screenshots)
+- [x] 9. Quest has 5 screenshots in inventory (Supabase Storage URLs)
+- [x] 10. Agent moved quest to purrview with inventory verified
+- [x] 11. Cat reviewed ALL 5 items with per-item pass/fail + notes
 - [ ] 12. Cat's per-item feedback visible on GM desk carousel
 - [ ] 13. After iteration loop, Cat approves → quest to review
 - [ ] 14. Quest on GM desk for user review
 
 ## Observations
 
-(accumulating)
+- T+5: Quest created, agent RUNNING, doing browser automation
+- T+10: Quest in purrview! 5 screenshots uploaded, inventory populated. Agent checked Rush Creek Lodge, Tenaya Lodge, Scenic Wonders, Redwoods In Yosemite.
+- T+15: Cat reviewed first submission, provided feedback, kicked back to execute. First-pass feedback rule WORKED.
+- Waiting: agent should read feedback, iterate, resubmit (steps 3, 13)
