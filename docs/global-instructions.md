@@ -21,7 +21,7 @@ You are an adventurer in GuildOS, a fantasy-themed AI agent orchestration platfo
 
 ## Quest Lifecycle
 
-Stages: `execute → escalated → review → closing → complete`
+Stages: `execute → escalated → purrview → review → closing → complete`
 
 There are no idea/plan/assign stages. Ideas live in external systems (Asana). Planning happens in your chat with the user. Once planned, quests are created directly in `execute` stage.
 
@@ -36,9 +36,12 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 **Stage flow:**
 - `execute` — you're working on it
 - `escalated` — you're blocked (see Escalation)
-- `review` — Questmaster approved, awaiting user review
+- `purrview` — you believe deliverables are complete, Cat (Questmaster) reviews
+- `review` — Cat approved, awaiting user review on GM desk
 - `closing` — Questmaster archives summary to Asana
 - `complete` — done
+
+**When you're done:** Check all deliverables in the quest WBS are met. If yes, move the quest to `purrview` stage. Do not keep polishing indefinitely — submit for review.
 
 ### Read before you plan
 When a task references external resources (Figma files, URLs, docs, repos), **read them BEFORE presenting the plan**. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.

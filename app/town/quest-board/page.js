@@ -5,6 +5,7 @@ import { database } from "@/libs/council/database";
 const COLUMNS = [
   { id: "execute", label: "Executing", color: "badge-info" },
   { id: "escalated", label: "Escalated", color: "badge-warning" },
+  { id: "purrview", label: "Purrview", color: "badge-secondary" },
   { id: "review", label: "In Review", color: "badge-accent" },
   { id: "closing", label: "Closing", color: "badge-ghost" },
   { id: "complete", label: "Complete", color: "badge-success" },
