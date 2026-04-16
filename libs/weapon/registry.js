@@ -1,5 +1,12 @@
 import { getZohoWeaponStatus } from "@/libs/weapon/zoho";
 import { checkCredentials as checkGmailCredentials } from "@/libs/weapon/gmail";
+import { checkCredentials as checkCursorCredentials } from "@/libs/weapon/cursor";
+import { checkCredentials as checkFigmaCredentials } from "@/libs/weapon/figma";
+import { checkCredentials as checkAsanaCredentials } from "@/libs/weapon/asana";
+import { checkCredentials as checkStorageCredentials } from "@/libs/weapon/supabase_storage";
+import { checkCredentials as checkAuthStateCredentials } from "@/libs/weapon/auth_state";
+import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
+import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
 
 
 /**
@@ -78,6 +85,78 @@ export const WEAPONS = [
     ],
     requiresActivation: false,
   },
+  {
+    id: "cursor",
+    title: "Cursor Cloud Agents",
+    tagline: "Dispatch tasks to Cursor cloud agents and manage their lifecycle.",
+    summary:
+      "Send work to remote Cursor agents via followup API, check status, read conversation history, and coordinate artifact delivery.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses CURSOR_API_KEY (Basic auth) to call the Cursor API. Agents receive push-based messages and execute tasks autonomously. Model: composer-2.0.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "figma",
+    title: "Figma",
+    tagline: "Read files, export assets, and browse projects via Figma REST API.",
+    summary:
+      "Lets skill books read Figma file structures, export node renderings as images, list projects, and read comments.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses FIGMA_ACCESS_TOKEN (personal access token) to call the Figma REST API v1.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "asana",
+    title: "Asana",
+    tagline: "Search, read, and manage tasks and projects via Asana REST API.",
+    summary:
+      "Unified Asana connector for workspaces, projects, tasks, sections, and comments.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses ASANA_ACCESS_TOKEN (personal access token or OAuth) to call the Asana REST API v1.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "supabase_storage",
+    title: "Supabase Storage",
+    tagline: "Upload, download, list, and delete files in Supabase Storage.",
+    summary:
+      "Shared storage weapon with standardized path conventions (channel/questId/filename). Bucket: GuildOS_Bucket.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses SUPABASE_SECRETE_KEY via the database service role. Default bucket is GuildOS_Bucket (public).",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "auth_state",
+    title: "Auth State",
+    tagline: "Manage Playwright browser auth state — save, load, check expiry.",
+    summary:
+      "Manages saved cookies/localStorage for authenticated browser sessions. Detects expired cookies and stale state files.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Reads/writes playwright/.auth/user.json. Checks cookie expiry per domain. Use scripts/auth-capture.mjs to refresh.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "ssh",
+    title: "SSH",
+    tagline: "Execute commands on remote machines via SSH.",
+    summary:
+      "SSH connector with known host presets (Carbon, Boster production) and user-defined hosts. Requires passwordless SSH keys.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses system SSH with BatchMode. Known hosts: carbon (local network), c100h.bosterbio.com (Boster production). Custom hosts via SSH_HOSTS env var.",
+    ],
+    requiresActivation: false,
+  },
 ];
 
 export function getWeaponById(id) {
@@ -89,12 +168,20 @@ export function getWeaponById(id) {
  */
 export async function getWeaponActivationSummaries(userId) {
   const summaries = {};
+  const checks = {
+    zoho: () => getZohoWeaponStatus(userId),
+    gmail: () => checkGmailCredentials(userId),
+    cursor: () => checkCursorCredentials(userId),
+    figma: () => checkFigmaCredentials(userId),
+    asana: () => checkAsanaCredentials(userId),
+    supabase_storage: () => checkStorageCredentials(),
+    auth_state: () => checkAuthStateCredentials(),
+    ssh: () => checkSshCredentials(userId),
+    browserclaw: () => checkCdpCredentials(),
+  };
   for (const w of WEAPONS) {
-    if (w.id === "zoho") {
-      summaries.zoho = await getZohoWeaponStatus(userId);
-    }
-    if (w.id === "gmail") {
-      summaries.gmail = await checkGmailCredentials(userId);
+    if (checks[w.id]) {
+      summaries[w.id] = await checks[w.id]();
     }
   }
   return summaries;

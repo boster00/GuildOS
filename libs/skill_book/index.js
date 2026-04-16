@@ -38,12 +38,29 @@ import {
   readTaskComments as asanaReadTaskComments,
   writeTask as asanaWriteTask,
 } from "./asana/index.js";
-import { questmasterRegistry } from "./questmaster/registry.js";
 import {
-  definition as housekeepingDef,
+  skillBook as cursorSkillBook,
+  dispatchTask as cursorDispatchTask,
+  readStatus as cursorReadStatus,
+  readConversation as cursorReadConversation,
+  dispatchPptGeneration as cursorDispatchPptGeneration,
+} from "./cursor/index.js";
+import {
+  skillBook as gmailSkillBook,
+  searchInbox as gmailSearchInbox,
+  readMessage as gmailReadMessage,
+  triageInbox as gmailTriageInbox,
+  writeStars as gmailWriteStars,
+} from "./gmail/index.js";
+import {
+  skillBook as housekeepingSkillBook,
   getActiveQuests as housekeepingGetActiveQuests,
   escalateBlockedQuest as housekeepingEscalateBlockedQuest,
 } from "./housekeeping/index.js";
+import { questmasterRegistry } from "./questmaster/registry.js";
+import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
+import { skillBook as nexusSkillBook } from "./nexus/index.js";
+import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -311,7 +328,12 @@ export const SKILL_BOOKS = {
   bigquery: bigquerySkillBook,
   claudeCLI: claudeCLISkillBook,
   asana: asanaSkillBook,
-  housekeeping: housekeepingDef,
+  cursor: cursorSkillBook,
+  gmail: gmailSkillBook,
+  cjgeo: cjgeoSkillBook,
+  nexus: nexusSkillBook,
+  bosterbio: bosterbioSkillBook,
+  housekeeping: housekeepingSkillBook,
   questmaster_registry: questmasterRegistry,
 };
 
@@ -459,7 +481,7 @@ const blacksmithAdventurerActions = {
   updateProvingGrounds: (_userId, input) => updateProvingGrounds(_userId, /** @type {Record<string, unknown>} */ (input || {})),
 };
 
-const ADVENTURER_REGISTRY = {
+export const ADVENTURER_REGISTRY = {
   default: { definition: defaultDef, adventurerActions: {
     escalate: (userId, input) => defaultEscalate(userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
@@ -477,8 +499,23 @@ const ADVENTURER_REGISTRY = {
     readTaskComments: (_userId, input) => asanaReadTaskComments(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     writeTask: (_userId, input) => asanaWriteTask(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
+  cursor: { definition: cursorSkillBook, adventurerActions: {
+    dispatchTask: (_userId, input) => cursorDispatchTask(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readStatus: (_userId, input) => cursorReadStatus(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readConversation: (_userId, input) => cursorReadConversation(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    dispatchPptGeneration: (_userId, input) => cursorDispatchPptGeneration(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  gmail: { definition: gmailSkillBook, adventurerActions: {
+    searchInbox: (_userId, input) => gmailSearchInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readMessage: (_userId, input) => gmailReadMessage(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    triageInbox: (_userId, input) => gmailTriageInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    writeStars: (_userId, input) => gmailWriteStars(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
   questmaster_registry: { definition: questmasterRegistry, adventurerActions: questmasterRegistryAdventurerActions },
-  housekeeping: { definition: housekeepingDef, adventurerActions: housekeepingAdventurerActions },
+  housekeeping: { definition: housekeepingSkillBook, adventurerActions: housekeepingAdventurerActions },
+  cjgeo: { definition: cjgeoSkillBook, adventurerActions: {} },
+  nexus: { definition: nexusSkillBook, adventurerActions: {} },
+  bosterbio: { definition: bosterbioSkillBook, adventurerActions: {} },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {
       const { execSync } = await import("child_process");

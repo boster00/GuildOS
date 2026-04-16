@@ -29,16 +29,24 @@
 
 ## In Progress
 
-### Remaining for acceptance criteria screenshots:
-1. **Screenshot 1 (skill book as registry):** Convert at least 1 skill book to knowledge registry format (Phase 6)
-2. **Screenshot 2 (Inn upstairs):** Map existing Cursor sessions to adventurers, verify page renders with avatars+status
-3. **Screenshot 3 (global instructions):** Create `docs/global-instructions.md`, consolidate other docs
-4. **Screenshot 4 (Library/Forge/Pigeon Post):** These pages exist, just need screenshots
+### Phase 6 (partial): Gmail skill book converted to knowledge registry format
+- [x] `libs/skill_book/gmail/index.js` — toc entries now have `howTo` fields with prompt instructions
+- [x] Legacy JS functions preserved at bottom for backward compat
 
-### Then:
-- Create "GuildOS Refactor" quest in review stage
-- Dispatch agent bc-1a4bfbeb to take screenshots, save to Supabase, add as quest inventory items
-- Verify screenshots on GM's Desk
+### Phase 4: Global Instructions
+- [x] Created `docs/global-instructions.md` with entity model, weapon usage, skill book usage, submit_results API
+
+### Agent session linking
+- [x] Linked bc-1a4bfbeb to Neo Golden Finger adventurer
+
+### Acceptance criteria
+- [x] Created "GuildOS Refactor" quest (id: 7b223a04-46dc-4e37-948d-919260fdc8bb) in review stage
+- [x] Dispatched screenshot task to agent bc-1a4bfbeb
+- [x] Agent took 6 screenshots using native Chrome (xdotool + ffmpeg x11grab)
+- [x] Screenshots verified: skill book registry, Inn upstairs with chibis, docs listing, library, forge, inn
+- [x] Uploaded all 6 to Supabase Storage under GuildOS_Bucket/cursor_cloud/{questId}/
+- [x] Quest inventory updated with screenshot URLs
+- [x] Quest "GuildOS Refactor" (7b223a04) visible on GM's Desk with screenshots
 
 ## Files Modified (this refactor)
 - `libs/weapon/cursor/index.js`
@@ -46,6 +54,37 @@
 - `libs/council/cron/index.js`
 - `app/api/adventurer/route.js`
 - `app/town/inn/upstairs/AdventurerRoomCard.js`
+
+### Phase 4.5: Escalation Stage + Guildmaster Triage (designed, not yet implemented)
+- [x] Concept defined: `escalated` stage between execute and review
+- [x] Guildmaster = local Claude Code session, triages escalated tasks
+- [x] Triage button: classifies autonomous vs needs-user
+- [x] Updated global instructions with escalation flow
+- [x] `escalated` added to VALID_STAGES in `libs/quest/index.js`
+- [x] Proving grounds: escalated stage handler (no-op, awaits triage)
+- [x] Cron: includes escalated in polling
+- [x] API: `triage_escalated` (pattern-match autonomous vs needs-user) and `resolve_escalation` (comment + return to execute)
+- [x] GM Desk: shows escalated quests with "Triage All" button, classification badges (Can resolve / Needs you), resolve action for autonomous items
+
+### Phase 2 (partial): Adventurer Chat UI
+- [x] Inn upstairs cards redesigned: no system prompt, quest stage counts, skill books inline
+- [x] Chat button opens inline chat panel with conversation history (DaisyUI chat bubbles)
+- [x] "Open in Cursor" link in chat panel when session is linked
+- [x] Green dot indicator for session-linked adventurers
+
+### Feedback → Adventurer Ping
+- [x] Quest comment API pings adventurer's live session when user/guildmaster posts feedback
+- [x] Loop prevention: skips ping for adventurer/agent/system source comments
+
+### Knowledge Migration (docs consolidation)
+- [x] Audited all docs across 4 repos (GuildOS, CJGEO, Boster Nexus, BosterBio)
+- [x] Created knowledge-migration-catalog.md with point-by-point categorization
+- [x] Updated global-instructions.md with coding conventions, NPC def, weapon rules, Cursor env
+- [x] Created 3 project skill books: cjgeo, nexus, bosterbio
+- [x] Registered new skill books in libs/skill_book/index.js
+- [x] Deleted 22 obsolete/merged docs
+- [x] docs/ reduced from 26 files to 5
+- [x] Created 3 project adventurers (CJGEO Dev, Nexus Armor Dev, BosterBio Website Dev) with strategic system_prompts and linked Cursor sessions
 
 ## Files Created
 - `supabase/migrations/20260414200000_add_adventurer_session_fields.sql`

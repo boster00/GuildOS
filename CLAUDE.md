@@ -2,12 +2,15 @@
 
 ## Project overview
 
-GuildOS is a fantasy-themed AI agent orchestration platform. Users create **quests** (tasks), recruit **adventurers** (AI agents), and run **skill books** (composable actions). A 5-minute cron loop auto-advances quests through a pipeline via LLM execution.
+GuildOS is a fantasy-themed AI agent orchestration platform. Adventurers (AI agents on Cursor cloud VMs) execute quests autonomously, guided by skill books (knowledge registries). A 5-minute cron loop monitors agent status and nudges idle agents.
 
 **Active app surfaces:** `app/town/**`, `app/signin`, `app/opening`, `app/api/*`
 **Archived (do not treat as active):** `_archive/legacy-shipfast-root/`
 
-> **ALWAYS READ FIRST:** `docs/project-architecture-documentation.md` — source of truth for quest pipeline, NPCs, adventurers, stage machine, preparation cascade, and common misunderstandings from past sessions.
+> **ALWAYS READ FIRST:** `docs/global-instructions.md` — adventurer orientation, quest stages, weapons, skill books, coding conventions. See `docs/GuildOS-refactor.md` for architecture decisions.
+
+**Quest stages:** `execute → escalated → review → closing → complete` (idea/plan/assign removed)
+**Roles:** Worker agents execute, Questmaster (Cat) reviews + closes, Guildmaster (local Claude Code) removes obstacles via escalation.
 
 ---
 
@@ -18,11 +21,13 @@ This machine (Windows 11) has **full browser control access**. Use it when tasks
 **Chrome location:** `%LOCALAPPDATA%/Google/Chrome/Application/chrome.exe`
 
 **To launch Chrome with CDP (Chrome DevTools Protocol):**
-```bash
-# Use a SEPARATE profile dir — never the main "User Data" dir (which requires killing main Chrome)
-"$LOCALAPPDATA/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir="$LOCALAPPDATA/Google/Chrome/CDP_Profile" &
+```javascript
+// Preferred: use the browserclaw CDP weapon (auto-launches Chrome if needed)
+import { ensureCdpChrome, executeSteps } from "@/libs/weapon/browserclaw/cdp";
+await ensureCdpChrome(); // launches CDP Chrome on port 9222 with separate profile
+const result = await executeSteps(steps, { storageState: "playwright/.auth/user.json" });
 ```
-Then connect via `http://localhost:9222`. Load saved auth state (`playwright/.auth/user.json`) via `browser.newContext({ storageState })` for authenticated sessions.
+Manual launch (fallback): `"$LOCALAPPDATA/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir="$LOCALAPPDATA/Google/Chrome/CDP_Profile" &`
 
 **Important: NEVER close or kill the user's main Chrome browser.** All automated browsing and testing must happen in a **separate Playwright CDP profile**, not the user's main browser session. Launch a dedicated CDP Chrome instance with a different `--user-data-dir` (e.g. `$LOCALAPPDATA/Google/Chrome/CDP_Profile`). If the main browser is already running, launch the CDP instance alongside it on a different port or with a separate profile directory.
 
@@ -38,18 +43,13 @@ Then connect via `http://localhost:9222`. Load saved auth state (`playwright/.au
 
 **Do not hesitate to use browser control** — it is an expected and authorized capability on this machine.
 
-**Saved auth state:** `playwright/.auth/user.json` contains cookies/localStorage for logged-in sessions (Google, Asana, Figma, etc.). To use authenticated browser control:
+**Saved auth state:** Managed by `libs/weapon/auth_state/`. To check status:
 ```javascript
-import { chromium } from 'playwright-core';
-// Launch CDP profile first (see above), then:
-const browser = await chromium.connectOverCDP('http://localhost:9222');
-const context = await browser.newContext({ 
-  storageState: 'playwright/.auth/user.json' 
-});
-const page = await context.newPage();
-await page.goto('https://app.asana.com/...');  // logged in!
+import { readExpiryStatus, searchServices } from "@/libs/weapon/auth_state";
+const { needsRefresh, reason } = await readExpiryStatus();
+const { services } = await searchServices(); // lists domains with active cookies
 ```
-To refresh the auth state, run `scripts/auth-capture.mjs` (manual login → export). State file may expire — if pages show login screens, ask user to re-capture.
+To refresh: run `scripts/auth-capture.mjs` (manual login → export). State file may expire — if pages show login screens, ask user to re-capture.
 
 ---
 
@@ -122,10 +122,47 @@ Never hardcode `localhost:3000` — dev default is **3002**. Check required vars
 | `libs/adventurer/` | AI agent execution runtime, innate actions (`boast`, `doNextAction`) |
 | `libs/npcs/` | NPC modules (Cat, Pig, Blacksmith, Runesmith). Code-defined, NOT DB rows. |
 | `libs/skill_book/` | Action registry & dispatch |
-| `libs/weapon/` | External protocol connectors. One weapon per service. |
+| `libs/weapon/` | External protocol connectors. One weapon per service (see Weapon Registry below). |
 | `libs/pigeon_post/` | Async job queue (state machine, polling) |
-| `libs/proving_grounds/` | Agent testing, roster management, stage machine (`advanceQuest`) |
+| `libs/proving_grounds/` | Agent testing, roster management (legacy stage machine still present but not used by cron) |
 | `libs/cat/` | Mascot/assistant logic, commission chat, quest planning |
+
+## Weapon registry (`libs/weapon/`)
+
+| Weapon | Service | Auth | Key actions |
+|--------|---------|------|-------------|
+| `bigquery` | Google BigQuery | GOOGLE_SERVICE_ACCOUNT | query |
+| `browserclaw` | Chrome CDP browser control | None (local) | `executeSteps`, `ensureCdpChrome`, `isCdpRunning` |
+| `claudecli` | Claude Code CLI subprocess | None (local) | executeTask |
+| `gmail` | Gmail REST API | GOOGLE_ID + GOOGLE_SECRET + GOOGLE_GMAIL_REFRESH_TOKEN | `searchMessages`, `readMessage`, `starMessages`, `writeMessageLabels` |
+| `pigeon` | Pigeon Post (Browserclaw dispatch) | None | `replacePigeonLetters`, `deliverPigeonResult` |
+| `vercel` | Vercel REST API | VERCEL_API_KEY | projects, deployments, domains, env vars |
+| `zoho` | Zoho Books + CRM | OAuth (potions) | search, CRUD |
+| `cursor` | Cursor Cloud Agents API | CURSOR_API_KEY | `readAgent`, `writeFollowup`, `readConversation`, `readEnvSetupInstructions` |
+| `figma` | Figma REST API | FIGMA_ACCESS_TOKEN | `readFile`, `readNodes`, `readExport`, `searchProjects`, `searchFiles` |
+| `asana` | Asana REST API | ASANA_ACCESS_TOKEN | `searchTasks`, `readTask`, `writeTask`, `deleteTask`, `searchProjects`, `readComments`, `writeComment` |
+| `supabase_storage` | Supabase Storage | SUPABASE_SECRETE_KEY (service role) | `writeFile`, `readFile`, `readPublicUrl`, `searchFiles`, `deleteFiles`, `buildPath` |
+| `auth_state` | Playwright auth state | None (filesystem) | `readState`, `writeState`, `readExpiryStatus`, `searchServices`, `deleteState` |
+| `ssh` | SSH to remote machines | SSH keys (passwordless) | `executeCommand`, `searchHosts`, `readRemoteFile` |
+
+**Usage pattern:** Import weapon functions directly — `import { searchTasks } from "@/libs/weapon/asana"`. Weapons handle auth internally via `profiles.env_vars` or `process.env`.
+
+## Skill book registry (`libs/skill_book/`)
+
+| Skill Book | Purpose | Key actions |
+|------------|---------|-------------|
+| `default` | Shared actions (escalate) | `escalate` |
+| `zoho` | Zoho Books CRM | `search` |
+| `questmaster` | Quest pipeline management | `planRequestToQuest`, `findAdventurerForQUest`, `interpretIdea`, `selectAdventurer`, `assign` |
+| `guildmaster` | Guild operations | `callToArms` |
+| `blacksmith` | Weapon forging pipeline | `plan`, `review`, `forgeWeapon`, `updateProvingGrounds` |
+| `testskillbook` | Testing | `testaction`, `sendpigeonpost`, `checkPigeonResult` |
+| `browsercontrol` | Browserclaw pigeon dispatch | `dispatchBrowserActionsThroughPigeonPost` |
+| `bigquery` | BigQuery queries | `getRecentEvents` |
+| `claudeCLI` | Claude CLI subprocess | `executeTask` |
+| `asana` | Asana task management | `readProjectTasks`, `readTaskComments` |
+| `cursor` | Cursor cloud agents + PPT | `dispatchTask`, `readStatus`, `readConversation`, `dispatchPptGeneration` |
+| `gmail` | Gmail triage + email ops | `searchInbox`, `readMessage`, `triageInbox`, `writeStars` |
 
 ## File & API structure
 
@@ -268,16 +305,17 @@ A Cursor Cloud Agent is a remote coding agent running on Cursor's infrastructure
 
 ### Environment setup (for fresh agent sessions)
 
-```bash
-npm install && npx playwright install chromium --with-deps && npm install -g @anthropic-ai/claude-code
+Use the cursor weapon to generate env setup:
+```javascript
+import { readEnvSetupInstructions } from "@/libs/weapon/cursor";
+const { setupScript } = await readEnvSetupInstructions({ userId });
+// Send setupScript to the agent as first followup message
 ```
-
-Then write `.env.local` with the required environment variables (never commit this file).
 
 ### Workflow: pigeon_post → cursor_cloud → result
 
 1. Quest creates a `pigeon_letters` row with `channel: "cursor_cloud"` and `payload` containing natural language instructions
-2. GuildOS dispatches the letter by calling `POST /v0/agents/{agentId}/followup` with the instructions
+2. GuildOS dispatches via `cursor.writeFollowup({ agentId, message })` (or skill book `cursor.dispatchTask`)
 3. Cursor agent receives the message, executes the task (Playwright, PPT generation, etc.)
 4. Agent uploads artifacts to Supabase Storage (public bucket, 30-day retention)
 5. Agent delivers results back: updates `pigeon_letters` status to `completed`, writes result to quest inventory, posts quest comment with viewable link
@@ -327,31 +365,74 @@ Claude Code is the **strategy and management layer**, not the coding layer, when
 
 ### Gmail inbox triage
 
-Filter to scan: `-label:important in:unread in:inbox -asana` (excludes Asana, unimportant, already-triaged mail)
-
-**Weapon:** `libs/weapon/gmail/index.js` — OAuth2 via `GOOGLE_ID` + `GOOGLE_SECRET` + `GOOGLE_GMAIL_REFRESH_TOKEN` (all in `profiles.env_vars`).
+**Weapon:** `libs/weapon/gmail/` | **Skill book:** `libs/skill_book/gmail/` | **Preferences:** `docs/gmail-processing-preferences.md`
 
 **How to run a triage scan:**
 ```javascript
-// 1. Get access token from refresh token (stored in profiles.env_vars)
-// 2. Search: GET /gmail/v1/users/me/messages?q=<filter>&maxResults=100 (paginate)
-// 3. Batch-fetch metadata (From, Subject, snippet) in groups of 50
-// 4. Score each email and star top ~2% via batchModify with addLabelIds: ['STARRED']
+import { triageInbox } from "@/libs/skill_book/gmail";
+const result = await triageInbox(userId, { limit: 100, dryRun: false });
+// Scans unread inbox, scores per gmail-processing-preferences.md, stars top ~2%
 ```
 
-**Scoring signals (higher = more important):**
-- Wire transfers, invoices, purchase orders, freight quotes → +10
-- Calendly new/updated events → +9
-- Customer replies to quotes (Re: quote…) → +9
-- SalesIQ live chats / missed chats → +8
-- Security alerts (new sign-in, verification code) → +8
-- New Boster sales orders → +7
-- Direct emails from real people (non-noreply, non-marketing) → +3
-- Newsletters, DMARC reports, conference spam → −3 to −5
+The skill book embeds the full scoring engine from `docs/gmail-processing-preferences.md`. Scoring rules, skip rules, and the decision framework are all codified in `libs/skill_book/gmail/index.js`.
 
-**What NOT to star:** DMARC aggregate reports, Google Search Console validations, Bing Webmaster Tools, conference/webinar invites, marketing newsletters, Robinhood/investment promotions.
+**Implementation note:** Gmail is controlled via the **Gmail REST API directly** (not MCP, not CDP/browser). The weapon exchanges `GOOGLE_GMAIL_REFRESH_TOKEN` for a bearer token. Do NOT use Chrome/Playwright for Gmail.
 
-**Implementation note:** Gmail is controlled via the **Gmail REST API directly** (not MCP, not CDP/browser). The weapon exchanges `GOOGLE_GMAIL_REFRESH_TOKEN` for a bearer token and calls `https://www.googleapis.com/gmail/v1/...` directly. Do NOT use Chrome/Playwright for Gmail.
+---
+
+## Chaperon workflow (mandatory when managing external agents)
+
+When acting as a **chaperon** — i.e. dispatching work to Cursor cloud agents, Claude CLI subprocesses, or any other external agent — follow this protocol:
+
+### 1. Instruct in natural language
+- Describe WHAT to build and success criteria, never prescribe implementation details
+- Always include: "Take screenshots proving the feature works. Then git push."
+- Include the quest ID and Supabase credentials if the agent needs to deliver artifacts
+
+### 2. Do not stop until success is proven
+- After dispatching, poll agent status periodically
+- When the agent signals completion, **pull and review all artifacts** (screenshots, PPTs, files)
+- Validate: no CAPTCHA pages, no blank/black screenshots, no error pages, no placeholder content
+- If validation fails, send corrective followup and repeat
+- **Never report to the user until you have verified success evidence**
+
+### 3. Report to GuildOS review tasks
+Every completed chaperon engagement must produce a **review task** visible on the Guildmaster's Desk (`/town/guildmaster-room/desk`).
+
+**How to report:**
+```javascript
+import { createQuest, appendInventoryItem, recordQuestComment } from "@/libs/quest";
+
+// 1. Create or find the quest in review stage
+const { data: quest } = await createQuest({
+  userId, title: "Review: <what was done>",
+  description: "<summary of work and success criteria>",
+  stage: "review",
+});
+
+// 2. Store screenshots/artifacts as inventory items
+// Use URL strings for images — the desk UI renders them in a carousel
+await appendInventoryItem(quest.id, {
+  item_key: "screenshot_1",
+  payload: { url: "https://...", description: "Login page after fix" },
+  source: "chaperon",
+});
+
+// 3. Add a comment with the textual summary
+await recordQuestComment(quest.id, {
+  source: "chaperon",
+  action: "deliver",
+  summary: "Agent completed: built login page, tested with Playwright, 3 screenshots attached.",
+  detail: { agentId: "bc-xxx", artifacts: ["screenshot_1", "screenshot_2"] },
+});
+```
+
+**Inventory convention for screenshots:**
+- Key: `screenshot_1`, `screenshot_2`, etc. or descriptive like `screenshot_login_page`
+- Value: `{ url: "https://...", description: "what it shows" }` — the desk UI detects items with `.url` ending in image extensions and renders them in the carousel
+- For Supabase Storage uploads: use `readPublicUrl()` from the `supabase_storage` weapon to get the URL
+
+**If no GuildOS quest exists for the work:** Create one in `review` stage. The Guildmaster's Desk automatically shows all review-stage quests.
 
 ---
 

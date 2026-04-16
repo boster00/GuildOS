@@ -96,25 +96,32 @@ progress::-webkit-progress-value {
 }
 
 .guild-bg-town-map {
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.7), rgba(245, 240, 232, 0.88)),
-    linear-gradient(135deg, rgba(87, 13, 248, 0.1), rgba(201, 168, 76, 0.12));
+  background: linear-gradient(rgba(255,255,255,0.55), rgba(245,240,232,0.75)), url('/images/guildos/bg-town.png') center/cover no-repeat fixed;
 }
-
 .guild-bg-inn {
-  background:
-    linear-gradient(rgba(60, 37, 20, 0.3), rgba(245, 240, 232, 0.92)),
-    linear-gradient(125deg, rgba(126, 84, 48, 0.4), rgba(201, 168, 76, 0.25));
+  background: linear-gradient(rgba(60,37,20,0.15), rgba(245,240,232,0.8)), url('/images/guildos/bg-tavern.png') center/cover no-repeat fixed;
 }
-
+.guild-bg-quest-board {
+  background: linear-gradient(rgba(245,240,232,0.6), rgba(245,240,232,0.8)), url('/images/guildos/bg-quest-board.png') center/cover no-repeat fixed;
+}
+.guild-bg-guildmaster-room {
+  background: linear-gradient(rgba(245,240,232,0.5), rgba(245,240,232,0.75)), url('/images/guildos/bg-guildmaster-room.png') center/cover no-repeat fixed;
+}
 .guild-bg-town-square {
-  background:
-    linear-gradient(rgba(245, 240, 232, 0.85), rgba(245, 240, 232, 0.9)),
-    linear-gradient(135deg, rgba(103, 148, 116, 0.2), rgba(87, 13, 248, 0.12));
+  background: linear-gradient(rgba(245,240,232,0.6), rgba(245,240,232,0.8)), url('/images/guildos/bg-forge.png') center/cover no-repeat fixed;
 }
-
+.guild-bg-forge {
+  background: linear-gradient(rgba(245,240,232,0.6), rgba(245,240,232,0.8)), url('/images/guildos/bg-forge.png') center/cover no-repeat fixed;
+}
+.guild-bg-library {
+  background: linear-gradient(rgba(245,240,232,0.6), rgba(245,240,232,0.8)), url('/images/guildos/bg-library.png') center/cover no-repeat fixed;
+}
+.guild-bg-council {
+  background: linear-gradient(rgba(245,240,232,0.5), rgba(245,240,232,0.75)), url('/images/guildos/bg-council.png') center/cover no-repeat fixed;
+}
+.guild-bg-proving-grounds {
+  background: linear-gradient(rgba(245,240,232,0.6), rgba(245,240,232,0.8)), url('/images/guildos/bg-proving-grounds.png') center/cover no-repeat fixed;
+}
 .guild-bg-world-map {
-  background:
-    linear-gradient(rgba(245, 240, 232, 0.9), rgba(245, 240, 232, 0.95)),
-    linear-gradient(45deg, rgba(201, 168, 76, 0.2), rgba(87, 13, 248, 0.1));
+  background: linear-gradient(rgba(245,240,232,0.5), rgba(245,240,232,0.75)), url('/images/guildos/bg-world-map.png') center/cover no-repeat fixed;
 }

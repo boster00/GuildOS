@@ -7,6 +7,8 @@ import {
   selectQuestForOwner,
   updateQuestCommentSummaryById,
 } from "@/libs/council/database/serverQuest.js";
+import { selectAdventurerById } from "@/libs/council/database/serverAdventurer.js";
+import { writeFollowup } from "@/libs/weapon/cursor/index.js";
 
 export async function POST(request) {
   let user;
@@ -55,6 +57,22 @@ export async function POST(request) {
   if (error) {
     return Response.json({ error: error.message || "Could not add comment" }, { status: 500 });
   }
+
+  // Ping the assigned adventurer's live session about new comments
+  // Only ping when the comment is NOT from the adventurer itself (prevents loops)
+  const isFromAdventurer = source === "adventurer" || source === "agent" || source === "system";
+  if (quest.assignee_id && !isFromAdventurer) {
+    try {
+      const { data: adv } = await selectAdventurerById(quest.assignee_id, { client });
+      if (adv?.session_id && adv.session_status !== "inactive") {
+        await writeFollowup({
+          agentId: adv.session_id,
+          message: `New feedback on quest "${quest.title}" (${questId}). Read the latest comments on this quest and act on the feedback.`,
+        });
+      }
+    } catch { /* best-effort — don't fail the comment save */ }
+  }
+
   return Response.json({ ok: true, comment: row });
 }
 

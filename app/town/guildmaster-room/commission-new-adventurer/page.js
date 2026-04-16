@@ -14,7 +14,7 @@ export default async function CommissionNewAdventurerPage() {
   }
 
   return (
-    <main className="guild-bg-town-map min-h-dvh p-4 md:p-8">
+    <main className="guild-bg-guildmaster-room min-h-dvh p-4 md:p-8">
       <section className="mx-auto max-w-6xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <nav className="text-sm text-base-content/60">
           <Link href="/town" className="link link-hover">

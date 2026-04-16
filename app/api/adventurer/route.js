@@ -4,6 +4,9 @@ import { recruitAdventurer, updateAdventurer, decommissionAdventurer } from "@/l
 import { isRecruitReady } from "@/libs/proving_grounds/ui.js";
 import { updateAdventurerSession, selectAdventurerForOwner } from "@/libs/council/database/serverAdventurer.js";
 import { writeFollowup, readConversation, readAgent } from "@/libs/weapon/cursor/index.js";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { SKILL_BOOKS } from "@/libs/skill_book/index.js";
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
@@ -40,7 +43,47 @@ export async function POST(request) {
       session_status: "idle",
     }, { client: db });
     if (error) return Response.json({ error: error.message }, { status: 400 });
+
+    // Auto-initiate: send global instructions + system_prompt + skill books
+    try {
+      const globalInstructions = readFileSync(join(process.cwd(), "docs/global-instructions.md"), "utf8");
+      const skillBookSummaries = (adv.skill_books || [])
+        .map((id) => {
+          const sb = SKILL_BOOKS[id];
+          if (!sb) return null;
+          const actions = Object.entries(sb.toc || {}).map(([name, a]) => `- ${name}: ${a.description}`).join("\n");
+          return `### ${sb.title}\n${actions}`;
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      const initMessage = [
+        `You are ${adv.name}. Your adventurer ID is ${adventurerId}.`,
+        `\n## Global Instructions\n${globalInstructions}`,
+        adv.system_prompt ? `\n## Your System Prompt\n${adv.system_prompt}` : "",
+        skillBookSummaries ? `\n## Your Skill Books\n${skillBookSummaries}` : "",
+        `\nYou are now initialized and ready to work. Use getActiveQuests (housekeeping skill book) to check for assigned quests.`,
+      ].join("\n");
+
+      await writeFollowup({ agentId: sessionId, message: initMessage });
+    } catch { /* best-effort init — don't fail the link */ }
+
     return Response.json({ ok: true, data });
+  }
+
+  if (action === "message_assigned") {
+    const { questId, message } = body || {};
+    if (!questId || !message) {
+      return Response.json({ error: "questId and message are required" }, { status: 400 });
+    }
+    const { getQuest } = await import("@/libs/quest/index.js");
+    const { data: quest } = await getQuest(questId);
+    if (!quest || quest.owner_id !== user.id) return Response.json({ error: "Quest not found" }, { status: 404 });
+    if (!quest.assignee_id) return Response.json({ error: "Quest has no assigned adventurer" }, { status: 400 });
+    const { data: adv } = await selectAdventurerForOwner(quest.assignee_id, user.id, { client: db });
+    if (!adv?.session_id) return Response.json({ error: "Adventurer has no live session" }, { status: 400 });
+    const result = await writeFollowup({ agentId: adv.session_id, message });
+    return Response.json({ ok: true, data: result });
   }
 
   if (action === "message") {
@@ -83,6 +126,9 @@ export async function POST(request) {
   }
 
   if (action === "recruit") {
+    // Auto-add housekeeping skill book to all new adventurers
+    if (!draft.skill_books || !Array.isArray(draft.skill_books)) draft.skill_books = [];
+    if (!draft.skill_books.includes("housekeeping")) draft.skill_books.push("housekeeping");
     const { data, error } = await recruitAdventurer({ ownerId: user.id, draft, client: db });
     if (error) {
       return Response.json({ error: error.message }, { status: 400 });

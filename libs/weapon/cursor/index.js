@@ -106,6 +106,47 @@ export async function searchAgents({ agentId } = {}, userId) {
   return { agents: [agent] };
 }
 
+/**
+ * Read queued (unprocessed) messages — user messages sent after the last assistant response.
+ * @param {{ agentId: string }} input
+ * @param {string} [userId]
+ */
+export async function readQueuedMessages({ agentId } = {}, userId) {
+  if (!agentId) throw new Error("agentId is required");
+  const conv = await readConversation({ agentId }, userId);
+  const msgs = conv?.messages || [];
+  const lastAssistantIdx = msgs.findLastIndex((m) => m.type === "assistant_message");
+  return { queued: msgs.slice(lastAssistantIdx + 1).filter((m) => m.type === "user_message") };
+}
+
+/**
+ * Create a new Cursor cloud agent.
+ * @param {{ repository: string, ref: string, prompt?: string }} input
+ * @param {string} [userId]
+ */
+export async function createAgent({ repository, ref, prompt } = {}, userId) {
+  if (!repository) throw new Error("repository is required");
+  if (!ref) throw new Error("ref is required");
+  const key = await getApiKey(userId);
+  if (!key) throw new Error("Missing CURSOR_API_KEY");
+  const res = await fetch(API_BASE, {
+    method: "POST",
+    headers: {
+      Authorization: makeAuthHeader(key),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt: { text: prompt || "Wait for initialization instructions." },
+      source: { repository, ref },
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Cursor API ${res.status}: ${body.slice(0, 500)}`);
+  }
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Environment setup helper (for fresh agent sessions)
 // ---------------------------------------------------------------------------

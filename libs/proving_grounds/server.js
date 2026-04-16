@@ -120,23 +120,22 @@ export async function advanceQuest(quest, opts) {
     return { ok: true, advanced: true, stage: "assign", action: "closing:nextStep", detail: stepResult.data };
   }
 
+  // ── escalated: wait for Guildmaster triage (no auto-advance) ──
+  if (stage === "escalated") {
+    return { ok: true, advanced: false, stage: "escalated", note: "Quest is escalated — awaiting Guildmaster triage." };
+  }
+
   // ── completed: terminal ──
   if (stage === "completed") {
     return { ok: true, advanced: false, stage: "completed", note: "Quest is already completed." };
   }
 
-  // ── Resolve assignee — default unassigned idea/assign to Cat ──
+  // ── Resolve assignee ──
   const { resolveAssignee } = await import("@/libs/quest/index.js");
-  let assignedTo = String(quest.assigned_to ?? "").trim();
-
-  if (!assignedTo && (stage === "idea" || stage === "assign")) {
-    assignedTo = "Cat";
-    const { updateQuestAssignee } = await import("@/libs/council/database/serverQuest.js");
-    await updateQuestAssignee(questId, { assigneeId: null, assignedTo: "Cat" }, { client });
-  }
+  const assignedTo = String(quest.assigned_to ?? "").trim();
 
   if (!assignedTo) {
-    return { ok: false, advanced: false, stage, error: `Quest has no assignee for stage "${stage}". Assign an adventurer or NPC.` };
+    return { ok: false, advanced: false, stage, error: `Quest has no assignee. Assign an adventurer first.` };
   }
 
   const assignee = await resolveAssignee(assignedTo, client);

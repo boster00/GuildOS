@@ -134,20 +134,17 @@ export async function escalate(_userId, input) {
   // Read current assignee before overwriting
   const previousAssignee = input?.previousAssignee || input?.guildos?.quest?.assigned_to || null;
 
-  // Set stage to review
-  const { error: stageErr } = await updateQuest(questId, { stage: "review" }, { client });
-  if (stageErr) return skillActionErr(`escalate: failed to set review stage — ${stageErr.message}`);
+  // Set stage to escalated — assignee stays the same (adventurer owns the quest)
+  const { error: stageErr } = await updateQuest(questId, { stage: "escalated" }, { client });
+  if (stageErr) return skillActionErr(`escalate: failed to set escalated stage — ${stageErr.message}`);
 
-  // Assign to Pig (Guildmaster)
-  await updateQuestAssignee(questId, { assigneeId: null, assignedTo: "Pig" }, { client });
-
-  // Post comment with previous assignee stored for reassignment after review
+  // Post comment with escalation details
   await recordQuestComment(questId, {
     summary: comment,
     detail: { escalated: true, previousAssignee },
   }, { client });
 
-  return skillActionOk({ escalated: true, questId, assignedTo: "Pig" });
+  return skillActionOk({ escalated: true, questId });
 }
 
 /** Alias for dispatch / pipelines that expect the `run*` naming convention. */

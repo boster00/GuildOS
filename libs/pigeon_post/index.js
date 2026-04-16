@@ -100,6 +100,94 @@ export async function getPendingPigeonLetters(userId) {
  * @param {{ questId: string, channel: string, payload: object }} opts
  * @returns {Promise<{ data: object|null, error: object|null }>}
  */
+/**
+ * Review queue — pending review items for this owner.
+ * @param {string} userId
+ * @returns {Promise<object[]>} Flat array of review items with quest context
+ */
+export async function searchReviewItems(userId) {
+  const db = await database.init("service");
+  const { data, error } = await db
+    .from("pigeon_letters")
+    .select("id, quest_id, payload, metadata, created_at")
+    .eq("owner_id", userId)
+    .eq("channel", "review")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error || !data?.length) return [];
+
+  // Fetch quest titles for context
+  const questIds = [...new Set(data.map((r) => r.quest_id).filter(Boolean))];
+  const { data: quests } = questIds.length
+    ? await db
+        .from(publicTables.quests)
+        .select("id, title, stage")
+        .in("id", questIds)
+    : { data: [] };
+  const qMap = new Map((quests || []).map((q) => [q.id, q]));
+
+  return data.map((row) => ({
+    id: row.id,
+    questId: row.quest_id,
+    questTitle: qMap.get(row.quest_id)?.title ?? "",
+    questStage: qMap.get(row.quest_id)?.stage ?? "",
+    payload: row.payload || {},
+    metadata: row.metadata || {},
+    createdAt: row.created_at,
+  }));
+}
+
+/**
+ * Record a review verdict (approve or reject).
+ * @param {string} letterId
+ * @param {string} userId
+ * @param {{ verdict: "approved"|"rejected", reason?: string }} opts
+ */
+export async function writeReviewVerdict(letterId, userId, { verdict, reason }) {
+  const db = await database.init("service");
+
+  // Verify ownership
+  const { data: letter, error: fetchErr } = await db
+    .from("pigeon_letters")
+    .select("id, quest_id, owner_id, status")
+    .eq("id", letterId)
+    .single();
+
+  if (fetchErr || !letter) return { error: { message: "Review item not found" } };
+  if (letter.owner_id !== userId) return { error: { message: "Not your review item" } };
+  if (letter.status !== "pending") return { error: { message: "Already reviewed" } };
+
+  const newStatus = verdict === "approved" ? "completed" : "failed";
+  const result = {
+    verdict,
+    rejection_reason: reason || null,
+    reviewed_at: new Date().toISOString(),
+  };
+
+  const { error: updateErr } = await db
+    .from("pigeon_letters")
+    .update({ status: newStatus, result })
+    .eq("id", letterId);
+
+  if (updateErr) return { error: updateErr };
+
+  // Record as quest comment
+  if (letter.quest_id) {
+    await db.from(publicTables.questComments).insert({
+      quest_id: letter.quest_id,
+      source: "user",
+      action: verdict === "approved" ? "approval" : "rejection",
+      summary: verdict === "approved"
+        ? "Review item approved"
+        : `Review item rejected: ${reason || "No reason given"}`,
+      detail: { letterId, verdict, reason },
+    });
+  }
+
+  return { data: { letterId, verdict } };
+}
+
 export async function createPigeonLetter(userId, { questId, channel, payload }) {
   const db = await database.init("service");
   const { data, error } = await db

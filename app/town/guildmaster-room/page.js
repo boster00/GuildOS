@@ -1,14 +1,64 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
-import GuildmasterSubpagesList from "@/components/GuildmasterSubpagesList";
-import { MerchantGuildExplain } from "@/components/MerchantGuildExplain";
+import { database } from "@/libs/council/database";
+import { inventoryRawToMap } from "@/libs/quest/inventoryMap.js";
+import DeskReviewClient from "./desk/DeskReviewClient";
+
+export const metadata = {
+  title: "Guildmaster's Room",
+};
+
+async function loadReviewQuests(userId) {
+  const db = await database.init("server");
+
+  const { data: quests, error } = await db
+    .from("quests")
+    .select("id, title, description, stage, assigned_to, assignee_id, inventory, created_at, updated_at")
+    .eq("owner_id", userId)
+    .in("stage", ["purrview", "review", "escalated", "closing"])
+    .order("updated_at", { ascending: false });
+
+  if (error) return { quests: [], error: error.message };
+  if (!quests || quests.length === 0) return { quests: [], error: null };
+
+  const questIds = quests.map((q) => q.id);
+  const { data: allComments } = await db
+    .from("quest_comments")
+    .select("id, quest_id, source, action, summary, detail, created_at")
+    .in("quest_id", questIds)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  const commentsByQuest = {};
+  for (const c of allComments || []) {
+    if (!commentsByQuest[c.quest_id]) commentsByQuest[c.quest_id] = [];
+    commentsByQuest[c.quest_id].push(c);
+  }
+
+  const enriched = quests.map((q) => ({
+    ...q,
+    inventory: inventoryRawToMap(q.inventory),
+    _comments: commentsByQuest[q.id] || [],
+  }));
+
+  return { quests: enriched, error: null };
+}
 
 export default async function GuildmasterRoomPage() {
   const user = await getCurrentUser();
 
+  let quests = [];
+  let loadError = null;
+
+  if (user) {
+    const result = await loadReviewQuests(user.id);
+    quests = result.quests;
+    loadError = result.error;
+  }
+
   return (
-    <main className="guild-bg-town-map min-h-dvh p-8">
-      <section className="mx-auto max-w-3xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
+    <main className="guild-bg-guildmaster-room min-h-dvh p-4 md:p-8">
+      <section className="mx-auto w-full max-w-[1800px] rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
         <div className="flex flex-wrap items-start gap-4">
           <img
             src="/images/guildos/monkey.png"
@@ -16,35 +66,35 @@ export default async function GuildmasterRoomPage() {
             className="h-16 w-16 rounded-xl border border-base-300"
           />
           <div className="min-w-0 flex-1">
-            <h1 className="text-3xl font-bold">The Guildmaster&apos;s chamber</h1>
-            <MerchantGuildExplain
-              className="mt-1"
-              fantasy={
-                <p className="text-sm text-base-content/70">
-                  A quiet chamber for the <strong>desk</strong>—letters and reports from adventurers who need your
-                  judgment. The <strong>formulary</strong> is kept in the Council Hall; the quest board and adventurer
-                  roster are at the Inn.
-                </p>
-              }
-              merchant={
-                <p className="text-sm text-base-content/70">
-                  Inbox for quests requiring human input or review. Integration formulas and the formulary are in Council
-                  Hall; the adventurer roster lives upstairs at the Inn.
-                </p>
-              }
-            />
+            <h1 className="text-2xl font-bold">Guildmaster&apos;s Room</h1>
+            <p className="mt-1 text-sm text-base-content/70">
+              Quests awaiting your review, escalated issues, and items being archived.
+            </p>
           </div>
         </div>
 
         {!user ? (
           <div className="mt-8 rounded-2xl border border-base-300 bg-base-200/50 p-6 text-center">
-            <p className="text-base-content/80">Present your guild seal at the gate to enter the chamber.</p>
+            <p className="text-base-content/80">Sign in to open the Guildmaster&apos;s room.</p>
             <Link href="/signin" className="btn btn-primary mt-4">
               Sign in
             </Link>
           </div>
+        ) : loadError ? (
+          <div className="alert alert-warning mt-8">
+            <span>{loadError}</span>
+          </div>
+        ) : quests.length === 0 ? (
+          <div className="mt-8 rounded-2xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center">
+            <p className="text-base-content/75">
+              No quests need your attention right now.
+            </p>
+            <Link href="/town/tavern" className="btn btn-ghost btn-sm mt-4">
+              Visit the Tavern
+            </Link>
+          </div>
         ) : (
-          <GuildmasterSubpagesList />
+          <DeskReviewClient quests={quests} />
         )}
       </section>
     </main>

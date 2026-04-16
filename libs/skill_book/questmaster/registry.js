@@ -26,7 +26,7 @@ export const questmasterRegistry = {
 `,
     },
     reviewSubmission: {
-      description: "Review a worker agent's deliverables before advancing to closing.",
+      description: "Review a worker agent's deliverables in purrview before advancing to user review.",
       howTo: `
 **Default assumption:** Every submission should include screenshots unless the quest description explicitly specifies a different deliverable format.
 
@@ -39,8 +39,8 @@ export const questmasterRegistry = {
    - Are all deliverables present?
 
 **Decision:**
-- **Pass (90%+ satisfied):** Move quest to 'review' stage. Add a comment: "Deliverables approved. Moving to review."
-- **Needs improvement:** Add a comment with specific feedback. Do NOT move the quest — let the worker agent address the feedback and resubmit.
+- **Pass (90%+ satisfied):** Move quest from **purrview** to **review** (user-facing review on GM desk). Add a comment: "Deliverables approved. Moving to review."
+- **Needs improvement:** Add a comment with specific feedback. Move the quest back to **execute** (or leave in purrview if you prefer one round-trip) so the worker can fix issues — be explicit about which stage you set.
 
 **Quality bar:** There is plenty of execution bandwidth. Do NOT settle until you are 90% satisfied with the result. Send feedback and ask for iteration.
 
