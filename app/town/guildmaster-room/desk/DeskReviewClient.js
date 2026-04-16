@@ -34,9 +34,10 @@ function extractImages(inventory) {
         if (typeof item === "string" && (imgExtensions.test(item) || supabaseStorage.test(item))) {
           images.push({ key: `${key}[${i}]`, url: item, description: `${key} #${i + 1}` });
         } else if (item && typeof item === "object") {
-          const url = item.url || item.src || item.image;
-          if (typeof url === "string" && imgExtensions.test(url)) {
-            images.push({ key: `${key}[${i}]`, url, description: item.description || `${key} #${i + 1}` });
+          const url = item.url || item.src || item.image || (item.payload && (item.payload.url || item.payload.src));
+          const desc = item.description || item.item_key || (item.payload && item.payload.description) || `${key} #${i + 1}`;
+          if (typeof url === "string" && (imgExtensions.test(url) || supabaseStorage.test(url))) {
+            images.push({ key: item.item_key || `${key}[${i}]`, url, description: desc, review: item.review || null });
           }
         }
       }
@@ -93,12 +94,20 @@ function ImageCarousel({ images }) {
           </>
         )}
       </div>
-      {/* Caption + counter */}
-      <div className="mt-2 flex items-center justify-between px-1">
-        <p className="truncate text-xs text-base-content/60">{img.description}</p>
-        <span className="shrink-0 text-xs text-base-content/40">
-          {current + 1} / {images.length}
-        </span>
+      {/* Caption + counter + review */}
+      <div className="mt-2 px-1">
+        <div className="flex items-center justify-between">
+          <p className="truncate text-xs text-base-content/60">{img.description}</p>
+          <span className="shrink-0 text-xs text-base-content/40">
+            {current + 1} / {images.length}
+          </span>
+        </div>
+        {img.review && (
+          <div className={`mt-1 rounded-lg px-2 py-1 text-xs ${img.review.passed ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}>
+            <span className="font-semibold">{img.review.passed ? "Pass" : "Fail"}</span>
+            {img.review.note && <span className="ml-2 text-base-content/70">{img.review.note}</span>}
+          </div>
+        )}
       </div>
       {/* Thumbnails — scrollable row */}
       {images.length > 1 && (

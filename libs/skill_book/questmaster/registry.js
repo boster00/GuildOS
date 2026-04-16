@@ -26,32 +26,31 @@ export const questmasterRegistry = {
 `,
     },
     reviewSubmission: {
-      description: "Review a worker agent's deliverables before advancing to closing.",
-      howTo: `
-**Default assumption:** Every submission should include screenshots unless the quest description explicitly specifies a different deliverable format.
-
-**Review process:**
-1. Read the quest description to understand what each deliverable should prove
-2. Automated pass: fetch ALL screenshot URLs from inventory, verify each returns HTTP 200
-3. Visual pass: open and look at every screenshot. For each, judge: does it show real working content that proves the deliverable?
-4. List each screenshot with a pass/fail rating and one-line note
-5. If unsure about any screenshot, use Claude CLI (getSecondOpinion)
-
-**Decision:**
-- **Pass (90%+ satisfied):** Move quest to 'review' stage. Add a comment: "Deliverables approved. Moving to review."
-- **Needs improvement:** Move quest back to 'execute'. Add a comment with feedback.
-
-**Feedback format — keep it simple and actionable:**
-- State what is missing or wrong in one sentence
-- State exactly what the agent needs to do to fix it
-- Do NOT use jargon, caveats, or complex phrasing
-- Example good: "Missing: screenshot of /products page showing 5 antibodies. Take the screenshot and add the URL to quest inventory."
-- Example bad: "WBS 1.3 requires a quest comment listing every page with Figma match status; latest purrview note still defers 9+/10 Figma QC to human without a signed-off waiver in-thread."
-
-**Quality bar:** Check the quest description or the adventurer's system_prompt for specific quality requirements. If none specified, use your judgment.
-
-**Iteration limit:** Track how many times you have sent a quest back to execute. If after 20 review cycles the deliverables still don't pass, add a comment explaining the recurring issues and escalate the quest instead of sending it back again.
-`,
+      description: "Review a worker agent's deliverables before advancing to review.",
+      howTo: [
+        "**Review process:**",
+        "1. Read quest description — understand what each deliverable should prove",
+        "2. Fetch ALL screenshot URLs from inventory. Verify each returns HTTP 200.",
+        "3. Look at every screenshot. For each, judge: does it prove the deliverable?",
+        "4. Write review INTO inventory: UPDATE each inventory item to add a review field:",
+        "   { passed: true/false, note: 'what was checked and why it passed or failed' }",
+        "   Reference the specific WBS deliverable. Be specific and verifiable. No generic notes.",
+        "5. If unsure, use Claude CLI (getSecondOpinion)",
+        "6. Post a summary quest comment with overall pass/fail and key observations",
+        "",
+        "**First submission rule:** On the first purrview for any quest, always provide at least",
+        "one improvement suggestion per deliverable category. Approve only on second or later submission.",
+        "",
+        "**Decision:**",
+        "- Pass: move to review. Summary comment explains what passed.",
+        "- Needs improvement: move back to execute. Comment lists what to fix.",
+        "",
+        "**Feedback format:** Simple and actionable. What is wrong (one sentence), what to do (one sentence).",
+        "",
+        "**Quality bar:** Check quest description or adventurer system_prompt for project-specific requirements.",
+        "",
+        "**Iteration limit:** After 20 review cycles, escalate with a comment explaining recurring issues.",
+      ].join("\n"),
     },
     getSecondOpinion: {
       description: "Launch Claude CLI to independently evaluate a submission.",
