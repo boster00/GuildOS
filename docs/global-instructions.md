@@ -216,7 +216,14 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 
 Key tables: `quests`, `adventurers`, `quest_comments`, `profiles`, `potions`, `pigeon_letters`
 
-**Critical: verify writes.** After any DB write (update, insert), read the row back to confirm it succeeded. If unchanged, your key may lack write permission (anon key blocked by RLS). Use SUPABASE_SECRETE_KEY (service role), not the anon key. If you don't have it, escalate.
+**Critical: verify writes with SELECT.**
+After any UPDATE, do a SELECT on the same row and use the returned values as truth — not the HTTP status, not a boolean, the actual row.
+
+Example: after updating quest stage to purrview, run:
+SELECT id, stage, updated_at FROM quests WHERE id = '<quest-id>'
+If the returned stage is purrview, the write worked. If it still says execute, the write failed (RLS, wrong key, race condition). Act on what SELECT returns, not what you think you wrote.
+
+Use SUPABASE_SECRETE_KEY (service role), not the anon key. If writes fail, escalate.
 
 ---
 
