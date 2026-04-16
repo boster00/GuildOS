@@ -1,5 +1,15 @@
 # Bundle & Save — Smoke Test Plan
 
+## Questions for User
+
+| # | Question |
+|---|----------|
+| 1 | What port does the boster_nexus dev server run on? (3000? 3001?) |
+| 2 | Does the Nexus Armor Dev agent have boster_nexus Supabase credentials in its environment? |
+| 3 | The storefront embed is designed for iframe. For testing, should the agent use the internal storefront at /nexus-armor/bundle-save or the embed at /embed/bundle-save? |
+
+---
+
 Asana task: 1214051919668596 (Bundle & Save master task)
 Agent: Nexus Armor Dev (bc-49acdc4a)
 Quality bar: 9+/10 (project-specific, in quest description)
