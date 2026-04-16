@@ -97,14 +97,14 @@ progress::-webkit-progress-value {
 
 .guild-bg-town-map {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.7), rgba(245, 240, 232, 0.88)),
-    linear-gradient(135deg, rgba(87, 13, 248, 0.1), rgba(201, 168, 76, 0.12));
+    linear-gradient(rgba(255, 255, 255, 0.55), rgba(245, 240, 232, 0.75)),
+    url('/images/guildos/bg-town.png') center/cover no-repeat;
 }
 
 .guild-bg-inn {
   background:
-    linear-gradient(rgba(60, 37, 20, 0.3), rgba(245, 240, 232, 0.92)),
-    linear-gradient(125deg, rgba(126, 84, 48, 0.4), rgba(201, 168, 76, 0.25));
+    linear-gradient(rgba(60, 37, 20, 0.15), rgba(245, 240, 232, 0.8)),
+    url('/images/guildos/bg-tavern.png') center/cover no-repeat;
 }
 
 .guild-bg-town-square {
