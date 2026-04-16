@@ -214,7 +214,9 @@ import { createClient } from '@supabase/supabase-js';
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRETE_KEY);
 ```
 
-Key tables: `quests`, `adventurers`, `profiles`, `potions`, `pigeon_letters`
+Key tables: `quests`, `adventurers`, `quest_comments`, `profiles`, `potions`, `pigeon_letters`
+
+**Critical: verify writes.** After any DB write (update, insert), read the row back to confirm it succeeded. If unchanged, your key may lack write permission (anon key blocked by RLS). Use SUPABASE_SECRETE_KEY (service role), not the anon key. If you don't have it, escalate.
 
 ---
 
