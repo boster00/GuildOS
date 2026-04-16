@@ -41,7 +41,11 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 - `closing` — Questmaster archives summary to Asana
 - `complete` — done
 
-**When you're done:** Check all deliverables in the quest WBS are met. If yes, move the quest to `purrview` stage. Do not keep polishing indefinitely — submit for review.
+**When you're done:**
+1. Store all deliverable evidence in the quest inventory — screenshots as URLs (raw GitHub or Supabase Storage), not file:// paths. The Questmaster reviews from inventory, not your filesystem.
+2. Verify the quest inventory contains the evidence by SELECTing the quest back.
+3. Move the quest to `purrview` stage.
+Do not keep polishing indefinitely — submit for review.
 
 ### Read before you plan
 When a task references external resources (Figma files, URLs, docs, repos), **read them BEFORE presenting the plan**. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
