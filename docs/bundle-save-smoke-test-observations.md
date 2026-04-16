@@ -48,6 +48,17 @@ Mode: observe only after initial chat
 - Cleared bad inventory and comments
 - Waiting for cron nudge to push agent back to work
 
-## Round 2 (monitoring)
+## Round 2
+
+- T+5: Agent RUNNING, pulling GuildOS, re-reading instructions
+- T+10: Agent found no quests table — using boster_nexus Supabase, not GuildOS. Also used Playwright scripts (79 screenshots) despite native browser rule.
+- T+15: Agent correctly identified the issue (wrong Supabase) but couldn't escalate (no quest_comments table). Documented in reports/latest.md instead.
+- Fix: provided GuildOS Supabase creds via base64. Updated initAgent to clarify separate Supabase projects. Told agent to redo with native browser.
+- Observations:
+  - 8. Agent still defaults to Playwright even after explicit native browser instruction. May need stronger enforcement or removal of Playwright from agent environment.
+  - 9. Credential provisioning is a recurring blocker. The Guildmaster capability for "securely provision credentials" is critical.
+  - 10. Agent couldn't escalate because it couldn't write to quest_comments. Chicken-and-egg: needs GuildOS creds to escalate about missing GuildOS creds.
+
+## Round 3 (monitoring)
 
 (accumulating)
