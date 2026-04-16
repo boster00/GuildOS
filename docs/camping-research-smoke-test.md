@@ -4,8 +4,8 @@
 
 - [x] 1. Agent creates quest via createQuest action — PASSED (quest 7031fc42 created by Neo)
 - [x] 2. Cat provides feedback on first purrview submission — PASSED (Cat sent back to execute with feedback on first pass)
-- [ ] 3. Agent works on feedback, replaces screenshots, resubmits to purrview
-- [ ] 4. Agent asks Cat for credentials when needed (N/A — no credentials needed for this task)
+- [x] 3. Agent works on feedback, REPLACED screenshots, resubmitted to purrview — PASSED
+- [x] 4. N/A — no credentials needed for this task
 
 ## Standard Checklist
 
@@ -25,4 +25,6 @@
 - T+5: Quest created, agent RUNNING, doing browser automation
 - T+10: Quest in purrview! 5 screenshots uploaded, inventory populated. Agent checked Rush Creek Lodge, Tenaya Lodge, Scenic Wonders, Redwoods In Yosemite.
 - T+15: Cat reviewed first submission, provided feedback, kicked back to execute. First-pass feedback rule WORKED.
-- Waiting: agent should read feedback, iterate, resubmit (steps 3, 13)
+- T+20: Agent RUNNING, processing Cat's feedback
+- T+25: Agent replaced screenshots with improved versions, resubmitted to purrview. Iteration loop WORKS.
+- Waiting: Cat second review (steps 11-14)
