@@ -82,7 +82,32 @@ This is a gap in the checklist: steps 12-15 (feedback loop) were skipped entirel
 |---|------|---------|-----|
 | 3 | Quest created by agent | ENFORCE | Agent should create quest via createQuest action, not reuse old ones. The dedup bug partially caused this. Need to test agent quest creation in a future run. |
 | 7 | Agent self-evaluates | OK TO SKIP | Nice to have, not critical. Agent can submit directly if confident. |
-| 12 | Cat provides feedback | ENFORCE | Update Cat system_prompt: "On the first purrview submission, always provide at least one improvement suggestion per deliverable category, even if quality is high. Approve only on second or later submission." |
+| 12 | Cat provides detailed review comments | ENFORCE | Cat must leave readable comments visible on GM desk explaining WHY each deliverable passed or failed. Every deliverable item should have a review note. Not just "approved" — show the evaluation reasoning. Update Cat system_prompt + questmaster reviewSubmission skill book. |
 | 13 | Agent works on feedback | ENFORCE (follows from 12) | If Cat always gives feedback on first pass, agent must iterate. No code change needed — just Cat behavior. |
 | 14 | Agent replaces screenshots | ENFORCE (follows from 12) | submitForPurrview already says "REPLACE old inventory." Will be tested when 12 triggers. |
 | 15 | Agent resubmits to purrview | ENFORCE (follows from 12) | Natural consequence of 12-14. No code change needed. |
+
+## Session Summary (for context continuity)
+
+### Current State
+- Quest aeaa7484 is in `review` stage on GM desk
+- 79 screenshots in inventory (Supabase Storage URLs in GuildOS_Bucket)
+- Cat approved on first pass — need to fix Cat's review behavior
+
+### What Needs Implementation
+1. **Cat system_prompt**: must leave per-deliverable review notes in quest comments (visible on GM desk). Not "approved" — show reasoning for each deliverable category.
+2. **questmaster reviewSubmission skill book**: update review process to require per-deliverable pass/fail with notes in quest comments.
+3. **First submission rule**: On first purrview, always provide at least one improvement suggestion per deliverable type. Approve only on second or later pass.
+
+### Key Files to Modify
+- Cat system_prompt: UPDATE adventurers SET system_prompt WHERE name = 'Cat'
+- libs/skill_book/questmaster/registry.js: reviewSubmission action
+- Then initAgent Cat (bc-1a4bfbeb)
+
+### Key Learnings from This Run
+- Agent defaults to scripting (Playwright/CDP) for screenshots despite "native browser" instruction — CDP is acceptable compromise
+- GuildOS Supabase vs project Supabase is a recurring confusion — initAgent now clarifies
+- Credential provisioning via base64 works but is manual — need first-class GM capability
+- Agent can't escalate without GuildOS DB access — chicken-and-egg problem
+- Cat rubber-stamps with 79 screenshots — needs structured per-deliverable review
+- Quest dedup + completed stage reopening caused round 1 failure — fixed with terminal complete rule
