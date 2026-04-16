@@ -122,6 +122,7 @@ function ExecutionPlanTable({ plan }) {
 
 /** Stage changes use PATCH /api/quest → updateQuest (cookies). Inline script drives optimistic UI + saving + tick. */
 import QuestStageMenuClient from "./QuestStageMenuClient.js";
+import ScreenshotReviewPopup from "./ScreenshotReviewPopup.js";
 
 function QuestStageMenu({ questId, currentStage }) {
   return <QuestStageMenuClient questId={questId} initialStage={currentStage} />;
@@ -191,7 +192,7 @@ export default async function QuestDetailPage({ params }) {
           initialAssigneeId={quest.assignee_id}
           initialDueDate={quest.due_date}
           assigneeOptions={assigneeOptions}
-          stageControls={<QuestStageMenu questId={quest.id} currentStage={quest.stage} />}
+          stageControls={<><QuestStageMenu questId={quest.id} currentStage={quest.stage} /><ScreenshotReviewPopup inventory={quest.inventory} /></>}
         />
 
         <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
