@@ -24,11 +24,10 @@ export async function runCron() {
 // Derive adventurer status from Cursor API + quest state
 // ---------------------------------------------------------------------------
 //
-// idle:     no active quest, not busy
-// busy:     has quest, Cursor agent RUNNING
-// confused: has quest but not busy, OR busy but no quest (gets nudged)
-// sick:   Cursor API unreachable (manual recovery needed)
-// inactive: no session linked (not queried here)
+//              has task (execute)    no task
+// RUNNING      busy                 confused
+// idle         confused             idle
+// error/down   sick                 sick
 
 async function deriveAdventurerStatuses(db) {
   const { data: adventurers } = await db
@@ -52,18 +51,19 @@ async function deriveAdventurerStatuses(db) {
 
   for (const adv of adventurers) {
     const quests = questsByAdventurer[adv.id] || [];
-    const hasActiveQuest = quests.some((q) => q.stage === "execute" || q.stage === "review" || q.stage === "closing");
+    // Only execute counts as "has task" — review/closing are owned by Cat/system, not the agent
+    const hasTask = quests.some((q) => q.stage === "execute");
     let newStatus;
 
     try {
       const agent = await readAgent({ agentId: adv.session_id });
       const isBusy = agent?.status === "RUNNING";
 
-      if (hasActiveQuest && isBusy) {
+      if (hasTask && isBusy) {
         newStatus = "busy";
-      } else if (hasActiveQuest && !isBusy) {
+      } else if (hasTask && !isBusy) {
         newStatus = "confused";
-      } else if (!hasActiveQuest && isBusy) {
+      } else if (!hasTask && isBusy) {
         newStatus = "confused";
       } else {
         newStatus = "idle";
