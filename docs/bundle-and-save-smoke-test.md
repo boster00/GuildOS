@@ -30,12 +30,13 @@ Iteration limit: 20 review cycles before escalation
 1.2 Configure global HTML stripping if needed
 **Deliverable:** Screenshot of vendor profile page showing domain, config
 
-### 2. Product Ingestion
-2.1 Use the crawl tab to fetch each of the 5 product URLs above
-2.2 Use the ingest function to extract product data via AI
-2.3 Review ingested products — verify sku, name, price, description, images extracted correctly
-2.4 Publish all 5 products (set status from draft to published)
-**Deliverable:** Screenshot of admin product list showing 5 published Obatala products with correct data
+### 2. Product Ingestion (via GUI — not scripting)
+2.1 In the admin UI (/bundle-save), use the crawl tab to fetch each of the 5 product URLs above
+2.2 Use the ingest tab/function in the GUI to extract product data via AI
+2.3 Review ingested products in the admin UI — verify sku, name, price, description, images extracted correctly
+2.4 Publish all 5 products via the admin UI (set status from draft to published)
+ALL ingestion steps must go through the browser GUI, not direct API calls or DB inserts. This tests the GUI workflow.
+**Deliverable:** Screenshot of EACH step: crawl tab with URL entered, crawl result, ingest in progress, ingest result showing extracted data, product list showing published products. One screenshot per step per product (or batch if the UI supports it).
 
 ### 3. Storefront — Product Display
 3.1 Navigate to the public storefront (embed or internal)
