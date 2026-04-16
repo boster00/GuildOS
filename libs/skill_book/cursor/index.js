@@ -1,0 +1,175 @@
+/**
+ * Cursor skill book — cloud agent dispatch, monitoring, and PPT generation.
+ *
+ * Wraps the cursor weapon for adventurer-level task dispatch, status checks,
+ * and artifact retrieval. PPT generation is a first-class action dispatched
+ * to cursor cloud agents.
+ */
+import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
+import * as cursorWeapon from "@/libs/weapon/cursor/index.js";
+import { getAdventurerExecutionContext } from "@/libs/adventurer/advance.js";
+
+export const skillBook = {
+  id: "cursor",
+  title: "Cursor Cloud Agents",
+  description:
+    "Dispatch tasks to Cursor cloud agents, check status, read conversations, and generate PowerPoint presentations.",
+  steps: [],
+  toc: {
+    dispatchTask: {
+      description:
+        "Send a task to a Cursor cloud agent via followup message. The agent receives the message and executes it autonomously. Always include explicit push instructions if code changes are expected.",
+      input: {
+        agentId: "string — Cursor agent ID (bc-XXXXXXXX-...)",
+        instructions: "string — natural language task description. Describe WHAT to do and success criteria, not HOW.",
+        model: "string — model to use (default: composer-2.0, the cheapest in-house model)",
+      },
+      output: {
+        result: "object — Cursor API response",
+        agentId: "string — the agent ID for followup",
+      },
+    },
+    readStatus: {
+      description:
+        "Check the current status of a Cursor cloud agent. Returns whether the agent is active, idle, or finished.",
+      input: {
+        agentId: "string — Cursor agent ID",
+      },
+      output: {
+        status: "string — agent status",
+        agent: "object — full agent details",
+      },
+    },
+    readConversation: {
+      description:
+        "Read the full conversation history of a Cursor cloud agent. Useful for reviewing what the agent did and extracting results.",
+      input: {
+        agentId: "string — Cursor agent ID",
+      },
+      output: {
+        conversation: "array — conversation messages",
+      },
+    },
+    dispatchPptGeneration: {
+      description:
+        "Dispatch a PowerPoint generation task to a Cursor cloud agent. The agent generates the PPT and uploads it to Supabase Storage. Describe the content in natural language — the agent decides tools and layout.",
+      input: {
+        agentId: "string — Cursor agent ID",
+        topic: "string — PPT topic/title",
+        slides: "string — description of desired slides (natural language)",
+        questId: "string — quest ID for storage path (uploads to cursor_cloud/{questId}/)",
+      },
+      output: {
+        result: "object — Cursor API response confirming dispatch",
+        agentId: "string — agent ID for followup checks",
+      },
+    },
+  },
+};
+
+function getUserId() {
+  const ctx = getAdventurerExecutionContext();
+  return ctx?.userId || null;
+}
+
+export async function dispatchTask(_userId, input) {
+  const inObj = typeof input === "object" && input ? input : {};
+  const agentId = String(inObj.agentId || "").trim();
+  const instructions = String(inObj.instructions || "").trim();
+  const model = String(inObj.model || "").trim() || undefined;
+
+  if (!agentId) return skillActionErr("agentId is required");
+  if (!instructions) return skillActionErr("instructions are required");
+
+  const userId = _userId || getUserId();
+  try {
+    const result = await cursorWeapon.writeFollowup({ agentId, message: instructions, model }, userId);
+    return skillActionOk({
+      items: {
+        result: JSON.stringify(result),
+        agentId,
+      },
+      msg: `Task dispatched to agent ${agentId}`,
+    });
+  } catch (e) {
+    return skillActionErr(`Dispatch failed: ${e.message}`);
+  }
+}
+
+export async function readStatus(_userId, input) {
+  const inObj = typeof input === "object" && input ? input : {};
+  const agentId = String(inObj.agentId || "").trim();
+  if (!agentId) return skillActionErr("agentId is required");
+
+  const userId = _userId || getUserId();
+  try {
+    const agent = await cursorWeapon.readAgent({ agentId }, userId);
+    return skillActionOk({
+      items: {
+        status: JSON.stringify(agent.status || "unknown"),
+        agent: JSON.stringify(agent),
+      },
+      msg: `Agent ${agentId} status: ${agent.status || "unknown"}`,
+    });
+  } catch (e) {
+    return skillActionErr(`Status check failed: ${e.message}`);
+  }
+}
+
+export async function readConversation(_userId, input) {
+  const inObj = typeof input === "object" && input ? input : {};
+  const agentId = String(inObj.agentId || "").trim();
+  if (!agentId) return skillActionErr("agentId is required");
+
+  const userId = _userId || getUserId();
+  try {
+    const conv = await cursorWeapon.readConversation({ agentId }, userId);
+    return skillActionOk({
+      items: { conversation: JSON.stringify(conv) },
+      msg: `Retrieved conversation for agent ${agentId}`,
+    });
+  } catch (e) {
+    return skillActionErr(`Conversation read failed: ${e.message}`);
+  }
+}
+
+export async function dispatchPptGeneration(_userId, input) {
+  const inObj = typeof input === "object" && input ? input : {};
+  const agentId = String(inObj.agentId || "").trim();
+  const topic = String(inObj.topic || "").trim();
+  const slides = String(inObj.slides || "").trim();
+  const questId = String(inObj.questId || "").trim();
+
+  if (!agentId) return skillActionErr("agentId is required");
+  if (!topic) return skillActionErr("topic is required");
+
+  const userId = _userId || getUserId();
+  const instructions = [
+    `Generate a PowerPoint presentation about: ${topic}`,
+    slides ? `\nSlide content:\n${slides}` : "",
+    "",
+    "Requirements:",
+    "- Use pptxgenjs or python-pptx to create the PPT file",
+    "- Upload the final .pptx to Supabase Storage at:",
+    questId
+      ? `  cursor_cloud/${questId}/${topic.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}.pptx`
+      : `  cursor_cloud/general/${topic.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()}.pptx`,
+    "- Post the public URL as a quest comment",
+    "- Take a screenshot of at least one slide as visual proof",
+    "",
+    "After generating, git push your changes.",
+  ].join("\n");
+
+  try {
+    const result = await cursorWeapon.writeFollowup({ agentId, message: instructions }, userId);
+    return skillActionOk({
+      items: {
+        result: JSON.stringify(result),
+        agentId,
+      },
+      msg: `PPT generation dispatched to agent ${agentId}: "${topic}"`,
+    });
+  } catch (e) {
+    return skillActionErr(`PPT dispatch failed: ${e.message}`);
+  }
+}
