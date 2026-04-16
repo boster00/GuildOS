@@ -25,4 +25,13 @@ Future fix: auth_state weapon already exists (libs/weapon/auth_state/). Wire int
 Update status: sent explicit "evaluate and submit or escalate" message. Need to add "completion check" behavior to global instructions or housekeeping.
 
 9. Global instructions should say: when you believe all deliverables in the quest WBS are met, stop making improvements and contact the Questmaster for review. Do not keep polishing indefinitely.
-Update status: pending
+Update status: done — added purrview stage and "submit when done" to nudge + global
+
+10. Cat got stuck in merge conflict loop (10+ min). Had to send hard reset (git reset --hard origin/main). Root cause: Cat's branch diverged too far from main. Fix: agents on GuildOS repo should always work on main, not feature branches.
+Update status: resolved
+
+11. Cursor API has more endpoints than we knew: List Agents, Artifacts, Stop, Delete, Models, Repositories. No queue view or force-send though. Added to weapon backlog.
+Update status: noted
+
+12. Smoke test quest reached review stage. Flow worked: execute → purrview → review. Cat processed it.
+Update status: done
