@@ -89,10 +89,13 @@ This is a gap in the checklist: steps 12-15 (feedback loop) were skipped entirel
 
 ## Session Summary (for context continuity)
 
-### Current State
+### Current State (post round 4)
 - Quest aeaa7484 is in `review` stage on GM desk
-- 79 screenshots in inventory (Supabase Storage URLs in GuildOS_Bucket)
-- Cat approved on first pass — need to fix Cat's review behavior
+- 79 screenshots in inventory with per-item reviews (79/79 passed with WBS-referencing notes)
+- Cat wrote per-item reviews into inventory items (review.passed + review.note)
+- GM desk carousel updated to show pass/fail badges under each screenshot
+- Cat still skipped the "first submission must get feedback" rule — treated this as re-submission
+- Remaining gap: need submission counter per quest to enforce first-pass feedback
 
 ### What Needs Implementation
 1. **Cat system_prompt**: must add review notes TO EACH inventory item (not just quest comments). Each inventory item gets a `review` field with verifiable details.
