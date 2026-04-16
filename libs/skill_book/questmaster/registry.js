@@ -40,11 +40,16 @@ export const questmasterRegistry = {
 
 **Decision:**
 - **Pass (90%+ satisfied):** Move quest to 'review' stage. Add a comment: "Deliverables approved. Moving to review."
-- **Needs improvement:** Add a comment with specific feedback. Do NOT move the quest — let the worker agent address the feedback and resubmit.
+- **Needs improvement:** Move quest back to 'execute'. Add a comment with feedback.
 
-**Quality bar:** There is plenty of execution bandwidth. Do NOT settle until you are 90% satisfied with the result. Send feedback and ask for iteration.
+**Feedback format — keep it simple and actionable:**
+- State what is missing or wrong in one sentence
+- State exactly what the agent needs to do to fix it
+- Do NOT use jargon, caveats, or complex phrasing
+- Example good: "Missing: screenshot of /products page showing 5 antibodies. Take the screenshot and add the URL to quest inventory."
+- Example bad: "WBS 1.3 requires a quest comment listing every page with Figma match status; latest purrview note still defers 9+/10 Figma QC to human without a signed-off waiver in-thread."
 
-**For complex judgment:** Use Claude CLI for a second opinion (getSecondOpinion action).
+**Quality bar:** Do NOT settle until 90% satisfied. But keep feedback short and clear.
 `,
     },
     getSecondOpinion: {
