@@ -13,6 +13,11 @@ const nextConfig = {
         destination: "/town/inn/request-desk",
         permanent: false,
       },
+      { source: "/town/inn", destination: "/town/tavern", permanent: false },
+      { source: "/town/inn/upstairs", destination: "/town/tavern", permanent: false },
+      { source: "/town/inn/upstairs/:adventurerId", destination: "/town/tavern/:adventurerId", permanent: false },
+      { source: "/town/inn/quest-board", destination: "/town/quest-board", permanent: false },
+      { source: "/town/inn/quest-board/:questId", destination: "/town/quest-board/:questId", permanent: false },
     ];
   },
   // Don't bundle these in API routes; load from node_modules at runtime (fixes "Can't resolve '@sparticuz/chromium'" on build)

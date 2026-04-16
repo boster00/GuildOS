@@ -108,17 +108,17 @@ export async function POST(request) {
 
   // ── search: unified search across Books and CRM modules ──
   if (action === "search") {
-    const module = String(body.module ?? "").trim();
+    const moduleName = String(body.module ?? "").trim();
     const limit = Number(body.limit ?? 5);
-    if (!module) {
+    if (!moduleName) {
       return Response.json({ ok: false, error: "module is required" }, { status: 400 });
     }
     try {
       // Books modules are lowercase, CRM modules are PascalCase
-      const isBooks = module === module.toLowerCase();
+      const isBooks = moduleName === moduleName.toLowerCase();
       const rows = isBooks
-        ? await searchBooks(module, limit, user.id)
-        : await searchCrm(module, limit, user.id);
+        ? await searchBooks(moduleName, limit, user.id)
+        : await searchCrm(moduleName, limit, user.id);
       return Response.json({ ok: true, records: rows });
     } catch (e) {
       return Response.json({ ok: false, ...zohoErrorToJsonPayload(e) }, { status: 500 });
