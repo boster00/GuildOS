@@ -1,12 +1,10 @@
 # Bundle & Save — Smoke Test Plan
 
-## Questions for User
+## Resolved
 
-| # | Question |
-|---|----------|
-| 1 | What port does the boster_nexus dev server run on? (3000? 3001?) |
-| 2 | Does the Nexus Armor Dev agent have boster_nexus Supabase credentials in its environment? |
-| 3 | The storefront embed is designed for iframe. For testing, should the agent use the internal storefront at /nexus-armor/bundle-save or the embed at /embed/bundle-save? |
+1. Dev server port: **3001**
+2. Supabase credentials: already on agent. If issues, resolve dynamically.
+3. Storefront route: use the **embed route** (/embed/bundle-save). There should be only ONE unified route — embed-first design. The /nexus-armor/bundle-save duplicate is not desired architecture.
 
 ---
 
