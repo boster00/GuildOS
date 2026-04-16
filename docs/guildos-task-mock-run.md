@@ -33,5 +33,8 @@ Update status: resolved
 11. Cursor API has more endpoints than we knew: List Agents, Artifacts, Stop, Delete, Models, Repositories. No queue view or force-send though. Added to weapon backlog.
 Update status: noted
 
-12. Smoke test quest reached review stage. Flow worked: execute → purrview → review. Cat processed it.
-Update status: done
+12. Smoke test quest reached purrview. Cat reviewed and gave correct feedback (file:// paths not verifiable). But Cat's DB write to move quest back to execute failed silently — quest stayed in purrview. Cat likely lacks proper Supabase service role key or used anon key blocked by RLS. Guildmaster had to move it manually.
+Update status: Cat needs verified DB write access
+
+13. Agents claiming they did a DB write but it didn't actually happen is a dangerous pattern — silent failures with no error feedback. Need: agents should verify their writes succeeded by reading back after update.
+Update status: pending — add to global instructions
