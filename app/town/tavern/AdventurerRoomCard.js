@@ -41,6 +41,7 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
   const [chatMessages, setChatMessages] = useState(null);
   const [pendingMessages, setPendingMessages] = useState([]);
   const [chatBusy, setChatBusy] = useState(false);
+  const [agentTyping, setAgentTyping] = useState(false);
   const pollRef = useRef(null);
 
   const name = typeof a.name === "string" ? a.name : "—";
@@ -76,17 +77,24 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
     } catch { return []; }
   }, [a.id, hasSession]);
 
-  // Poll while there are pending messages
+  // Poll while chat is open — always, not just when pending
   useEffect(() => {
-    if (!chatOpen || pendingMessages.length === 0) {
+    if (!chatOpen) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       return;
     }
     pollRef.current = setInterval(async () => {
       const msgs = await loadConversation();
-      // Check which pending messages are now reflected in the conversation
-      const allTexts = msgs.map((m) => m.text || "");
-      setPendingMessages((prev) => prev.filter((p) => !allTexts.some((t) => t.includes(p.text.substring(0, 50)))));
+      if (pendingMessages.length > 0) {
+        const allTexts = msgs.map((m) => m.text || "");
+        setPendingMessages((prev) => prev.filter((p) => !allTexts.some((t) => t.includes(p.text.substring(0, 50)))));
+      }
+      // Check if agent is typing (RUNNING status)
+      try {
+        const statusRes = await fetch(`/api/adventurer?action=session_status&adventurerId=${a.id}`);
+        const statusJson = await statusRes.json();
+        setAgentTyping(statusJson.ok && statusJson.data?.status === "RUNNING");
+      } catch { /* ignore */ }
     }, 5000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [chatOpen, pendingMessages.length, loadConversation]);
@@ -213,6 +221,13 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
                     </div>
                   </div>
                 ))}
+                {agentTyping && (
+                  <div className="chat chat-start">
+                    <div className="chat-bubble chat-bubble-sm">
+                      <span className="loading loading-dots loading-sm" />
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
