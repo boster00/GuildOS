@@ -8,8 +8,8 @@ Mode: observe only after initial chat
 ## Progress Checklist
 
 - [x] 1. Chat msg received by agent
-- [ ] 2. Agent msg showing it started working
-- [ ] 3. Quest created
+- [x] 2. Agent msg showing it started working
+- [ ] 3. Quest created (FAIL: agent reused old completed quest instead of creating new one)
 - [ ] 4. Agent msg showing it started working on quest
 - [ ] 5. Agent msg shows it made changes to the repo
 - [ ] 6. Quest has 1+ screenshot in inventory
@@ -25,11 +25,29 @@ Mode: observe only after initial chat
 - [ ] 16. Questmaster confirms all screenshots pass 9+/10
 - [ ] 17. Quest proceeded to review stage
 
-## Timeline
+## Round 1 Failures (post-70-min check)
 
-- T+0: Initial task sent with WBS, product URLs, port 3001, embed-first route, GUI-only ingestion, screenshot every step
-- T+5: Agent reading spec, no quest created yet
+1. **Agent did NOT create a quest** — reused the old completed quest (aeaa7484) which had a different description (research task, not smoke test)
+2. **Agent treated it as a research/documentation task** — wrote a markdown doc instead of doing GUI smoke test with screenshots
+3. **No screenshots at all** — inventory had a doc URL, not screenshots
+4. **Wrong Supabase bucket** — uploaded to pim-storage instead of GuildOS_Bucket
+5. **Quest reached complete despite Cat rejecting** — Cat sent purrview rejection but quest somehow still went to complete
+6. **Agent used Playwright scripts** — conversation shows Playwright snippet usage despite global instructions saying native browser only
+7. **Cat only had 2 comments** — didn't go through proper review cycle
 
-## Observations
+## Root Causes
+
+- Agent read the OLD quest description (research task) not the smoke test WBS
+- createQuest dedup matched on title and returned the existing completed quest
+- Quest stage guard was insufficient — a completed quest should not be reopenable
+- Agent's initAgent didn't force re-reading the quest description after it was updated
+
+## Corrections Made
+
+- Reset quest to execute with correct WBS description
+- Cleared bad inventory and comments
+- Waiting for cron nudge to push agent back to work
+
+## Round 2 (monitoring)
 
 (accumulating)

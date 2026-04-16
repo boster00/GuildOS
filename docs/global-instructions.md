@@ -39,7 +39,7 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 - `purrview` — you believe deliverables are complete, Cat (Questmaster) reviews
 - `review` — Cat approved, awaiting user review on GM desk
 - `closing` — Questmaster archives summary to Asana
-- `complete` — done
+- `complete` — done (terminal — do not reopen or modify completed quests, create a new quest instead)
 
 **When you're done:**
 1. Store all deliverable evidence in the quest inventory — upload screenshots to Supabase Storage (bucket: GuildOS_Bucket, path: cursor_cloud/<questId>/), then store the public URLs in inventory. NOT file:// paths, NOT raw GitHub URLs. Storage has 30-day retention.
