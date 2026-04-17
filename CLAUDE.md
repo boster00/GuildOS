@@ -7,7 +7,6 @@ GuildOS is a fantasy-themed AI agent orchestration platform. Adventurers (AI age
 **Active app surfaces:** `app/town/**`, `app/signin`, `app/opening`, `app/api/*`
 **Archived (do not treat as active):** `_archive/legacy-shipfast-root/`
 
-> See `docs/GuildOS-refactor.md` for architecture decisions.
 
 **Quest stages:** `execute → escalated → review → closing → complete` (idea/plan/assign removed)
 **Roles:** Worker agents execute, Questmaster (Cat) reviews + closes, Guildmaster (local Claude Code) removes obstacles via escalation.
@@ -475,6 +474,9 @@ There are no idea/plan/assign stages. Ideas live in external systems (Asana). Pl
 2. Verify the quest inventory contains the evidence by SELECTing the quest back.
 3. Move the quest to `purrview` stage.
 Do not keep polishing indefinitely — submit for review.
+
+**After receiving feedback from Cat — REPLACE, do not pile on:**
+When Cat rejects and you resubmit, replace each deliverable item in the inventory in place (same key, updated URL). Delete the old storage file; upload the replacement. Do NOT add new screenshots alongside old ones. One inventory entry per deliverable at all times. A pile of mostly-similar screenshots is a rejection.
 
 ### Read before you plan
 When a task references external resources (Figma files, URLs, docs, repos), **read them BEFORE presenting the plan**. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
