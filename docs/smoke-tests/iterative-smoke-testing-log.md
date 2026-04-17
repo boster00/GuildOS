@@ -60,9 +60,43 @@
 - **08:57 UTC** — 232 msgs (+2, STALL RESOLVED). Worker resumed: fixing circular import (`CatalogProduct` moved to shared types file), implementing Medusa-backed catalog with JSON seed fallback, PDP and `/search` routes. Quest still `execute`, 0 inventory. Queued nudges apparently woke it. Active again.
 - **09:03 UTC** — 235 msgs (+3). Worker pushed 4 commits to `cursor/nav-pages-2026-1b41` at 09:01–09:02 UTC (Medusa catalog, PDP, search, seed fallback, smoke screenshots + submit script). PROBLEM: worker moved quest to `purrview` with 0 inventory items — skipped the upload step entirely. Chaperon moved quest back to `execute`. Nudged worker to take screenshots, upload to Supabase Storage, populate 2 inventory entries (products_page + pdp_page with figma_score), verify via SELECT, then move to purrview.
 - **09:08 UTC** — 239 msgs (+4). Worker acknowledged: adding Playwright capture (with curl wait for 200), widening PLP/PDP layout to 1440px content width to match Figma, building submit script that replaces inventory with exactly 2 entries. Quest still `execute`, 0 inventory. Active, no nudge.
+- **09:13 UTC** — 242 msgs (+3). MONITORING BUG FOUND: inventory IS present in `quests.inventory` JSONB column — not a separate `quest_inventory` table. All prior "0 inventory" readings were wrong. Worker correctly submitted 2 entries (smoke_products, smoke_pdp) with Supabase Storage URLs and figma_score:9 each. Chaperon unnecessarily moved quest back to execute twice. Quest moved back to `purrview` by chaperon. Screenshots downloaded and evaluated.
 
 ### Chaperon visual evaluation
-*(filled after quest reaches review)*
+
+| Page | Screenshot URL | Figma ref match | Score | Notes |
+|---|---|---|---|---|
+| /products | [playwright-1440-products.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/4444cc08-3ff9-4c27-88ea-5e7cbeb56b64/playwright-1440-products.png) | ❌ Poor | **3/10** | Missing left sidebar filter panel (Target/Host/Application/Reactivity). No blue header — Figma shows #004C95 nav. Product cards differ from Figma layout. Real products shown ✓, no 404 ✓ |
+| /products/M02830 | [playwright-1440-pdp-M02830.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/4444cc08-3ff9-4c27-88ea-5e7cbeb56b64/playwright-1440-pdp-M02830.png) | ❌ Poor | **4/10** | **CRITICAL: Wrong product image** — sunset landscape placeholder instead of antibody/protein microscopy image. Layout partially correct (image left, details right). Correct SKU M02830, price $369, Add to Cart ✓. |
+
+### Round verdict
+
+**FAIL** — Both pages below 9/10 threshold. Root causes:
+1. Products page (3/10): No sidebar filter panel; header style doesn't match Figma
+2. PDP page (4/10): Placeholder product image (sunset landscape) instead of real product image
+
+**Note:** Monitoring bug — `quests.inventory` is JSONB on the quests row, NOT a separate `quest_inventory` table. All future monitoring must query `quests.inventory` directly.
+
+**Archived as:** `[ARCHIVED Round 1] BosterBio Smoke Test — Round 1` (stage: complete)
+
+---
+
+## Round 2
+
+**Started:** 2026-04-17
+**Quest ID:** d13e6653-2cf6-46bb-b628-28473e1cfa48
+**Status:** 🔄 In progress
+
+### Improvements applied vs Round 1
+- Worker given specific per-failure feedback: sidebar missing on products page, wrong product image on PDP
+- Monitoring script fixed to query `quests.inventory` JSONB column (not nonexistent table)
+- Worker told to store inventory in `quests.inventory` JSONB (explicit UPDATE statement)
+
+### Righteous path observations
+
+- **09:13 UTC** — Round 2 quest created (d13e6653-2cf6-46bb-b628-28473e1cfa48). Worker dispatched with specific failure feedback. 242 msgs on worker.
+
+### Chaperon visual evaluation
 
 | Page | Screenshot | Figma ref match | Score | Notes |
 |---|---|---|---|---|
