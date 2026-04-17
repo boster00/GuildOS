@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 const imgExtensions = /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?.*)?$/i;
 const supabaseStorage = /storage\/v1\/object\/public\//i;
@@ -45,51 +46,113 @@ function extractImages(inventory) {
 export default function ScreenshotReviewPopup({ inventory }) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const images = extractImages(inventory);
   if (images.length === 0) return null;
 
   const img = images[current];
 
+  function handleImgClick(e) {
+    e.stopPropagation();
+    setZoomed((z) => !z);
+  }
+
+  function handleNav(delta, e) {
+    e.stopPropagation();
+    setCurrent((c) => (c + delta + images.length) % images.length);
+    setZoomed(false);
+  }
+
   return (
     <>
       <button
         type="button"
         className="btn btn-outline btn-sm"
-        onClick={() => { setOpen(true); setCurrent(0); }}
+        onClick={() => { setOpen(true); setCurrent(0); setZoomed(false); }}
       >
         Review Screenshots ({images.length})
       </button>
 
-      {open && (
-        <dialog className="modal modal-open">
-          <div className="modal-box max-w-5xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold">Screenshots — {current + 1} / {images.length}</h3>
+      {open && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
+
+          {/* Modal box */}
+          <div className="relative z-10 flex w-screen h-screen flex-col bg-base-100">
+            <div className="flex items-center justify-between p-3 pb-2 shrink-0">
+              <h3 className="text-lg font-bold">
+                Screenshots — {current + 1} / {images.length}
+                <span className="ml-2 text-xs font-normal text-base-content/40">{zoomed ? "100% — click to fit" : "fit — click to zoom"}</span>
+              </h3>
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen(false)}>Close</button>
             </div>
 
             {/* Main image */}
-            <div className="relative flex-1 overflow-auto rounded-xl border border-base-300 bg-black/5" style={{ maxHeight: 500 }}>
-              <img src={img.url} alt={img.description} className="block" style={{ maxWidth: 1200 }} loading="lazy" />
+            <div
+              className="relative flex-1 bg-black/5"
+              style={{ minHeight: 0, overflow: zoomed ? "auto" : "hidden" }}
+            >
+              <div
+                className="relative"
+                style={zoomed ? {} : { width: "100%", height: "100%" }}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                onClick={handleImgClick}
+              >
+                <img
+                  src={img.url}
+                  alt={img.description}
+                  loading="lazy"
+                  style={zoomed
+                    ? { display: "block", width: "100%", maxWidth: "none" }
+                    : { display: "block", width: "100%", height: "100%", objectFit: "contain", cursor: "zoom-in" }
+                  }
+                />
+                {/* Magnifying glass overlay in fit mode */}
+                {!zoomed && hovered && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className="rounded-full bg-black/40 p-3 text-white shadow-lg">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="16.5" y1="16.5" x2="22" y2="22" />
+                        <line x1="11" y1="8" x2="11" y2="14" />
+                        <line x1="8" y1="11" x2="14" y2="11" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+                {/* Zoom-out icon in zoomed mode */}
+                {zoomed && hovered && (
+                  <div className="pointer-events-none fixed top-16 right-6 z-20 rounded-full bg-black/40 p-3 text-white shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="16.5" y1="16.5" x2="22" y2="22" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                  </div>
+                )}
+              </div>
               {images.length > 1 && (
                 <>
                   <button
                     type="button"
-                    className="btn btn-circle btn-sm absolute top-1/2 left-2 -translate-y-1/2 bg-base-100/90 shadow"
-                    onClick={() => setCurrent((c) => (c - 1 + images.length) % images.length)}
+                    className="btn btn-circle btn-sm absolute top-1/2 left-2 -translate-y-1/2 bg-base-100/90 shadow z-10"
+                    onClick={(e) => handleNav(-1, e)}
                   >&#8249;</button>
                   <button
                     type="button"
-                    className="btn btn-circle btn-sm absolute top-1/2 right-2 -translate-y-1/2 bg-base-100/90 shadow"
-                    onClick={() => setCurrent((c) => (c + 1) % images.length)}
+                    className="btn btn-circle btn-sm absolute top-1/2 right-2 -translate-y-1/2 bg-base-100/90 shadow z-10"
+                    onClick={(e) => handleNav(1, e)}
                   >&#8250;</button>
                 </>
               )}
             </div>
 
             {/* Caption + review */}
-            <div className="mt-2 px-1">
+            <div className="shrink-0 px-4 py-1">
               <div className="flex items-center justify-between">
                 <p className="truncate text-xs text-base-content/60">{img.description}</p>
                 <span className="shrink-0 text-xs text-base-content/40">{current + 1} / {images.length}</span>
@@ -104,7 +167,7 @@ export default function ScreenshotReviewPopup({ inventory }) {
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+              <div className="shrink-0 flex gap-1.5 overflow-x-auto px-4 py-2">
                 {images.map((im, i) => (
                   <button
                     key={im.key}
@@ -112,7 +175,7 @@ export default function ScreenshotReviewPopup({ inventory }) {
                     className={`h-12 w-16 shrink-0 overflow-hidden rounded border-2 transition-all ${
                       i === current ? "border-primary" : "border-transparent opacity-60 hover:opacity-90"
                     }`}
-                    onClick={() => setCurrent(i)}
+                    onClick={() => { setCurrent(i); setZoomed(false); }}
                   >
                     <img src={im.url} alt="" className="h-full w-full object-cover" loading="lazy" />
                   </button>
@@ -120,10 +183,8 @@ export default function ScreenshotReviewPopup({ inventory }) {
               </div>
             )}
           </div>
-          <form method="dialog" className="modal-backdrop">
-            <button type="button" onClick={() => setOpen(false)}>close</button>
-          </form>
-        </dialog>
+        </div>,
+        document.body
       )}
     </>
   );

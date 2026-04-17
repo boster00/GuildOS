@@ -7,6 +7,7 @@ import { checkCredentials as checkStorageCredentials } from "@/libs/weapon/supab
 import { checkCredentials as checkAuthStateCredentials } from "@/libs/weapon/auth_state";
 import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
+import { ping as pingBosterBio } from "@/libs/weapon/bosterbio_lifecycle";
 
 
 /**
@@ -136,12 +137,12 @@ export const WEAPONS = [
   {
     id: "auth_state",
     title: "Auth State",
-    tagline: "Manage Playwright browser auth state — save, load, check expiry.",
+    tagline: "Browser auth state JSON — save, load, check expiry for cloud agents.",
     summary:
-      "Manages saved cookies/localStorage for authenticated browser sessions. Detects expired cookies and stale state files.",
+      "Manages saved cookies/localStorage exported by scripts/auth-capture.mjs. Used by cloud agents that can't connect to the local CDP Chrome on port 9222.",
     icon: "/images/guildos/chibis/bolt.svg",
     description: [
-      "Reads/writes playwright/.auth/user.json. Checks cookie expiry per domain. Use scripts/auth-capture.mjs to refresh.",
+      "Reads/writes playwright/.auth/user.json. Checks cookie expiry per domain. Local Guildmaster uses CDP Chrome directly (port 9222); this JSON is for cloud agents only.",
     ],
     requiresActivation: false,
   },
@@ -154,6 +155,18 @@ export const WEAPONS = [
     icon: "/images/guildos/chibis/bolt.svg",
     description: [
       "Uses system SSH with BatchMode. Known hosts: carbon (local network), c100h.bosterbio.com (Boster production). Custom hosts via SSH_HOSTS env var.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "bosterbio_lifecycle",
+    title: "BosterBio Lifecycle",
+    tagline: "Read genes and write enrichment via bapi.php on bosterbio.com.",
+    summary:
+      "Fetches gene records needing enrichment from the bosterbio_m2 database and writes AI-generated HTML back via the BAPI REST endpoint.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Calls https://www.bosterbio.com/?_bapi=1 with BOSTERBIO_BAPI_KEY. Actions: readGenes (top priority genes with empty enrichment), readGene (single gene), writeEnrichment (write HTML to enrichment column), ping (health check).",
     ],
     requiresActivation: false,
   },
@@ -178,6 +191,7 @@ export async function getWeaponActivationSummaries(userId) {
     auth_state: () => checkAuthStateCredentials(),
     ssh: () => checkSshCredentials(userId),
     browserclaw: () => checkCdpCredentials(),
+    bosterbio_lifecycle: () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {

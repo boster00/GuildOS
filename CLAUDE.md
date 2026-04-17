@@ -21,18 +21,19 @@ This machine (Windows 11) has **full browser control access**. Use it when tasks
 
 **To launch Chrome with CDP (Chrome DevTools Protocol):**
 ```javascript
-// Preferred: use the browserclaw CDP weapon (auto-launches Chrome if needed)
+// Always use the browserclaw CDP weapon — it auto-launches Chrome if needed
 import { ensureCdpChrome, executeSteps } from "@/libs/weapon/browserclaw/cdp";
-await ensureCdpChrome(); // launches CDP Chrome on port 9222 with separate profile
-const result = await executeSteps(steps, { storageState: "playwright/.auth/user.json" });
+await ensureCdpChrome(); // no-op if already running; uses ~/.guildos-cdp-profile
+const result = await executeSteps(steps);
 ```
-Manual launch (fallback): `"$LOCALAPPDATA/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir="$LOCALAPPDATA/Google/Chrome/CDP_Profile" &`
 
-**Important: NEVER close or kill the user's main Chrome browser.** All automated browsing and testing must happen in a **separate Playwright CDP profile**, not the user's main browser session. Launch a dedicated CDP Chrome instance with a different `--user-data-dir` (e.g. `$LOCALAPPDATA/Google/Chrome/CDP_Profile`). If the main browser is already running, launch the CDP instance alongside it on a different port or with a separate profile directory.
+Profile dir: `~/.guildos-cdp-profile` (same dir as `scripts/auth-capture.mjs` — so Chrome starts already logged in after auth capture).
+
+**Important: NEVER close or kill the user's main Chrome browser.** All automated browsing uses the dedicated CDP profile on port 9222. Chrome remains running between calls — `executeSteps` connects and disconnects without closing Chrome.
 
 **CDP libraries available:**
 - `playwright-core` (installed) — `chromium.connectOverCDP("http://localhost:9222")`
-- Browserclaw CDP module — `libs/weapon/browserclaw/cdp.js` (navigate, click, typeText, screenshot, evaluate)
+- Browserclaw CDP weapon — `libs/weapon/browserclaw/cdp.js`: `ensureCdpChrome`, `isCdpRunning`, `executeSteps`, `checkCredentials`
 
 **When to use browser control:**
 - Accessing dashboards with no API (Smartlead, Google Merchant Center, etc.)
@@ -42,13 +43,13 @@ Manual launch (fallback): `"$LOCALAPPDATA/Google/Chrome/Application/chrome.exe" 
 
 **Do not hesitate to use browser control** — it is an expected and authorized capability on this machine.
 
-**Saved auth state:** Managed by `libs/weapon/auth_state/`. To check status:
+**Auth state (local):** CDP Chrome on port 9222 uses the persistent profile at `~/.guildos-cdp-profile`. No JSON needed — just `ensureCdpChrome()` and go. Re-capture when sessions expire: `node scripts/auth-capture.mjs`.
+
+**Auth state (cloud agents):** JSON exported to `playwright/.auth/user.json`. Check via `libs/weapon/auth_state/`:
 ```javascript
 import { readExpiryStatus, searchServices } from "@/libs/weapon/auth_state";
 const { needsRefresh, reason } = await readExpiryStatus();
-const { services } = await searchServices(); // lists domains with active cookies
 ```
-To refresh: run `scripts/auth-capture.mjs` (manual login → export). State file may expire — if pages show login screens, ask user to re-capture.
 
 ---
 
@@ -186,39 +187,20 @@ For new lib code: add to the existing `index.js` first. Don't create new files p
 
 ---
 
-## Playwright — browser launch pattern
+## Auth capture — scripts/auth-capture.mjs
 
-Always use these flags when launching a browser with Playwright. Without them, Google and other services block sign-in with "This browser may not be secure."
+**For local Guildmaster only.** Captures auth cookies into the shared CDP profile dir (`~/.guildos-cdp-profile`). This is the same dir that `ensureCdpChrome()` uses, so Chrome starts already logged in after capture. Also exports a `storageState` JSON for cloud agents.
 
-```javascript
-import { chromium } from "playwright-core";
-
-// Persistent context (auth capture, stateful sessions):
-const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
-  headless: false,
-  channel: "chrome",           // use system Chrome, not bundled Chromium
-  viewport: null,
-  args: [
-    "--start-maximized",
-    "--disable-blink-features=AutomationControlled", // hides navigator.webdriver
-  ],
-  ignoreDefaultArgs: ["--enable-automation"],        // removes automation banner
-});
-
-// Fresh context (load saved storageState):
-const browser = await chromium.launch({
-  headless: false,
-  channel: "chrome",
-  args: [
-    "--start-maximized",
-    "--disable-blink-features=AutomationControlled",
-  ],
-  ignoreDefaultArgs: ["--enable-automation"],
-});
-const context = await browser.newContext({ storageState: "path/to/state.json" });
+```bash
+node scripts/auth-capture.mjs          # log in manually, exports JSON + profile
+node scripts/auth-capture.mjs --profile-only  # profile only, no JSON export
+node scripts/auth-load.mjs             # verify JSON export
+node scripts/auth-load.mjs --persistent  # verify profile directly
 ```
 
-Auth scripts: `scripts/auth-capture.mjs` (manual login → export state), `scripts/auth-load.mjs` (import state into fresh session). State file default: `playwright/.auth/user.json`.
+Auth scripts use `launchPersistentContext` with `executablePath` pointing to system Chrome (not bundled Chromium). This is the **only** place where Playwright launches Chrome directly. All other browser automation uses `connectOverCDP` via `libs/weapon/browserclaw/cdp.js`.
+
+State file default: `playwright/.auth/user.json`.
 
 ---
 

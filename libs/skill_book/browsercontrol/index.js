@@ -7,32 +7,28 @@
  *
  * PRIMARY: Claude in Chrome MCP (mcp__Claude_in_Chrome__*) for any interactive task.
  *   Flow: tabs_context_mcp → navigate → screenshot → read → click/type → screenshot → read → repeat
- * SECONDARY: Playwright weapon (libs/weapon/playwright/index.js) only for fully known,
+ * SECONDARY: Browserclaw CDP weapon (libs/weapon/browserclaw/cdp.js) for fully known,
  *   repeatable automation where selectors are confirmed and no visual verification is needed.
+ *   Connects to the persistent Chrome instance on port 9222 — does NOT launch its own browser.
  *
- * ── Playwright Init Protocol (follow before every session) ──────────────────
+ * ── Browserclaw CDP Init Protocol (follow before every session) ─────────────
  *
- * 1. CHECK LOCAL: readState() from libs/weapon/playwright/user.json
- *    → If exists and not expired → use it directly (pass to executeSteps)
+ * 1. CHECK CDP: isCdpRunning() from libs/weapon/browserclaw/cdp
+ *    → If true → call executeSteps() directly (Chrome is already running with auth)
  *
- * 2. IF MISSING/EXPIRED → ask Cat (Questmaster):
- *    Cat will attempt to download from Supabase Storage: auth_state/user.json (GuildOS_Bucket)
- *    → Cat delivers state file if found and fresh
- *    → If Cat cannot provide it, Cat returns structured error:
- *       "AUTH_STATE_REQUIRED: Guildmaster must run scripts/auth-capture.mjs
- *        then call uploadState() from libs/weapon/auth_state to publish to Storage"
- *    → Worker escalates quest with that exact error message
+ * 2. IF NOT RUNNING → call ensureCdpChrome()
+ *    → Launches Chrome on port 9222 with the shared CDP profile (~/.guildos-cdp-profile)
+ *    → Profile already has auth from the last scripts/auth-capture.mjs run
+ *    → If Chrome can't launch, escalate with "CDP_CHROME_REQUIRED: run ensureCdpChrome() or launch Chrome manually"
  *
- * 3. PIG RESPONSIBILITY: If Pig detects expired/missing state while handling a quest,
- *    Pig must proactively push updated state to BOTH:
- *      - Cat (via quest comment with the new file URL)
- *      - Supabase Storage at path auth_state/user.json in GuildOS_Bucket
+ * 3. FOR CLOUD AGENTS (Cursor): cannot use local CDP.
+ *    → Cloud agents must use Claude in Chrome MCP (mcp__Claude_in_Chrome__*) exclusively.
+ *    → auth_state JSON (playwright/.auth/user.json) can be used if MCP supports storageState loading.
  *
- * ── Usage ───────────────────────────────────────────────────────────────────
+ * ── Usage (local Guildmaster only) ─────────────────────────────────────────
  *
- *   import { executeSteps, readState } from '@/libs/weapon/playwright';
- *   const { exists, expired } = await readState();
- *   if (!exists || expired) throw new Error('AUTH_STATE_REQUIRED — ask Cat');
+ *   import { ensureCdpChrome, executeSteps } from '@/libs/weapon/browserclaw/cdp';
+ *   await ensureCdpChrome();   // no-op if already running
  *   const result = await executeSteps([
  *     { action: 'navigate', url: 'https://example.com', item: 'nav' },
  *     { action: 'screenshot', item: 'proof' },

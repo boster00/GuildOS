@@ -61,13 +61,12 @@ function ImageCarousel({ images }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Main image — scrollable on both axes, max-width 1200px */}
-      <div className="relative flex-1 overflow-auto rounded-xl border border-base-300 bg-black/5" style={{ maxHeight: 500 }}>
+      {/* Main image — fills available height */}
+      <div className="relative flex-1 overflow-auto rounded-xl border border-base-300 bg-black/5" style={{ minHeight: 0 }}>
         <img
           src={img.url}
           alt={img.description}
-          className="block"
-          style={{ maxWidth: 1200 }}
+          className="block w-full h-full object-contain"
           loading="lazy"
         />
         {/* Prev / Next buttons */}
