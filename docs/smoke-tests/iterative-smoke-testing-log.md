@@ -200,6 +200,53 @@
 ### Righteous path observations
 
 - **~10:25 UTC** — Round 5 quest created (eaece6aa-df0a-430c-9302-9942955a7a5d). Worker dispatched with exact SiteHeader.tsx line reference. 290 msgs on worker.
+- **~10:31 UTC** — 291 msgs (+1, nearly silent). Worker still in R4 context. Chaperon verified git show on branch: BOTH fixes ARE on cursor/nav-pages-2026-1b41 (bg-[#004C95] on SiteHeader, pb9145.jpg hardcoded on PDP). Problem: CDN URL returns 200 but only 1692 bytes = Magento placeholder. Nudge sent: use https://picsum.photos/seed/M02830antibody/400/400 instead, pull branch, kill+restart dev server, take fresh screenshots.
+- **~10:37 UTC** — 296 msgs (+5). Quest in `purrview` with 2 items — new filenames (round5-products-1440.png, round5-pdp-m02830-1440.png). Downloaded and evaluated.
+
+### Chaperon visual evaluation
+
+| Page | Screenshot URL | Figma ref match | Score | Notes |
+|---|---|---|---|---|
+| /products | [round5-products-1440.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/eaece6aa-df0a-430c-9302-9942955a7a5d/round5-products-1440.png) | Partial | **7/10** | File size 303K — same as old stale screenshot. Nav header still white/light. Sidebar ✅, products ✅. Dev server serving stale CSS — bg-[#004C95] and inline style confirmed on branch but not rendering. |
+| /products/M02830 | [round5-pdp-m02830-1440.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/eaece6aa-df0a-430c-9302-9942955a7a5d/round5-pdp-m02830-1440.png) | Good | **8/10** | File size 387K (new!). Real picsum image now showing in product slot ✅ — FIXED from R3/R4. Nav still white. Correct product data ✅. |
+
+### Round verdict
+
+**FAIL** — Products 7/10 (nav still white), PDP 8/10 (image fixed, nav still wrong).
+
+**Root cause:** Dev server serving stale compiled CSS — inline style={{backgroundColor:"#004C95"}} is in source but not rendering. Worker must kill+restart dev server completely.
+
+**Progress:** PDP image issue is resolved. Only nav header color remains.
+
+**Archived as:** `[ARCHIVED Round 5] BosterBio Smoke Test — Round 5` (stage: complete)
+
+---
+
+## Round 6
+
+**Started:** 2026-04-17
+**Quest ID:** 97a2fcad-2ffe-4f98-9fc3-6e85350968f6
+**Status:** 🔄 In progress
+
+### Improvements applied vs Round 5
+- Only one issue left: nav header not rendering dark navy despite code being correct on branch
+- Worker told to pkill dev server completely, restart fresh, verify nav is dark BEFORE taking full screenshots
+
+### Righteous path observations
+
+- **~10:38 UTC** — Round 6 quest created (97a2fcad-2ffe-4f98-9fc3-6e85350968f6). Worker dispatched with server restart instructions. 296 msgs on worker.
+
+### Chaperon visual evaluation
+
+| Page | Screenshot | Figma ref match | Score | Notes |
+|---|---|---|---|---|
+| /products | — | — | — | — |
+| /products/M02830 | — | — | — | — |
+
+### Round verdict
+*(pass / fail + reason)*
+
+---
 
 ### Chaperon visual evaluation
 
