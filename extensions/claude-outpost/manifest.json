@@ -1,15 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Claude Outpost",
-  "description": "Injects GuildOS messages and quest reminders into the Claude browser extension popup.",
-  "version": "1.0.0",
-  "permissions": ["storage", "scripting", "webNavigation"],
+  "description": "Stable Chrome-native bridge between GuildOS and Claude.ai — no CDP required.",
+  "version": "2.0.0",
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
-    "chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/*",
     "http://localhost:3002/*",
-    "https://*.vercel.app/*"
+    "https://claude.ai/*"
   ],
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }
