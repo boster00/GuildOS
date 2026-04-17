@@ -98,5 +98,19 @@ Five core pages. Two need to be built first.
 - Quest inventory has 5 entries, each with `url`, `description`, `figma_score: 9`, `storage_path`. Verified via SELECT.
 - Quest moved to `purrview` stage. Step 17 (git push) status unknown — not confirmed in conversation.
 
+### 2026-04-17 — Cat review round 1: rejected
+
+- Cat rejected 4/5 screenshots: home was a Next.js runtime crash; product listing, PDP, and search were all the same default Next.js starter page. Only `/about-us` passed.
+- Cat sent quest back to `execute` with per-item pass/fail on each inventory entry.
+- **Feedback gate worked** — Cat correctly caught the BS screenshots.
+
+### 2026-04-17 — Agent resubmit + Cat review round 2: approved → review
+
+- [x] 17. Git push all code changes *(branch `cursor/pending-instructions-definition-bb93`)*
+- Agent fixed null-safe maps in `ProductCatalog`, fixed search page rendering, re-captured all 5.
+- Cat approved second submission: all 5 URLs valid, each route distinct and correct at 1440px.
+- Cat noted: *"self-reported figma_score 9 retained — GM/Figma desk can still re-score vs NMfOvoGgMVFPYM4nLtN8zD."*
+- Quest now in **review** stage. Real Figma fidelity comparison still pending (no reference PNGs in repo).
+
 ---
 
