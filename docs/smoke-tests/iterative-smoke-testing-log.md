@@ -95,6 +95,7 @@
 ### Righteous path observations
 
 - **09:13 UTC** — Round 2 quest created (d13e6653-2cf6-46bb-b628-28473e1cfa48). Worker dispatched with specific failure feedback. 242 msgs on worker.
+- **09:18 UTC** — 250 msgs (+8). Worker still processing old Round 1 nudges (replying to quest 4444cc08 messages). Round 2 brief sent at tail of queue. Quest d13e6653 in `execute`, 0 inventory. No nudge — worker will pivot once it clears the queue.
 
 ### Chaperon visual evaluation
 
