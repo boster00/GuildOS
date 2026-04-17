@@ -3,7 +3,7 @@
   "name": "Claude Outpost",
   "description": "Injects GuildOS messages and quest reminders into the Claude browser extension popup.",
   "version": "1.0.0",
-  "permissions": ["storage"],
+  "permissions": ["storage", "scripting", "webNavigation"],
   "host_permissions": [
     "chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/*",
     "http://localhost:3002/*",
@@ -11,12 +11,5 @@
   ],
   "background": {
     "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/*"],
-      "js": ["injected.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  }
 }

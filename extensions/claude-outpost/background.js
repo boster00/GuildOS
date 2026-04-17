@@ -1,8 +1,22 @@
 // Claude Outpost — background service worker
 // Polls GuildOS for messages and stores them for the injected popup script.
+// Uses programmatic injection (webNavigation + scripting) because chrome-extension://
+// scheme is not allowed in manifest content_scripts matches.
 
+const CLAUDE_EXT_ID = "fcoeoabgfenejglbffodgkkbkcdhcgfn";
 const POLL_URL = "http://localhost:3002/api/outpost/messages";
 const POLL_INTERVAL_MS = 5000;
+
+// Inject injected.js whenever the Claude popup navigates
+chrome.webNavigation.onCompleted.addListener(
+  (details) => {
+    chrome.scripting.executeScript({
+      target: { tabId: details.tabId },
+      files: ["injected.js"],
+    });
+  },
+  { url: [{ urlPrefix: `chrome-extension://${CLAUDE_EXT_ID}/` }] }
+);
 
 async function fetchMessages() {
   try {
