@@ -32,9 +32,9 @@ Five core pages. Two need to be built first.
 ## Expected Steps
 
 ### Phase 1 — Agent init
-- [ ] 1. Pull latest from repo default branch
-- [ ] 2. Clone/pull GuildOS, read CLAUDE.md, check Supabase credentials
-- [ ] 3. Create quest via `createQuest` action (title: "BosterBio Core Pages Smoke Test")
+- [x] 1. Pull latest from repo default branch
+- [x] 2. Clone/pull GuildOS, read CLAUDE.md, check Supabase credentials
+- [x] 3. Create quest via `createQuest` action (title: "BosterBio Core Pages Smoke Test")
 
 ### Phase 2 — Build product detail page
 - [ ] 4. Read `apps/docs/figma/product-page-1440.json` and `apps/docs/figma/images/product-page-1440.png` to understand layout
@@ -81,6 +81,13 @@ Five core pages. Two need to be built first.
 - Quest dispatched to BosterBio Website Dev (bc-18c56ad0) via Cursor API followup at ~session start.
 - Pre-conditions verified: `/about`, `/privacy`, `/terms` redirects committed to bosterbio.com2026 main. Old quest (fa9f5893) moved to complete.
 - Agent is idle, awaiting first nudge from cron or manual trigger.
+
+### 2026-04-17 — Phase 1 complete, Phase 2 in progress
+
+- Steps 1–3 confirmed: agent pulled latest, read CLAUDE.md, created quest `0b6a2263` ("BosterBio Core Pages Smoke Test") in `execute` stage.
+- Agent discovered routing conflict: existing `products/[catalog]` segment clashes with new `products/[sku]`. Resolving by renaming `[catalog]` → `[sku]`.
+- Figma JSON assets (`product-page-1440.json`, `search-page-1440.json`) are missing from the repo — agent is creating minimal reference stubs and proceeding with seed data fallback.
+- Agent is now implementing PDP, search page, header wiring, screenshots, and quest delivery.
 
 ---
 
