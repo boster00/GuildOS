@@ -8,6 +8,7 @@ import { checkCredentials as checkAuthStateCredentials } from "@/libs/weapon/aut
 import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
 import { ping as pingBosterBio } from "@/libs/weapon/bosterbio_lifecycle";
+import { checkCredentials as checkMiroCredentials } from "@/libs/weapon/miro";
 
 
 /**
@@ -159,6 +160,19 @@ export const WEAPONS = [
     requiresActivation: false,
   },
   {
+    id: "miro",
+    title: "Miro",
+    tagline: "Read and write Miro boards — stickies, docs, tables, diagrams.",
+    summary:
+      "Local Guildmaster access via MCP (no token needed). Cloud agent access via MIRO_ACCESS_TOKEN (REST API). Supports listing items, repositioning stickies, creating docs and tables.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Local: MCP tools (mcp__731443b8-24d3-441e-b289-c7d20ca73d44__*) — board_list_items, context_get, context_explore, doc_create/get/update, table_create/list/sync.",
+      "Cloud: MIRO_ACCESS_TOKEN (personal access token from miro.com/app/settings). Covers reading items, repositioning stickies, creating sticky notes.",
+    ],
+    requiresActivation: false,
+  },
+  {
     id: "bosterbio_lifecycle",
     title: "BosterBio Lifecycle",
     tagline: "Read genes and write enrichment via bapi.php on bosterbio.com.",
@@ -192,6 +206,7 @@ export async function getWeaponActivationSummaries(userId) {
     ssh: () => checkSshCredentials(userId),
     browserclaw: () => checkCdpCredentials(),
     bosterbio_lifecycle: () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
+    miro: () => checkMiroCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {
