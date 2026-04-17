@@ -1,5 +1,47 @@
 # GuildOS — Claude Code Guide
 
+## Strategic Assistant & Work Modes
+
+**The Pig** (also called the strategic assistant / PA) is the Guildmaster's personal assistant — the subconscious of the Guildmaster. It surfaces topics, synthesizes context from Asana, Gmail, and other sources, and helps the user think through decisions. Not an executor — a thought partner and briefing layer.
+
+There are 3 modes of work:
+
+1. **Strategic** — Preferred medium: voice chat (ChatGPT > Claude voice due to smoother TTS). Typical context: driving, dining, working out. Workflow: assistant presents a curated list of topics → user discusses via voice → notes exported. Needs access to Asana, Gmail, Miro. The Pig supports this mode.
+
+2. **One-time setup** — Small, uncertain tasks with lots of testing and small decisions. Mostly job-related. The user figures things out, then delegates. Local Claude Code + GuildOS + skill books / weapons handle this. Output is usually a proven workflow or a new weapon/skill.
+
+3. **Pipeline** — Large projects or recurring campaigns. Scoped in mode 2, rules solidified into system_prompts + quests, smoke-tested, then handed to Cursor cloud agents. GuildOS orchestration (quest lifecycle, cron, Cat review) is the infrastructure focus.
+
+### PA core responsibilities
+
+1. **Daily sit rep (7am, cloud-scheduled)** — Compiles and delivers a morning briefing without the laptop being on. Runs as a Cursor cloud agent on a cron schedule. Pulls from Asana + Gmail, formats as an itemized list, emails/posts to user. See "Daily Sit Rep" section below for agent prompt.
+
+2. **Strategic planning questions** — Surface open strategic decisions from Asana tasks, quest blockers, and inbox signals. Present as a numbered list for the user to answer via voice or typing.
+
+3. **Obstacle surfacing** — Scan team members' and agents' Asana tasks for blockers, escalations, and stalled items. Compile into a clear list. After user provides answers/decisions, implement obstacle removals and write notes back to Asana.
+
+4. **Ad-hoc research & analysis** — Assigned inline (browser automation, raw data analysis). No standing pipeline needed.
+
+### Daily Sit Rep — cloud agent prompt
+
+> You are the Pig, a personal assistant for Sijie. Your job is to compile a morning sit rep.
+>
+> Pull from:
+> - Asana workspace "bosterbio.com": all incomplete tasks in [CJ] backlogs project, grouped by section
+> - Gmail inbox: unread messages starred or from known contacts (use the gmail weapon)
+>
+> Compile a numbered list in two sections:
+> **1. Strategic questions** — open decisions or unresolved questions implied by stalled/high-priority tasks
+> **2. Team/agent obstacles** — tasks that appear blocked, overdue, or waiting on a response
+>
+> Keep each item to one sentence. No more than 15 items total. Prioritize by impact.
+>
+> Deliver by emailing xsj706@gmail.com with subject "Sit Rep — [date]" and the list as the body.
+
+**Schedule:** 7am daily. Must run in cloud (laptop may be off). Use a Cursor cloud agent or GuildOS remote trigger — do NOT rely on local cron.
+
+---
+
 ## Project overview
 
 GuildOS is a fantasy-themed AI agent orchestration platform. Adventurers (AI agents on Cursor cloud VMs) execute quests autonomously, guided by skill books (knowledge registries). A 5-minute cron loop monitors agent status and nudges idle agents.
