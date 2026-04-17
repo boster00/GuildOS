@@ -235,6 +235,51 @@
 ### Righteous path observations
 
 - **~10:38 UTC** — Round 6 quest created (97a2fcad-2ffe-4f98-9fc3-6e85350968f6). Worker dispatched with server restart instructions. 296 msgs on worker.
+- **~10:45 UTC** — 306 msgs (+10). Worker pkilled dev server, deleted .next cache, restarted fresh. Quest in `purrview` with 2 items (round6-products-1440.png, round6-pdp-m02830-1440.png). Downloaded and evaluated.
+
+### Chaperon visual evaluation
+
+| Page | Screenshot URL | Figma ref match | Score | Notes |
+|---|---|---|---|---|
+| /products | [round6-products-1440.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/97a2fcad-2ffe-4f98-9fc3-6e85350968f6/round6-products-1440.png) | Partial | **7/10** | File size 303K (same). Nav header STILL white — BosterBio logo text is dark (confirms light background). Inline `style={{backgroundColor}}` not rendering despite .next cache clear. bg-[#004C95] confirmed on branch. |
+| /products/M02830 | [round6-pdp-m02830-1440.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/97a2fcad-2ffe-4f98-9fc3-6e85350968f6/round6-pdp-m02830-1440.png) | Good | **8/10** | 387K (same as R5). Real image ✅ (picsum). Nav still white. All product data correct. |
+
+### Round verdict
+
+**FAIL** — Nav header still not rendering dark navy after 6 rounds + cache clear. Switching to globals.css + `!important` approach for Round 7.
+
+**Root cause analysis:** React inline style / Tailwind class both on branch and in local workspace, but not rendering. Hypothesis: something in the layout or global CSS overrides the header background.
+
+**Archived as:** `[ARCHIVED Round 6] BosterBio Smoke Test — Round 6` (stage: complete)
+
+---
+
+## Round 7
+
+**Started:** 2026-04-17
+**Quest ID:** a6cd14cd-934d-4127-bf2e-978cf8a7e6a8
+**Status:** 🔄 In progress
+
+### Improvements applied vs Round 6
+- NEW STRATEGY: Add `.site-nav-header { background-color: #004C95 !important; }` to globals.css
+- This bypasses React inline style and Tailwind JIT compilation entirely
+- Worker told to verify nav is dark (BosterBio logo text appears WHITE) before full screenshots
+
+### Righteous path observations
+
+- **~10:46 UTC** — Round 7 quest created (a6cd14cd-934d-4127-bf2e-978cf8a7e6a8). Worker dispatched with globals.css fix. 306 msgs on worker.
+
+### Chaperon visual evaluation
+
+| Page | Screenshot | Figma ref match | Score | Notes |
+|---|---|---|---|---|
+| /products | — | — | — | — |
+| /products/M02830 | — | — | — | — |
+
+### Round verdict
+*(pass / fail + reason)*
+
+---
 
 ### Chaperon visual evaluation
 
