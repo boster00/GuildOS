@@ -389,7 +389,7 @@ async function main() {
   console.log("Sending email...");
   try {
     const token = await getGmailToken();
-    const result = await sendEmail(token, "xsj706@gmail.com", `Sit Rep — ${todayStr}`, body);
+    const result = await sendEmail(token, "xsj706@gmail.com", "daily sit rep", body);
     console.log("Email sent! Message ID:", result.id);
   } catch (e) {
     console.error("Failed to send email:", e.message);
