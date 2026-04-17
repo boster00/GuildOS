@@ -76,5 +76,11 @@ Five core pages. Two need to be built first.
 
 *(logged as test progresses — do not edit expected steps above)*
 
+### 2026-04-16 — Dispatch
+
+- Quest dispatched to BosterBio Website Dev (bc-18c56ad0) via Cursor API followup at ~session start.
+- Pre-conditions verified: `/about`, `/privacy`, `/terms` redirects committed to bosterbio.com2026 main. Old quest (fa9f5893) moved to complete.
+- Agent is idle, awaiting first nudge from cron or manual trigger.
+
 ---
 

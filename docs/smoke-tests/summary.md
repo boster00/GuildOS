@@ -6,21 +6,21 @@ Last updated: 2026-04-16
 
 ## Decision Questions
 
-These require your input before the next smoke test cycle:
+*Answered 2026-04-16*
 
-1. **purrview_count tracking** — Should we add a `purrview_count` column to quests so Cat is forced to provide feedback on first submission? Without it, Cat can rubber-stamp a first pass by treating it as a re-submission from a prior session. (Recommended: yes.)
+1. **purrview_count tracking** ✅ **Decision:** Do not add a dedicated column. Use total quest comment count as the purrview_count proxy. Cat must comment on each inventory item; the running total of comments is the submission count. Cat is required to reject and give feedback if comment count == 1 (first submission).
 
-2. **CURSOR_API_KEY on agents** — Workers currently can't call `seekHelp` via Cursor API. They fall back to writing a quest comment and waiting for Cat to poll. Is the comment-based workaround acceptable long-term, or should workers get CURSOR_API_KEY?
+2. **CURSOR_API_KEY on agents** ✅ **Decision:** Direct communication matters. CURSOR_API_KEY has been manually added to all Cursor env profiles. Workers can now call seekHelp via API.
 
-3. **FIGMA_ACCESS_TOKEN on agents** — Agents can't export Figma frames for visual comparison without the token. Should it be provisioned during initAgent, or is Figma comparison always the user's/Cat's job?
+3. **FIGMA_ACCESS_TOKEN on agents** ✅ **Decision:** The Figma file is public-accessible. No token provisioning needed — agents can access reference frames via the public Figma URL.
 
-4. **Raw GitHub URLs vs Supabase Storage** — `submitForPurrview` requires Supabase Storage URLs. Agents sometimes fall back to raw GitHub URLs. Should GitHub URLs ever be acceptable, or hard-fail if no storage key?
+4. **Raw GitHub URLs vs Supabase Storage** ✅ **Decision:** Not acceptable. Supabase Storage public URLs only. Hard-fail if no storage URL is present in inventory.
 
-5. **Quest weapon** — Agents write raw Supabase queries for stage changes and inventory updates. Should there be a `quest` weapon (`writeStage`, `writeInventory`) to encapsulate this, or is direct DB fine permanently?
+5. **Quest weapon** ✅ **Decision:** Quest operations stay in the housekeeping skill book (not a separate weapon). When agents can use native DB/API calls directly, that is fine.
 
-6. **Cat → Asana on closing** — The closing stage depends on Cat archiving to Asana. Has Cat ever successfully written to Asana (via weapon or MCP)? If not, the closing stage is unverified end-to-end.
+6. **Cat → Asana on closing** ✅ **Decision:** Not yet verified. Add to next smoke test: move a real quest to closing and observe whether Cat successfully writes to Asana.
 
-7. **Auth state sharing for cloud agents** — Agents hit sign-in screens on every fresh session. The pieces exist (`auth_state` weapon, `scripts/auth-capture.mjs`) but aren't wired into `initAgent`. Should we connect this now?
+7. **Auth state sharing for cloud agents** ✅ **Decision:** Send auth state to Cat (Questmaster) first. Cat holds it. Agents request it from Cat via seekHelp when they need browser auth. Wire into initAgent: agents ask Cat for auth state on init.
 
 ---
 
