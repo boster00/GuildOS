@@ -56,6 +56,7 @@
 - **08:37 UTC** — 230 msgs (third silent cycle). Agent status confirmed RUNNING via API — not dead. 120 files changed, 2258 lines added, 297 removed. Worker is in a long-running build/install operation without generating chat messages. No nudge — worker is alive and coding.
 - **08:42 UTC** — 230 msgs (fourth silent cycle). Quest still `execute`, 0 inventory. Branch `cursor/pending-instructions-definition-bb93` last commit at 07:10 UTC (pre-Round-1). Worker working locally but hasn't committed. Nudge sent asking it to surface any blockers and proceed to screenshots/purrview.
 - **08:47 UTC** — 230 msgs (fifth silent cycle). No new commits on branch. Worker RUNNING but unresponsive to 4 nudges sent since 08:27. Hypothesis: worker is in long-running terminal command (npm install/build/dev server) with queued nudges waiting. Nudge #5 sent asking for immediate status report.
+- **08:52 UTC** — 230 msgs (sixth silent cycle, HARD STALL). No new commits (last: 07:10 UTC). Quest still `execute`, 0 inventory. Worker has been silent 30+ minutes despite 5 nudges. Holding further nudges — waiting one more cycle to see if queued messages process. If still silent at next cycle, escalation options: (a) check if Cursor agent session expired, (b) re-dispatch fresh quest.
 
 ### Chaperon visual evaluation
 *(filled after quest reaches review)*
