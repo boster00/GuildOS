@@ -26,3 +26,4 @@ node_modules/
 # Playwright: exported storageState (cookies / localStorage) — sensitive
 playwright/.auth/
 auth-states/
+libs/weapon/playwright/user.json

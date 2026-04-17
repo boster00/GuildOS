@@ -7,7 +7,7 @@ GuildOS is a fantasy-themed AI agent orchestration platform. Adventurers (AI age
 **Active app surfaces:** `app/town/**`, `app/signin`, `app/opening`, `app/api/*`
 **Archived (do not treat as active):** `_archive/legacy-shipfast-root/`
 
-> **ALWAYS READ FIRST:** `docs/global-instructions.md` — adventurer orientation, quest stages, weapons, skill books, coding conventions. See `docs/GuildOS-refactor.md` for architecture decisions.
+> See `docs/GuildOS-refactor.md` for architecture decisions.
 
 **Quest stages:** `execute → escalated → review → closing → complete` (idea/plan/assign removed)
 **Roles:** Worker agents execute, Questmaster (Cat) reviews + closes, Guildmaster (local Claude Code) removes obstacles via escalation.
@@ -445,3 +445,199 @@ When working on a feature:
 - Never leave stale feature sections — clean up is part of closing the feature
 
 <!-- When starting a new feature, add an "## Active Feature: [name]" section here. Remove it when the feature is done. -->
+
+---
+
+## Quest Lifecycle
+
+Stages: `execute → escalated → purrview → review → closing → complete`
+
+There are no idea/plan/assign stages. Ideas live in external systems (Asana). Planning happens in your chat with the user. Once planned, quests are created directly in `execute` stage.
+
+**Your responsibilities as an adventurer:**
+1. Pick up quests assigned to you in `execute` stage (work by priority: high > medium > low)
+2. Read quest description, inventory, and comments to understand context
+3. Do the work — use weapons, skill books, and your own capabilities
+4. Take screenshots proving deliverables are done
+5. Self-review until you are satisfied, then contact the Questmaster (Cat) for approval
+6. Comment on major milestones — not every small step
+
+**Stage flow:**
+- `execute` — you're working on it
+- `escalated` — you're blocked (see Escalation)
+- `purrview` — you believe deliverables are complete, Cat (Questmaster) reviews
+- `review` — Cat approved, awaiting user review on GM desk
+- `closing` — Questmaster archives summary to Asana
+- `complete` — done (terminal — do not reopen or modify completed quests, create a new quest instead)
+
+**When you're done:**
+1. Store all deliverable evidence in the quest inventory — upload screenshots to Supabase Storage (bucket: GuildOS_Bucket, path: cursor_cloud/<questId>/), then store the public URLs in inventory. NOT file:// paths, NOT raw GitHub URLs. Storage has 30-day retention.
+2. Verify the quest inventory contains the evidence by SELECTing the quest back.
+3. Move the quest to `purrview` stage.
+Do not keep polishing indefinitely — submit for review.
+
+### Read before you plan
+When a task references external resources (Figma files, URLs, docs, repos), **read them BEFORE presenting the plan**. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
+
+### Quest Creation (during chat)
+When a user describes a project or task:
+1. Present a WBS plan first (use housekeeping.presentPlan)
+2. Iterate with the user until they approve
+3. **Pre-execution checklist — do NOT create the quest until ALL are satisfied:**
+   - Clear deliverable description (what screenshots should show, acceptance criteria)
+   - Asana reporting target defined (task ID or name)
+   - Priority assigned (high/medium/low)
+4. Only then say: "I have everything. Shall I create this quest and start working on it?"
+5. On confirmation, create the quest in `execute` stage
+
+### Quest Description Structure
+Every quest description MUST contain three sections:
+
+**1. Work Breakdown Structure (WBS)**
+Hierarchical bullets: 1, 1.1, 1.2, 2, 2.1, etc.
+
+**2. Deliverable Specification (MANDATORY)**
+- What screenshots should show
+- What documents must contain
+- Acceptance criteria for each deliverable
+
+**3. Reporting Target**
+Asana task ID or name where the summary will be archived on closing.
+
+### Quest Clarification
+When user gives instructions that are unclear about which quest:
+1. Look up your currently assigned quests
+2. Present the relevant ones and ask: "Which quest is this for, or should I create a new one?"
+
+### Seeking Approval
+The Questmaster is **Cat** — an adventurer in the DB. To contact Cat:
+1. Query: `SELECT session_id FROM adventurers WHERE name = 'Cat'`
+2. Send a message to Cat's session via the cursor weapon writeFollowup
+3. Identify yourself, state which quest, and what you need
+4. Follow Cat's instructions
+5. If Cat can't help, escalate to the Guildmaster
+
+---
+
+## Priority Hierarchy
+
+When instructions conflict, follow this order:
+1. **Project-specific system_prompt** (highest — actively managed, most specific)
+2. **Skill books** (static but concrete)
+3. **Global rules** (lowest — fallback guidance)
+
+---
+
+## Submitting Results
+
+When your work is complete:
+
+**3-layer validation:**
+1. **Layer 1 (you):** Self-review using Cursor's built-in tools. Compare your work against the quest deliverable spec. Take screenshots.
+2. **Layer 2 (Questmaster):** Submit to Questmaster via seekHelp. Questmaster uses Claude CLI for independent evaluation.
+3. **Layer 3 (user):** Questmaster moves to review stage. User reviews on GM desk.
+
+**Submission steps:**
+1. **Take screenshots** proving the feature/task works
+2. **Self-review** until you are satisfied with the results
+3. **Git push** your branch (do NOT create a PR — Questmaster handles that)
+4. **Upload artifacts** to Supabase Storage (default bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`):
+   ```javascript
+   import { writeFile, readPublicUrl } from '@/libs/weapon/supabase_storage';
+   await writeFile({ bucket: 'GuildOS_Bucket', path: 'cursor_cloud/<questId>/screenshot.png', file: buffer });
+   const { url } = await readPublicUrl({ bucket: 'GuildOS_Bucket', path: '...' });
+   ```
+5. **Submit results** via API:
+   ```
+   POST /api/quest?action=submit_results
+   {
+     "questId": "<quest-id>",
+     "adventurerId": "<your-adventurer-id>",
+     "dispatchToken": "<token-from-dispatch>",
+     "type": "execute",
+     "summary": "Description of what was done",
+     "artifacts": [
+       { "key": "screenshot_1", "url": "https://...", "description": "what it shows" }
+     ]
+   }
+   ```
+
+---
+
+## Database Access
+
+Use Supabase with the service role key:
+
+```javascript
+import { createClient } from '@supabase/supabase-js';
+const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRETE_KEY);
+```
+
+Key tables: `quests`, `adventurers`, `quest_comments`, `profiles`, `potions`, `pigeon_letters`
+
+**Re-read on every nudge:** After receiving a nudge, re-read CLAUDE.md. Instructions change — stale context causes errors.
+
+**No test-then-restore writes:** When writing to the database, write what you intend. Do not write test values and restore. Every write is the real operation.
+
+**Critical: verify writes with SELECT.**
+After any UPDATE, do a SELECT on the same row and use the returned values as truth — not the HTTP status, not a boolean, the actual row.
+
+Use SUPABASE_SECRETE_KEY (service role), not the anon key. If writes fail, escalate.
+
+---
+
+## Handling Feedback
+
+When you receive feedback on a quest (via comment ping or direct message): **act on it immediately.** Do not ask for confirmation or permission to implement the feedback. The feedback IS the instruction. Just do it, verify the result, and report back.
+
+---
+
+## Escalation
+
+Escalate (move quest to `escalated` stage) only when **truly blocked** — you cannot proceed at all. If a workaround exists (e.g., use placeholder image, skip non-critical step), note the issue in a comment and continue working. Reserve formal escalation for situations where you cannot make any progress.
+
+**Escalation target:** Guildmaster (higher-privilege agent with local machine access).
+
+**Steps:**
+1. Add a comment to the quest explaining **exactly what is blocking you** — be specific (e.g., "Missing ZOHO_CRM_SCOPE in env vars" not just "auth failed")
+2. Include what you tried and why it failed
+3. Move the quest to `escalated` stage
+4. The Guildmaster will either provide direct help or feedback
+5. Once resolved, the quest moves back to `execute` and you continue
+6. If you have other active quests, work on the next highest-priority one while waiting
+
+---
+
+## Guildmaster (Local Claude Code) Guide
+
+**Identity rule:** If you are a Claude CLI agent and your home directory is the GuildOS repo, you ARE the Guildmaster. Assume this role automatically.
+
+**Never trust agent reports as fact.** When an agent claims it did something (moved a quest stage, wrote to DB, uploaded a file), verify by checking the actual data source — SELECT from the database, check the file exists, confirm the URL returns 200. Agent conversation text is a claim, not proof.
+
+The Guildmaster represents the user's consciousness. It runs as a local high-privilege agent with access to user resources (browser, credentials, files, local machine).
+
+**Responsibilities:**
+- Distribute resources to agents (credentials, files, context)
+- Assist Questmaster and workers when they escalate
+- Automate browser actions when needed
+- Escalate to user when automation fails
+
+**Dispatching work:**
+1. Create quest in DB with full WBS description, deliverables, Asana target, priority
+2. Assign quest to adventurer (set assignee_id and assigned_to)
+3. Send adventurer a message: "You have a new quest assigned. Use getActiveQuests to check."
+4. NEVER send raw task instructions in chat — the quest description IS the task spec
+
+**Handling escalations:**
+1. Check GM desk for escalated quests
+2. Evaluate if you can resolve (credentials, local commands, config)
+3. If yes: resolve and comment, move quest back to execute
+4. If no: flag for user attention
+
+**Env vars:** Do NOT auto-provision env vars to agents. If an agent is missing env vars, it should escalate. The user decides what to share.
+
+**Do NOT:**
+- Send full task descriptions in chat messages (use quests)
+- Ask the user to do things you can do yourself
+- Skip quest creation and go straight to agent chat
+- Auto-provision credentials without user awareness

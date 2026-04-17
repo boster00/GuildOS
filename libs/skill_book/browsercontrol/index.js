@@ -1,5 +1,44 @@
 /**
- * Browser control via pigeon post — queue multi-step browser work for Browserclaw.
+ * Browser control skill book.
+ *
+ * CORE RULE (applies to ALL browser tasks — research, testing, booking, anything):
+ * Never execute steps blindly. After every action, take a screenshot and read it
+ * before deciding the next step. Browser control is observe → act → observe, not a batch script.
+ *
+ * PRIMARY: Claude in Chrome MCP (mcp__Claude_in_Chrome__*) for any interactive task.
+ *   Flow: tabs_context_mcp → navigate → screenshot → read → click/type → screenshot → read → repeat
+ * SECONDARY: Playwright weapon (libs/weapon/playwright/index.js) only for fully known,
+ *   repeatable automation where selectors are confirmed and no visual verification is needed.
+ *
+ * ── Playwright Init Protocol (follow before every session) ──────────────────
+ *
+ * 1. CHECK LOCAL: readState() from libs/weapon/playwright/user.json
+ *    → If exists and not expired → use it directly (pass to executeSteps)
+ *
+ * 2. IF MISSING/EXPIRED → ask Cat (Questmaster):
+ *    Cat will attempt to download from Supabase Storage: auth_state/user.json (GuildOS_Bucket)
+ *    → Cat delivers state file if found and fresh
+ *    → If Cat cannot provide it, Cat returns structured error:
+ *       "AUTH_STATE_REQUIRED: Guildmaster must run scripts/auth-capture.mjs
+ *        then call uploadState() from libs/weapon/auth_state to publish to Storage"
+ *    → Worker escalates quest with that exact error message
+ *
+ * 3. PIG RESPONSIBILITY: If Pig detects expired/missing state while handling a quest,
+ *    Pig must proactively push updated state to BOTH:
+ *      - Cat (via quest comment with the new file URL)
+ *      - Supabase Storage at path auth_state/user.json in GuildOS_Bucket
+ *
+ * ── Usage ───────────────────────────────────────────────────────────────────
+ *
+ *   import { executeSteps, readState } from '@/libs/weapon/playwright';
+ *   const { exists, expired } = await readState();
+ *   if (!exists || expired) throw new Error('AUTH_STATE_REQUIRED — ask Cat');
+ *   const result = await executeSteps([
+ *     { action: 'navigate', url: 'https://example.com', item: 'nav' },
+ *     { action: 'screenshot', item: 'proof' },
+ *   ]);
+ *
+ * ────────────────────────────────────────────────────────────────────────────
  */
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
 import { replacePigeonLetters } from "@/libs/weapon/pigeon";
