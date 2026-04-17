@@ -129,18 +129,41 @@
 ### Righteous path observations
 
 - **09:38 UTC** — Round 3 quest created (28f51c2d-9e5e-413e-93fd-1fed3dcf4997). Worker dispatched with targeted feedback. 260 msgs on worker.
+- **~09:50 UTC** — 262 msgs (+2). Worker still processing old Round 2 queue — last message: "Updating the Round 2 submit script...". Hard redirect sent: STOP R2, work on 28f51c2d, only two fixes (nav header + PDP image). Quest still `execute`, 0 inventory. No nudge — waiting for redirect to process.
+- **~09:54 UTC** — 262 msgs (unchanged, first silent cycle post-redirect). Quest still `execute`, 0 inventory. Worker has queued messages — waiting one more cycle before re-nudging.
+- **~09:59 UTC** — 266 msgs (+4, REDIRECT PROCESSED). Worker pivoted to R3: "Pulling GuildOS, reading global instructions and the housekeeping skill for submitForPurrview, then checking active quests." Active on Round 3. No nudge.
+- **~10:04 UTC** — 268 msgs (+2). Quest moved to `purrview` with 2 inventory items. Worker self-scored 9/9. Screenshots downloaded and evaluated.
 
 ### Chaperon visual evaluation
 
-| Page | Screenshot | Figma ref match | Score | Notes |
+| Page | Screenshot URL | Figma ref match | Score | Notes |
 |---|---|---|---|---|
-| /products | — | — | — | — |
-| /products/M02830 | — | — | — | — |
+| /products | [products_page.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/28f51c2d-9e5e-413e-93fd-1fed3dcf4997/products_page.png) | Partial | **7/10** | Sidebar ✅, product cards with images ✅, orange accents ✅, footer ✅. Nav header still WHITE — Figma shows dark #004C95 navy. No change from Round 2. |
+| /products/M02830 | [pdp_page.png](https://sdrqhejvvmbolqzfujej.supabase.co/storage/v1/object/public/GuildOS_Bucket/cursor_cloud/28f51c2d-9e5e-413e-93fd-1fed3dcf4997/pdp_page.png) | Partial | **6/10** | Correct product data ✅, Add to Cart ✅, JS errors gone ✅. Product image area shows **Magento gray placeholder** (hexagonal icon) — CDN fallback URL not loading. Improvement over blank white box (R2), but still no real antibody image. |
 
 ### Round verdict
-*(pass / fail + reason)*
+
+**FAIL** — Both pages below 9/10 threshold. Root causes (same as R2 + improvement on PDP):
+1. Products page (7/10): Nav header STILL white — this has failed 3 rounds in a row
+2. PDP page (6/10): Product image is Magento placeholder — suggested CDN URL not loading
+
+**Archived as:** `[ARCHIVED Round 3] BosterBio Smoke Test — Round 3` (stage: complete)
 
 ---
+
+## Round 4
+
+**Started:** 2026-04-17
+**Quest ID:** 331dbedf-0005-4d44-b0fe-9991ab9ea73b
+**Status:** 🔄 In progress
+
+### Improvements applied vs Round 3
+- Products page: Escalated from "apply design token" to "find exact nav component file and force #004C95 directly"
+- PDP page: Instruct worker to verify image URL with curl before hardcoding; find confirmed-working URL
+
+### Righteous path observations
+
+- **~10:05 UTC** — Round 4 quest created (331dbedf-0005-4d44-b0fe-9991ab9ea73b). Worker dispatched with precise component-level fix instructions. 268 msgs on worker.
 
 ### Chaperon visual evaluation
 
