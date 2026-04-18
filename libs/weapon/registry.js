@@ -9,6 +9,8 @@ import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
 import { ping as pingBosterBio } from "@/libs/weapon/bosterbio_lifecycle";
 import { checkCredentials as checkMiroCredentials } from "@/libs/weapon/miro";
+import { checkCredentials as checkImapCredentials } from "@/libs/weapon/imap";
+import { checkCredentials as checkBioinvsyncCredentials } from "@/libs/weapon/bioinvsync";
 
 
 /**
@@ -173,6 +175,31 @@ export const WEAPONS = [
     requiresActivation: false,
   },
   {
+    id: "imap",
+    title: "IMAP",
+    tagline: "Read email from IMAP mailboxes — Zoho Mail Pro and compatible servers.",
+    summary:
+      "Connects to IMAP servers (default: imappro.zoho.com:993) using per-account credentials stored in IMAP_ACCOUNTS env var.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses imapflow library with TLS. Credentials stored as IMAP_ACCOUNTS JSON (email → password) in profile env_vars or process.env. Actions: readMessages, searchAccounts, checkCredentials.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "bioinvsync",
+    title: "Bioinvsync",
+    tagline: "SSH access to the bioinvsync.com legacy server (JetRails hosting).",
+    summary:
+      "Connects to 69.27.32.79:2223 as bioinvsync via plink + bioinvsync.ppk. Requires Pageant running with the key loaded.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses plink.exe (PuTTY) with bioinvsync.ppk for SSH. Pageant must be running with the key loaded for non-interactive access.",
+      "Server hosts legacy Zoho Books PHP integration, FedEx, BigQuery, and ELISA analysis code under /home/bioinvsync/public_html/.",
+    ],
+    requiresActivation: false,
+  },
+  {
     id: "bosterbio_lifecycle",
     title: "BosterBio Lifecycle",
     tagline: "Read genes and write enrichment via bapi.php on bosterbio.com.",
@@ -207,6 +234,8 @@ export async function getWeaponActivationSummaries(userId) {
     browserclaw: () => checkCdpCredentials(),
     bosterbio_lifecycle: () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
     miro: () => checkMiroCredentials(),
+    imap: () => checkImapCredentials({}, userId),
+    bioinvsync: () => checkBioinvsyncCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {
