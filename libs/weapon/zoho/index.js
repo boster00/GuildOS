@@ -418,8 +418,6 @@ export async function searchCrm(module, limit, userId) {
  */
 export function buildZohoOAuthAuthorizeUrl({ region = "com", clientId, redirectUri, extraScopes = [] }) {
   const host = TOKEN_HOST[region] || TOKEN_HOST.com;
-  // ZohoMail scopes require ZohoMail to be enabled on the OAuth app in api-console.zoho.com.
-  // Pass them via extraScopes once the app has been updated.
   const defaultScopes = [
     "ZohoBooks.fullaccess.all",
     "ZohoCRM.modules.contacts.READ",
@@ -427,6 +425,8 @@ export function buildZohoOAuthAuthorizeUrl({ region = "com", clientId, redirectU
     "ZohoCRM.modules.quotes.READ",
     "ZohoCRM.modules.leads.READ",
     "ZohoCRM.modules.deals.READ",
+    "ZohoMail.messages.ALL",
+    "ZohoMail.accounts.READ",
   ];
   const scopes = [...new Set([...defaultScopes, ...extraScopes])].join(",");
   const url = new URL(`${host}/oauth/v2/auth`);
