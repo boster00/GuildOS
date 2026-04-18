@@ -1,8 +1,11 @@
 /**
  * Zoho skill book — unified search across Zoho Books, Zoho CRM, and Zoho Mail.
- * Actions: `search` (Books/CRM), `readMailAccounts`, `readMailMessages`, `readOrgMailMessages`.
+ * Actions: `search` (Books/CRM), `readMailAccounts`, `readMailMessages`.
+ *
+ * Note: Zoho Mail API only allows reading the authenticated user's own mailbox.
+ * There is no admin API to read other users' inboxes — each user must authorize separately.
  */
-import { searchBooks, searchCrm, readMailAccounts, readMailMessages, readOrgMailMessages } from "@/libs/weapon/zoho";
+import { searchBooks, searchCrm, readMailAccounts, readMailMessages } from "@/libs/weapon/zoho";
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
 
 const BOOKS_MODULES = new Set([
@@ -17,7 +20,7 @@ const CRM_MODULES = new Set([
 export const skillBook = {
   id: "zoho",
   title: "Zoho",
-  description: "Search Zoho Books/CRM modules and read Zoho Mail inboxes via shared OAuth.",
+  description: "Search Zoho Books/CRM modules and read Zoho Mail inbox via shared OAuth.",
   steps: [],
   toc: {
     search: {
@@ -34,21 +37,12 @@ export const skillBook = {
       output: { accounts: "array of { accountId, emailAddress, displayName }" },
     },
     readMailMessages: {
-      description: "Read recent messages from a specific Zoho Mail account (the authenticated user's own inbox).",
+      description: "Read recent messages from the authenticated user's Zoho Mail inbox.",
       input: {
         accountId: "string — from readMailAccounts()",
         limit: "int, default 5",
       },
       output: { messages: "array of { messageId, subject, fromAddress, receivedTime, summary }" },
-    },
-    readOrgMailMessages: {
-      description: "Admin: read recent messages from any org user's inbox. Requires ZohoMail.organization.accounts.messages.ALL scope.",
-      input: {
-        orgId: "string — Zoho Mail org ID (42602433 for bosterbio.com)",
-        accountKey: "string — target user's email address or accountId",
-        limit: "int, default 5",
-      },
-      output: { messages: "array of { messageId, subject, fromAddress, receivedTime }" },
     },
   },
 };
@@ -112,23 +106,6 @@ export async function readMailMessagesAction(a, b) {
 
   try {
     const messages = await readMailMessages(accountId, { limit });
-    return skillActionOk({ messages });
-  } catch (e) {
-    return skillActionErr(e instanceof Error ? e.message : String(e));
-  }
-}
-
-export async function readOrgMailMessagesAction(a, b) {
-  const raw = normalizeInput(a, b);
-  const orgId = String(raw.orgId ?? "").trim();
-  const accountKey = String(raw.accountKey ?? "").trim();
-  const limit = Number(raw.limit ?? 5);
-
-  if (!orgId) return skillActionErr('"orgId" is required (e.g. "42602433" for bosterbio.com).');
-  if (!accountKey) return skillActionErr('"accountKey" is required (user email or accountId).');
-
-  try {
-    const messages = await readOrgMailMessages(orgId, accountKey, { limit });
     return skillActionOk({ messages });
   } catch (e) {
     return skillActionErr(e instanceof Error ? e.message : String(e));

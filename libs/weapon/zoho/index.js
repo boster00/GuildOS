@@ -425,10 +425,8 @@ export function buildZohoOAuthAuthorizeUrl({ region = "com", clientId, redirectU
     "ZohoCRM.modules.quotes.READ",
     "ZohoCRM.modules.leads.READ",
     "ZohoCRM.modules.deals.READ",
-    "ZohoMail.messages.ALL",
-    "ZohoMail.accounts.READ",
-    "ZohoMail.organization.accounts.messages.ALL",
-    "ZohoMail.organization.accounts.READ",
+    "ZohoMail.messages",
+    "ZohoMail.accounts",
   ];
   const scopes = [...new Set([...defaultScopes, ...extraScopes])].join(",");
   const url = new URL(`${host}/oauth/v2/auth`);
@@ -589,50 +587,6 @@ export async function readMailMessages(accountId, opts = {}, userId) {
     fromAddress: m.fromAddress ?? "",
     receivedTime: m.receivedTime ?? "",
     summary: m.summary ?? "",
-  }));
-}
-
-/**
- * List Zoho Mail messages for any org user's inbox (admin-level).
- * Requires ZohoMail.organization.accounts.messages.ALL scope.
- *
- * @param {string} orgId — Zoho Mail Organization ID (42602433 for bosterbio)
- * @param {string} accountKey — user's accountId or email address
- * @param {{ limit?: number }} [opts]
- * @param {string} [userId]
- * @returns {Promise<Array<{ messageId: string, subject: string, fromAddress: string, receivedTime: string }>>}
- */
-export async function readOrgMailMessages(orgId, accountKey, opts = {}, userId) {
-  const uid = await resolveUserId(userId);
-  const secrets = await ensureSecretsForCurrentUser(uid);
-  const region = secrets.region || "com";
-  const baseUrl = ZOHO_MAIL_BASE[region] || ZOHO_MAIL_BASE.com;
-  const limit = Math.max(1, Math.min(200, Number(opts.limit) || 5));
-
-  const url = new URL(`${baseUrl}/api/organization/${orgId}/accounts/${encodeURIComponent(accountKey)}/messages/view`);
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set("sortorder", "false");
-
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Zoho-oauthtoken ${secrets.access_token}` },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    if (response.status === 401 || response.status === 403) {
-      throw new Error(getMailScopeMessage());
-    }
-    throw new Error(`ZOHO_ORG_MAIL_FAILED:${response.status}:${text.slice(0, 500)}`);
-  }
-
-  const json = await response.json();
-  const messages = Array.isArray(json?.data) ? json.data : [];
-  return messages.slice(0, limit).map((m) => ({
-    messageId: String(m.messageId ?? ""),
-    subject: m.subject ?? "(no subject)",
-    fromAddress: m.fromAddress ?? "",
-    receivedTime: m.receivedTime ?? "",
   }));
 }
 
