@@ -5,25 +5,33 @@
  * Never execute steps blindly. After every action, take a screenshot and read it
  * before deciding the next step. Browser control is observe → act → observe, not a batch script.
  *
- * PRIMARY: Claude in Chrome MCP (mcp__Claude_in_Chrome__*) for any interactive task.
- *   Flow: tabs_context_mcp → navigate → screenshot → read → click/type → screenshot → read → repeat
- * SECONDARY: Browserclaw CDP weapon (libs/weapon/browserclaw/cdp.js) for fully known,
- *   repeatable automation where selectors are confirmed and no visual verification is needed.
- *   Connects to the persistent Chrome instance on port 9222 — does NOT launch its own browser.
+ * ── TWO SEPARATE TOOLS — never confuse them ────────────────────────────────
  *
- * ── Browserclaw CDP Init Protocol (follow before every session) ─────────────
+ * 1. Claude in Chrome MCP (mcp__Claude_in_Chrome__*)
+ *    → Controls the USER'S MAIN Chrome via extension. Interactive, visible.
+ *    → Use for: research, dashboards, anything needing observe→act loop.
+ *    → "Not connected" = extension not running in user's Chrome. Cannot fix programmatically.
  *
- * 1. CHECK CDP: isCdpRunning() from libs/weapon/browserclaw/cdp
- *    → If true → call executeSteps() directly (Chrome is already running with auth)
+ * 2. Browserclaw CDP weapon (libs/weapon/browserclaw/cdp.js → executeSteps)
+ *    → Controls a DEDICATED HEADLESS Chrome on port 9222, separate process/profile.
+ *    → Use for: repeatable automation, screenshots, scraping, known selectors.
+ *    → Can relaunch programmatically via ensureCdpChrome().
  *
- * 2. IF NOT RUNNING → call ensureCdpChrome()
- *    → Launches Chrome on port 9222 with the shared CDP profile (~/.guildos-cdp-profile)
- *    → Profile already has auth from the last scripts/auth-capture.mjs run
- *    → If Chrome can't launch, escalate with "CDP_CHROME_REQUIRED: run ensureCdpChrome() or launch Chrome manually"
+ * These are completely independent. A "Claude in Chrome not connected" error does NOT
+ * mean CDP is down. Verify with isCdpRunning() and test via executeSteps directly.
  *
- * 3. FOR CLOUD AGENTS (Cursor): cannot use local CDP.
- *    → Cloud agents must use Claude in Chrome MCP (mcp__Claude_in_Chrome__*) exclusively.
- *    → auth_state JSON (playwright/.auth/user.json) can be used if MCP supports storageState loading.
+ * ── CDP Init Protocol (Guildmaster local only) ──────────────────────────────
+ *
+ * 1. Call ensureCdpChrome() — no-op if already running; launches + injects user.json cookies if not.
+ *    Verify: curl http://localhost:9222/json/version should return Chrome version JSON.
+ *
+ * 2. Test navigation: executeSteps([{ action:"navigate", url:"https://google.com", item:"test" }])
+ *
+ * 3. If cookies expired (sites show login after nav): node scripts/auth-capture.mjs
+ *
+ * 4. FOR CLOUD AGENTS: cannot reach localhost:9222. Must use Claude in Chrome MCP exclusively.
+ *
+ * See docs/browser-automation-guideline.md for full relaunch procedure.
  *
  * ── Usage (local Guildmaster only) ─────────────────────────────────────────
  *
