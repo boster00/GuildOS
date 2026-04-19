@@ -12,6 +12,21 @@ There are 3 modes of work:
 
 3. **Pipeline** — Large projects or recurring campaigns. Scoped in mode 2, rules solidified into system_prompts + quests, smoke-tested, then handed to Cursor cloud agents. GuildOS orchestration (quest lifecycle, cron, Cat review) is the infrastructure focus.
 
+### "All hands on deck" / "Micromanage" mode
+
+When the user says **"all hands on deck"** or **"micromanage"** (interchangeable), this activates high-intervention Guildmaster behavior:
+
+- **Direct agent assistance**: If a cloud agent cannot fix a specific issue after 1–2 attempts, the Guildmaster intervenes directly — edits files, patches code, pushes to the branch.
+- **Inventory hygiene**: If an agent uploads screenshots that duplicate existing inventory entries instead of replacing them (violating the replace-not-pile rule), the Guildmaster fixes the inventory directly in Supabase.
+- **Screenshot quality control**: If Cat misses obviously bad screenshots (blank, wrong page, wrong viewport, CAPTCHA), the Guildmaster rejects and retakes them without waiting for Cat.
+- **No waiting**: Don't wait for an agent to retry what it already failed at — just do it locally and push.
+
+### CLAUDE.md update rule
+
+**Always update `C:\Users\xsj70\GuildOS\CLAUDE.md` (the main file) when asked to update CLAUDE.md.** Never update only the worktree copy. Worktree copies are ephemeral — changes there do not persist to the main repo.
+
+**"Check CLAUDE.md" = main branch.** When the user asks you to read or check CLAUDE.md, always read `C:\Users\xsj70\GuildOS\CLAUDE.md` unless they explicitly specify a worktree or branch.
+
 ### PA core responsibilities
 
 1. **Daily sit rep (7am, cloud-scheduled)** — Compiles and delivers a morning briefing without the laptop being on. Runs as a Cursor cloud agent on a cron schedule. Pulls from Asana + Gmail, formats as an itemized list, emails/posts to user. See "Daily Sit Rep" section below for agent prompt.
@@ -65,7 +80,7 @@ This machine (Windows 11) has **full browser control access**. Use it when tasks
 ```javascript
 // Always use the browserclaw CDP weapon — it auto-launches Chrome if needed
 import { ensureCdpChrome, executeSteps } from "@/libs/weapon/browserclaw/cdp";
-await ensureCdpChrome(); // no-op if already running; uses ~/.guildos-cdp-profile
+await ensureCdpChrome(); // no-op if already running; on fresh launch, auto-injects playwright/.auth/user.json cookies
 const result = await executeSteps(steps);
 ```
 
@@ -85,7 +100,7 @@ Profile dir: `~/.guildos-cdp-profile` (same dir as `scripts/auth-capture.mjs` �
 
 **Do not hesitate to use browser control** — it is an expected and authorized capability on this machine.
 
-**Auth state (local):** CDP Chrome on port 9222 uses the persistent profile at `~/.guildos-cdp-profile`. No JSON needed — just `ensureCdpChrome()` and go. Re-capture when sessions expire: `node scripts/auth-capture.mjs`.
+**Auth state (local):** CDP Chrome on port 9222 uses the persistent profile at `~/.guildos-cdp-profile`. On fresh launch, `ensureCdpChrome()` automatically injects cookies from `playwright/.auth/user.json` so the session is authenticated even if the profile cookies have expired. Re-capture when auth expires: `node scripts/auth-capture.mjs`.
 
 **Auth state (cloud agents):** JSON exported to `playwright/.auth/user.json`. Check via `libs/weapon/auth_state/`:
 ```javascript
@@ -129,6 +144,18 @@ Do not create new files unless explicitly requested by the user or listed in an 
 
 ---
 
+## Skill books and weapons are the action layer
+
+Every action is expected to complete through AI-native capabilities or through actions defined in **skill books** (`libs/skill_book/`) and **weapons** (`libs/weapon/`). Think of these as a local MCP server — they are the authoritative action registry for GuildOS.
+
+**Always look there first** before writing new scripts, inline code, or ad-hoc solutions. If a weapon or skill book action already does what you need, use it directly.
+
+If new capabilities are genuinely needed, build them as a new skill book action or weapon — not as one-off scripts or inline logic. This keeps all reusable behavior discoverable and maintained in one place.
+
+**New repo template:** When instructed to start a new empty repo, clone `boster00/cjrepotemplate` as the starting point. It contains generic infrastructure (auth, customer management, credit metering, Stripe, ChatGPT API, Eden AI API) stripped of any project-specific code.
+
+---
+
 ## Critical rules
 
 ### Database — always use the `database` facade
@@ -152,6 +179,15 @@ Variable must always be named `db`. Never import `createServerClient`/`createBro
 ### Environment variables
 
 Never hardcode `localhost:3000` — dev default is **3002**. Check required vars before use.
+
+### Port assignments (locked)
+
+| Port | Repo |
+|------|------|
+| 3000 | CJGEO (`~/cjgeo`) |
+| 3001 | Boster Nexus (`~/boster_nexus`) |
+| 3002 | GuildOS (`~/GuildOS`) |
+| 3003 | hairos (`~/hairos`) |
 
 ---
 

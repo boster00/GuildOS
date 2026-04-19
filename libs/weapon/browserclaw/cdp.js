@@ -14,19 +14,25 @@
  *
  * Auth:
  *   Run scripts/auth-capture.mjs to log in with the CDP profile.
- *   That profile is then reused by ensureCdpChrome so Chrome starts already logged in.
+ *   On launch, ensureCdpChrome automatically injects cookies from
+ *   playwright/.auth/user.json so the session is authenticated even if the
+ *   persistent profile cookies have expired.
  */
 
 import { chromium } from "playwright-core";
 import { exec } from "node:child_process";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { readFileSync, existsSync } from "node:fs";
 
 export const CDP_PORT = 9222;
 export const CDP_URL = `http://localhost:${CDP_PORT}`;
 export const CDP_PROFILE_DIR =
   process.env.GUILDOS_CDP_PROFILE_DIR ||
   join(homedir(), ".guildos-cdp-profile");
+export const AUTH_STATE_PATH =
+  process.env.GUILDOS_AUTH_STATE_PATH ||
+  join(process.cwd(), "playwright/.auth/user.json");
 
 const STEP_TIMEOUT = 25_000;
 
@@ -60,6 +66,24 @@ export async function isCdpRunning() {
 }
 
 /**
+ * Inject cookies from playwright/.auth/user.json into the running CDP session.
+ * Silently skips if the file doesn't exist.
+ */
+async function _injectAuthState(authPath = AUTH_STATE_PATH) {
+  if (!existsSync(authPath)) return;
+  try {
+    const { cookies } = JSON.parse(readFileSync(authPath, "utf8"));
+    if (!cookies?.length) return;
+    const browser = await chromium.connectOverCDP(CDP_URL);
+    const ctx = browser.contexts()[0] ?? await browser.newContext();
+    await ctx.addCookies(cookies);
+    await browser.close();
+  } catch {
+    // non-fatal — profile cookies may still be valid
+  }
+}
+
+/**
  * Launch Chrome on port 9222 with the dedicated CDP profile if not already running.
  * No-op if CDP is already reachable. Returns { launched, msg }.
  */
@@ -87,6 +111,7 @@ export async function ensureCdpChrome({ profileDir = CDP_PROFILE_DIR } = {}) {
   for (let i = 0; i < 10; i++) {
     await new Promise((r) => setTimeout(r, 500));
     if (await isCdpRunning()) {
+      await _injectAuthState();
       return { launched: true, msg: `CDP Chrome launched on port ${CDP_PORT}` };
     }
   }
