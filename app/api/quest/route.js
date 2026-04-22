@@ -65,7 +65,20 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const action = request.nextUrl.searchParams.get("action") || "request";
+  const queryAction = request.nextUrl.searchParams.get("action");
+  let actionBody = null;
+  try { actionBody = await request.clone().json(); } catch { /* ignore */ }
+  const action = queryAction || (actionBody && typeof actionBody.action === "string" ? actionBody.action : "request");
+
+  if (action === "advance") {
+    const user = await requireUser();
+    const db = await database.init("server");
+    const questId = (actionBody && typeof actionBody.questId === "string" ? actionBody.questId : "").trim();
+    if (!questId) return Response.json({ ok: false, error: "questId is required" }, { status: 400 });
+    const { advanceQuest } = await import("@/libs/proving_grounds/server.js");
+    const result = await advanceQuest({ questId, ownerId: user.id, client: db });
+    return Response.json(result);
+  }
 
   if (action === "triage_escalated") {
     const user = await requireUser();

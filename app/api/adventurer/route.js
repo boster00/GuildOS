@@ -172,6 +172,20 @@ export async function GET(request) {
     return Response.json({ error: e?.message || String(e) }, { status: 500 });
   }
 
+  if (action === "search") {
+    const { listAdventurersForOwner } = await import("@/libs/council/database/serverAdventurer");
+    const { data, error } = await listAdventurersForOwner(user.id, { client: db });
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    const adventurers = (data || []).map((a) => ({
+      value: a.id,
+      label: a.name,
+      name: a.name,
+      skill_books: Array.isArray(a.skill_books) ? a.skill_books : [],
+      capabilities: typeof a.capabilities === "string" ? a.capabilities : "",
+    }));
+    return Response.json({ ok: true, adventurers });
+  }
+
   if (!adventurerId) {
     return Response.json({ error: "adventurerId query param is required" }, { status: 400 });
   }
@@ -191,7 +205,7 @@ export async function GET(request) {
   }
 
   return Response.json(
-    { error: "Invalid action", validActions: ["conversation", "session_status"] },
+    { error: "Invalid action", validActions: ["search", "conversation", "session_status"] },
     { status: 400 },
   );
 }
