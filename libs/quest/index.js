@@ -114,6 +114,10 @@ export async function recordQuestItemHandoff({ partyId, questId, itemKey, itemPa
   return { data: itemRow };
 }
 
+// [items workflow migration] replace with UPSERT into `quest_items` keyed on (quest_id, item_key).
+// Callers that currently chain appendInventoryItem + recordQuestComment should instead use a
+// single `writeQuestItem({ questId, item_key, url, description, comment? })` helper that wraps
+// both in one transaction and returns the fully-hydrated item row.
 export async function appendInventoryItem(questId, item, { client: injected } = {}) {
   const { data, error } = await appendQuestItem(questId, item, { client: injected });
   if (error) return { error };
@@ -514,6 +518,9 @@ export async function resolveAssignee(assignedTo, client) {
  * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
  * @returns {Promise<{ data: (Record<string, unknown> & { assignee: object }) | null, error: Error | null }>}
  */
+// [items workflow migration] this loader currently returns quest + assignee only. After migration,
+// it should also hydrate quest.items (each with nested comments[]) so callers get the full quest
+// shape in one call instead of orchestrating follow-up queries.
 export async function loadQuest(questId, ownerId, { client }) {
   const { data: quest, error } = await selectQuestForOwner(questId, ownerId, { client });
   if (error || !quest) {

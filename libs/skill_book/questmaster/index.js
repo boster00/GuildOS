@@ -152,6 +152,8 @@ Never present raw agent output directly to the user without review.
       howTo: `
 Every completed chaperon engagement must produce a review task visible on \`/town/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
 
+[items workflow migration] The three-call orchestration below (createQuest + appendInventoryItem + recordQuestComment) will be replaced by a single helper \`writeReviewQuest({ title, description, items, summary })\` that handles the transaction. When that helper lands, replace the example here.
+
 \`\`\`javascript
 import { createQuest, appendInventoryItem, recordQuestComment } from "@/libs/quest";
 

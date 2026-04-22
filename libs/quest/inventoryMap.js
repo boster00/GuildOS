@@ -1,4 +1,8 @@
 /**
+ * [items workflow migration] This entire module maps the legacy `quests.inventory` JSONB shape.
+ * Once items move to `quest_items` + `quest_item_comments` tables, this file is deleted and
+ * callers use a hydrated loader in libs/quest/ that returns quest + items + nested comments.
+ *
  * Quest inventory canonical shape: a plain object **{ key1: value1, key2: value2, ... }**.
  *
  * Special key `pigeon_letters`: value is **Letter[]** (array of letter objects), not wrapped in `{ letters }`.

@@ -1,5 +1,10 @@
 /**
  * Pigeon weapon — create pigeon letters (browser action packages) and deliver results to quest inventory.
+ *
+ * [items workflow migration] This weapon writes into the JSONB inventory via appendInventoryItem and
+ * replaceInventoryPigeonLetters. After the migration it should either (a) write browser-action results
+ * into `quest_items` with an upsert, or (b) move pigeon letters into a dedicated table. Decide before
+ * the migration starts — pigeon_post is currently dormant, so this is low-risk to change.
  */
 import { randomUUID } from "node:crypto";
 import {

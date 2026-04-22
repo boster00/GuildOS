@@ -6,6 +6,10 @@ When instructions conflict, follow this order:
 2. **Skill books** (static but concrete)
 3. **Global rules** (lowest — fallback guidance)
 
+## Pending migrations
+
+- **[items workflow migration]** — `quests.inventory` JSONB is moving to dedicated `quest_items` + `quest_item_comments` tables. `UNIQUE (quest_id, item_key)` will enforce the "REPLACE, don't pile on" rule at the DB layer. A helper in `libs/quest/` will assemble quest + items + comments in one call — agents will not orchestrate multi-step inserts. Grep for `[items workflow migration]` to find every code site and prompt that needs updating. Do not start the migration piecemeal; it is a hard cut with a one-shot data-copy step from the old JSONB.
+
 ## Initiation: load the agent profile, load skill books, load weapons (print list in chat history) 
 Claude: first try to figure out which situation the agent is in: 
 1.	Direct action: User will issue direct actions for Claude to perform. These jobs are usually assigned to the personal assistant thread. When doing direct actions Claude saves screenshots in docs/screenshots. User will handle clean up. 
@@ -21,7 +25,7 @@ Update agentic instructions: When user instruct to update Claude.md, update the 
 GuildOS is a fantasy-themed AI agent orchestration platform. Modules are named after typical fantasy role play games, where adventurers work towards completing quests. 
 Definitions and scopes: 
 
-Adventurer: an agent, defined in database table adventurers. An adventurer is reflected as a cloud cursor agent. Initiation, the cursor cloud agent receives a message about which adventurer it is. The agent loads the agent’s profile, and load the system_prompt as the system instruction. The main mode of operation for an adventurer is to work on quests to accomplish objectives defined in quests, and proof the completion of quest by saving screenshots to supabase storage, then associate the supabase storage links in quest inventory. Standard inventory json: [{supabaselinktoscreenshot, descriptionofscreenshot, comments: [{role (adventurer/questmaster), timestamp, comment}] }]
+Adventurer: an agent, defined in database table adventurers. An adventurer is reflected as a cloud cursor agent. Initiation, the cursor cloud agent receives a message about which adventurer it is. The agent loads the agent’s profile, and load the system_prompt as the system instruction. The main mode of operation for an adventurer is to work on quests to accomplish objectives defined in quests, and proof the completion of quest by saving screenshots to supabase storage, then associate the supabase storage links in quest inventory. <!-- [items workflow migration] inventory shape is defined below under "Quest inventory"; removed the older nested-JSON spec that used to live here. -->
 Associated session id: an adventurer is associated with a cursor agent on the cloud, and the id points to it. When a cloud cursor agent becomes unresponsive, the guildmaster will create another agent to replace the adventurer's associated session id.
 Questmaster: a special agent responsible for helping adventure resolve issues and provide feedback to the deliverables. 
 
@@ -34,7 +38,7 @@ To create a new weapon, read the Blacksmith skill book.
 
 Quest: a quest is a task to perform. When creating a quest, it should have title, description, assignee. The description should be written in a work breakdown structure—bullet points like 1. 2. 3… 4. 4.1 4.2…. Each main point should contain a clear description of the deliverable. The deliverable is by default a screenshot showing the main item is finished. The total number of screenshots should correspond to total number of main bullet points. The adventurer should read the screenshot taken and self evaluate if the screenshot meets the deliverable requirement and only load to supabase and update to inventory after confirmation of completion. 
 Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. 
-Quest inventory: hold items, usually screenshots, sometimes special items will be defined in quest with format details. Screenshot items json: { item_key: string, url?: string, description?: string, comments?: [{role, timestamp, comment}] }
+Quest inventory: holds items, usually screenshots; sometimes special items defined per-quest. Item shape: `{ item_key, url?, description?, source?, comments?: [{role, timestamp, text}] }`. `comments` is per-item — Cat's review notes attach to the specific item being judged. <!-- [items workflow migration] after migration: items live in `quest_items`, comments in `quest_item_comments`. UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on. -->
 Quest initiation interview: when user issues a new quest, only create the quest if the deliverable items and each item's success criterium are described in a clear and actionable way. Do not allow ambiguity if the deliverable items or success criteria are unclear, ask the user clarification questions until they are clear. 
 
 Council: controls system level functions such as authentication, cron, settings/account management, formulary (user’s secretes), and database connection. 

@@ -195,6 +195,11 @@ Query the quests table for your assigned quests that are not in complete stage. 
     submitForPurrview: {
       description: "Submit quest for Questmaster review by moving to purrview stage.",
       howTo: [
+        "[items workflow migration] The per-item inventory writes described below will be replaced by a single",
+        "submitForPurrview(questId, [{item_key, url, description}...]) helper that upserts items into",
+        "quest_items (UNIQUE on quest_id + item_key enforces REPLACE-don't-pile-on at the DB level) and",
+        "moves the stage in one transaction. Until the migration, the manual flow below applies.",
+        "",
         "Before moving to purrview, you MUST:",
         "1. Upload all screenshots to Supabase Storage (bucket: GuildOS_Bucket, path: cursor_cloud/<questId>/)",
         "   Use the supabase_storage weapon: writeFile to upload, readPublicUrl to get the URL",

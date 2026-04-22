@@ -3,6 +3,8 @@
  */
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
+// [items workflow migration] pigeon_letters currently piggybacks on quests.inventory JSONB via a reserved key.
+// After migration, pigeon letters should live in their own table or be ported to quest_items with a `kind=pigeon_letter` column — decide when the migration starts.
 import { inventoryRawToMap, PIGEON_LETTERS_KEY } from "@/libs/quest/inventoryMap.js";
 import { pigeonLetterHasPendingWork } from "./letterSteps.js";
 

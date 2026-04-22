@@ -3,6 +3,7 @@
  * `libs/quest` + `libs/adventurer` (`advance` / `advanceAssignedQuest`); do not add business rules here.
  */
 import { publicTables } from "@/libs/council/publicTables";
+// [items workflow migration] inventoryRawToMap goes away once items live in quest_items + quest_item_comments tables.
 import { inventoryRawToMap, PIGEON_LETTERS_KEY } from "@/libs/quest/inventoryMap.js";
 import { resolveServerClient } from "./resolveServer.js";
 

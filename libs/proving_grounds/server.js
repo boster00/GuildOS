@@ -157,6 +157,8 @@ export async function advanceQuest(quest, opts) {
   // ── execute: invoke Claude CLI via the claudecli weapon ──
   if (stage === "execute") {
     const { invoke: invokeClaudeCLI } = await import("@/libs/weapon/claudecli/index.js");
+    // [items workflow migration] the per-item appendInventoryItem loop below should become a single
+    // writeQuestItems(questId, [{item_key, url?, description?, ...}]) call that upserts into quest_items.
     const { appendInventoryItem } = await import("@/libs/quest/index.js");
 
     const questTitle = String(quest.title ?? "").trim();
