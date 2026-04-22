@@ -124,6 +124,64 @@ export const definition = {
         due_date: "string, ISO 8601 or null",
       },
     },
+    reviewCloudAgentWork: {
+      description: "Review artifacts produced by a cloud agent before presenting to the user. Strategy + management layer.",
+      howTo: `
+Never present raw agent output directly to the user without review.
+
+**After every agent task completion:**
+1. Pull artifacts (screenshots, PPTs, videos) and inspect them.
+2. Validate against success criteria. Check for:
+   - CAPTCHA/bot detection pages (Google reCAPTCHA, Cloudflare challenges)
+   - Blank/black screenshots
+   - Error pages or unexpected redirects
+   - Missing or corrupt files
+   - PPTs with wrong slide count or placeholder content
+3. If validation fails: reject the delivery, post a quest comment explaining the failure, and re-dispatch with corrective instructions (e.g. "use DuckDuckGo instead of Google", "add anti-detection flags", "retry with different approach").
+4. Only present results to the user after they pass review.
+
+**Common cloud agent pitfalls to catch:**
+- Google/Bing CAPTCHA on headless cloud IPs → use DuckDuckGo or add \`--disable-blink-features=AutomationControlled\`
+- Full-page screenshots that are blank/black → use viewport capture instead
+- Secrets appearing in committed code → agent's repo has secret scanner
+- \`localhost:3002\` unreachable → agent forgot to start dev server
+`,
+    },
+    reportChaperonWork: {
+      description: "After chaperoning a cloud agent, create/update a review-stage quest on the Guildmaster's Desk.",
+      howTo: `
+Every completed chaperon engagement must produce a review task visible on \`/town/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
+
+\`\`\`javascript
+import { createQuest, appendInventoryItem, recordQuestComment } from "@/libs/quest";
+
+const { data: quest } = await createQuest({
+  userId, title: "Review: <what was done>",
+  description: "<summary of work and success criteria>",
+  stage: "review",
+});
+
+await appendInventoryItem(quest.id, {
+  item_key: "screenshot_1",
+  payload: { url: "https://...", description: "Login page after fix" },
+  source: "chaperon",
+});
+
+await recordQuestComment(quest.id, {
+  source: "chaperon",
+  action: "deliver",
+  summary: "Agent completed: built login page, tested with Playwright, 3 screenshots attached.",
+  detail: { agentId: "bc-xxx", artifacts: ["screenshot_1", "screenshot_2"] },
+});
+\`\`\`
+`,
+    },
+    handleFeedback: {
+      description: "Act on feedback from a quest comment or direct message.",
+      howTo: `
+When you receive feedback on a quest (comment ping or direct message): act on it immediately. Do not ask for confirmation or permission to implement the feedback. The feedback IS the instruction. Just do it, verify the result, and report back.
+`,
+    },
   },
   steps: [],
 };

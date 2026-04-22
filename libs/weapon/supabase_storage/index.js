@@ -2,7 +2,12 @@
  * Supabase Storage weapon — unified upload/download with path conventions.
  *
  * Auth: Uses SUPABASE_SECRETE_KEY via database service role.
- * Bucket: GuildOS_Bucket (public)
+ *
+ * Storage convention:
+ * - Bucket: GuildOS_Bucket (public)
+ * - Path: {channel}/{questId}/{filename} — channel defaults to "general";
+ *         cloud agent artifacts use channel="cursor_cloud"
+ * - Retention: 30 days (enforced via bucket lifecycle policy or manual cleanup)
  */
 import { database } from "@/libs/council/database";
 

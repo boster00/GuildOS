@@ -1,20 +1,25 @@
 /**
  * Browser control skill book.
  *
+ * ── PREFERRED METHOD ────────────────────────────────────────────────────────
+ * Use Claude in Chrome MCP (mcp__Claude_in_Chrome__*) for ALL browser tasks.
+ * Always open new tabs via tabs_create_mcp — never reuse or navigate existing tabs.
+ * Reserve Browserclaw CDP only for automated pipelines where MCP is unavailable.
+ *
  * CORE RULE (applies to ALL browser tasks — research, testing, booking, anything):
  * Never execute steps blindly. After every action, take a screenshot and read it
  * before deciding the next step. Browser control is observe → act → observe, not a batch script.
  *
  * ── TWO SEPARATE TOOLS — never confuse them ────────────────────────────────
  *
- * 1. Claude in Chrome MCP (mcp__Claude_in_Chrome__*)
+ * 1. Claude in Chrome MCP (mcp__Claude_in_Chrome__*) ← USE THIS
  *    → Controls the USER'S MAIN Chrome via extension. Interactive, visible.
  *    → Use for: research, dashboards, anything needing observe→act loop.
  *    → "Not connected" = extension not running in user's Chrome. Cannot fix programmatically.
  *
  * 2. Browserclaw CDP weapon (libs/weapon/browserclaw/cdp.js → executeSteps)
  *    → Controls a DEDICATED HEADLESS Chrome on port 9222, separate process/profile.
- *    → Use for: repeatable automation, screenshots, scraping, known selectors.
+ *    → Use for: repeatable automation, screenshots, scraping, known selectors (pipelines only).
  *    → Can relaunch programmatically via ensureCdpChrome().
  *
  * These are completely independent. A "Claude in Chrome not connected" error does NOT
@@ -89,6 +94,21 @@ export const skillBook = {
         letterId: "string, first letter ID",
         pigeon_letter: "object, first letter",
       },
+    },
+    captureAuth: {
+      description: "Local Guildmaster only: capture auth cookies into the shared CDP profile and export a storageState JSON for cloud agents.",
+      howTo: `
+Captures cookies into \`~/.guildos-cdp-profile\` (the same dir \`ensureCdpChrome()\` uses, so Chrome starts already logged in after capture) and exports a \`storageState\` JSON at \`playwright/.auth/user.json\` for cloud agents.
+
+\`\`\`bash
+node scripts/auth-capture.mjs             # log in manually, exports JSON + profile
+node scripts/auth-capture.mjs --profile-only  # profile only, no JSON export
+node scripts/auth-load.mjs                # verify JSON export
+node scripts/auth-load.mjs --persistent   # verify profile directly
+\`\`\`
+
+The capture scripts use \`launchPersistentContext\` with \`executablePath\` pointing to system Chrome (not bundled Chromium). This is the only place where Playwright launches Chrome directly. All other browser automation uses \`connectOverCDP\` via \`libs/weapon/browserclaw/cdp.js\`.
+`,
     },
   },
 };

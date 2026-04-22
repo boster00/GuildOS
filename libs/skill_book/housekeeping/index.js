@@ -82,14 +82,22 @@ Only comment for significant events: major milestone completion, escalation, res
 `,
     },
     escalate: {
-      description: "Move a quest to escalated stage.",
+      description: "Move a quest to escalated stage when truly blocked.",
       howTo: [
-        "Before moving to escalated, post a comment that clearly describes:",
-        "1. What you were trying to do (one sentence)",
-        "2. What went wrong — the exact error or blocker (paste the error message if there is one)",
-        "3. What you need from the Guildmaster to unblock you (specific: a credential, a file, a decision)",
+        "Escalate only when truly blocked — you cannot proceed at all.",
+        "If a workaround exists (use placeholder image, skip non-critical step, etc.), note the issue in a comment and keep working. Reserve formal escalation for situations where you cannot make any progress.",
         "",
-        "Then update the quest stage to escalated.",
+        "Escalation target: Guildmaster (higher-privilege agent with local machine access).",
+        "",
+        "Steps:",
+        "1. Post a comment on the quest describing:",
+        "   - What you were trying to do (one sentence)",
+        "   - What went wrong — the exact error or blocker (paste the error if any, be specific, e.g. 'Missing ZOHO_CRM_SCOPE in env vars' not 'auth failed')",
+        "   - What you tried and why it failed",
+        "   - What you need from the Guildmaster to unblock you (specific: a credential, a file, a decision)",
+        "2. Update the quest stage to escalated.",
+        "3. The Guildmaster will either resolve directly or give feedback; once resolved, the quest moves back to execute and you continue.",
+        "4. If you have other active quests, work on the next highest-priority one while waiting.",
         "",
         "Do NOT escalate for things you can figure out yourself or permission to proceed — just proceed.",
         "Do NOT escalate with vague descriptions like 'something went wrong' or 'need help'.",
@@ -98,6 +106,8 @@ Only comment for significant events: major milestone completion, escalation, res
     presentPlan: {
       description: "Present a WBS-format plan with clear deliverables and measurement criteria.",
       howTo: `
+**Read before you plan.** When the task references external resources (Figma files, URLs, docs, repos), read them BEFORE presenting the plan. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
+
 **Format:** Work Breakdown Structure (WBS)
 \`\`\`
 1. Phase name
@@ -123,10 +133,15 @@ Only comment for significant events: major milestone completion, escalation, res
       howTo: `
 **Flow:**
 1. User describes a project/task in chat
-2. You present a WBS plan (presentPlan action)
-3. User iterates until satisfied
-4. You ask: "Shall I create this quest and start working on it?"
-5. On confirmation, create the quest:
+2. Present a WBS plan (presentPlan action)
+3. Iterate with the user until they approve
+
+**Pre-execution checklist — do NOT create the quest until ALL are satisfied:**
+- Clear deliverable description (what screenshots should show, acceptance criteria)
+- Priority assigned (high/medium/low)
+
+4. Ask: "I have everything. Shall I create this quest and start working on it?"
+5. On confirmation, create the quest in \`execute\` stage:
 
 \`\`\`javascript
 await db.from('quests').insert({
@@ -144,14 +159,31 @@ await db.from('quests').insert({
 Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' stage. Prefer direct DB insert for execute stage.
 `,
     },
-    seekHelp: {
-      description: "Contact the Questmaster for approval or assistance.",
+    clarifyQuest: {
+      description: "When user gives instructions that are unclear about which quest they mean, ask which one.",
       howTo: `
-Send a message to the Questmaster (Cat) asking for help or approval.
+1. Look up your currently assigned quests.
+2. Present the relevant ones and ask: "Which quest is this for, or should I create a new one?"
+`,
+    },
+    seekHelp: {
+      description: "Contact the Questmaster (Cat) for approval or assistance.",
+      howTo: `
+Cat is a DB adventurer. Look up her session and send a followup via the cursor weapon:
 
-1. Query Cat's session: SELECT session_id FROM adventurers WHERE name = 'Cat'
-2. Send a message identifying yourself, your quest, and what you need
-3. When seeking review, include deliverable URLs in the message
+\`\`\`javascript
+// 1. Find Cat's session id
+const { data } = await db.from('adventurers').select('session_id').eq('name', 'Cat').single();
+
+// 2. Send a followup identifying yourself, your quest, and what you need
+import { writeFollowup } from '@/libs/weapon/cursor';
+await writeFollowup({
+  agentId: data.session_id,
+  message: "Quest <id> (<title>): <what you need>. Deliverable URLs if seeking review: ...",
+});
+\`\`\`
+
+If Cat can't help, escalate to the Guildmaster via the escalate action.
 `,
     },
     getActiveQuests: {
