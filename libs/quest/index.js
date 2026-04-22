@@ -417,11 +417,8 @@ export async function advanceToNextStep(questId, { client }) {
 
   if (upErr) return { error: upErr };
 
-  // Route to the correct NPC based on prep type, default to Cat
-  const { PREP_NPC_ROUTING, getNpc } = await import("@/libs/npcs");
-  const npcKey = PREP_NPC_ROUTING[nextObj.type] || "cat";
-  const npc = getNpc(npcKey);
-  const assignedTo = npc?.name || "Cat";
+  // Route prep work to the Pig (local Claude handles weapon/skillbook/adventurer prep)
+  const assignedTo = "Pig";
   await updateQuestAssignee(questId, { assigneeId: null, assignedTo }, { client });
 
   return {
@@ -468,28 +465,18 @@ export async function triggerPreparationCascade(quest, { client }) {
 }
 
 // ---------------------------------------------------------------------------
-// Assignee resolution — derives NPC or adventurer from quest.assigned_to
+// Assignee resolution — derives an adventurer DB row from quest.assigned_to
 // ---------------------------------------------------------------------------
 
-/** Known NPC slugs → metadata. */
-// Re-export from canonical source
-export { NPC_REGISTRY as NPC_ROSTER } from "@/libs/npcs";
-
 /**
- * Resolve an `assigned_to` string to either an NPC or an adventurer DB row.
+ * Resolve an `assigned_to` string to an adventurer DB row.
  * @param {string} assignedTo
  * @param {import("@/libs/council/database/types.js").DatabaseClient} client
- * @returns {Promise<{ type: "npc", profile: object } | { type: "adventurer", profile: object } | { type: "unassigned" }>}
+ * @returns {Promise<{ type: "adventurer", profile: object } | { type: "unassigned" }>}
  */
 export async function resolveAssignee(assignedTo, client) {
   const key = String(assignedTo ?? "").trim().toLowerCase();
   if (!key) return { type: "unassigned" };
-
-  const { getNpc } = await import("@/libs/npcs");
-  const npc = getNpc(key);
-  if (npc) {
-    return { type: "npc", profile: { ...npc, id: null } };
-  }
 
   const { publicTables } = await import("@/libs/council/publicTables");
   // Try by name (case-insensitive)

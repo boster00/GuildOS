@@ -140,37 +140,9 @@ export async function advanceQuest(quest, opts) {
 
   const assignee = await resolveAssignee(assignedTo, client);
 
-  // ── NPC path: delegate entirely to the NPC module's doNextAction ──
-  if (assignee.type === "npc") {
-    const slug = assignee.profile.slug;
-    const npcLoaders = {
-      questmaster: () => import("@/libs/npcs/questmaster/index.js"),
-      guildmaster: () => import("@/libs/npcs/guildmaster/index.js"),
-      blacksmith: () => import("@/libs/npcs/blacksmith/index.js"),
-      runesmith: () => import("@/libs/npcs/runesmith/index.js"),
-    };
-    const loader = npcLoaders[slug];
-    if (!loader) {
-      return { ok: false, advanced: false, stage, error: `Unknown NPC slug: ${slug}` };
-    }
-    const npcModule = await loader();
-    const result = await runWithAdventurerExecutionContext({ userId: ownerId, client }, () =>
-      npcModule.doNextAction(quest, { client, userId: ownerId })
-    );
-    // "waiting" actions mean no progress — mark advanced: false so scripts know to pause
-    const waiting = typeof result?.action === "string" && result.action.includes("waiting");
-    await recordQuestComment(questId, {
-      source: assignee.profile.name,
-      action: result?.action || "advance",
-      summary: result?.msg || result?.action || "NPC action",
-      detail: result,
-    }, { client });
-    return { ok: result?.ok ?? true, advanced: !waiting, stage, action: `${slug}.${result?.action || "doNextAction"}`, detail: result };
-  }
-
   // ── Adventurer path: assign → execute (direct), review ──
   if (assignee.type !== "adventurer") {
-    return { ok: false, advanced: false, stage, error: `Cannot resolve assignee "${assignedTo}" as NPC or adventurer.` };
+    return { ok: false, advanced: false, stage, error: `Cannot resolve assignee "${assignedTo}" as an adventurer.` };
   }
 
   const advRow = assignee.profile;

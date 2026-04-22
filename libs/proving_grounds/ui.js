@@ -464,24 +464,14 @@ export function classDisplayLabel(presetKey) {
   return raw || "—";
 }
 
-// --- globalAssignees (was globalAssignees.js) ---
+// --- globalAssignees (deprecated — assignees are now DB adventurers) ---
 
-// Derive from canonical NPC registry
-import { NPC_REGISTRY } from "@/libs/npcs";
+export const GLOBAL_QUEST_ASSIGNEES = {};
 
-export const GLOBAL_QUEST_ASSIGNEES = Object.fromEntries(
-  Object.entries(NPC_REGISTRY).map(([key, npc]) => [
-    key,
-    { name: npc.name, presetKey: npc.slug, skill_books: npc.skill_books },
-  ]),
-);
-
-export function getGlobalAssigneeMeta(assignedTo) {
-  if (assignedTo == null || assignedTo === "") return null;
-  const key = String(assignedTo).trim().toLowerCase();
-  return GLOBAL_QUEST_ASSIGNEES[key] ?? null;
+export function getGlobalAssigneeMeta(_assignedTo) {
+  return null;
 }
 
-export function isGlobalQuestAssignee(assignedTo) {
-  return getGlobalAssigneeMeta(assignedTo) != null;
+export function isGlobalQuestAssignee(_assignedTo) {
+  return false;
 }
