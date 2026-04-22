@@ -12,10 +12,10 @@ export default function QuestAdvanceButtons({ questId, currentStage }) {
     setBusy("step");
     setLog(null);
     try {
-      const res = await fetch("/api/proving_grounds", {
+      const res = await fetch("/api/quest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "advanceQuest", questId }),
+        body: JSON.stringify({ action: "advance", questId }),
       });
       const data = await res.json().catch(() => ({}));
       setLog(data);
@@ -33,10 +33,10 @@ export default function QuestAdvanceButtons({ questId, currentStage }) {
     const logs = [];
     for (let i = 0; i < 10; i++) {
       try {
-        const res = await fetch("/api/proving_grounds", {
+        const res = await fetch("/api/quest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "advanceQuest", questId }),
+          body: JSON.stringify({ action: "advance", questId }),
         });
         const data = await res.json().catch(() => ({}));
         logs.push(data);

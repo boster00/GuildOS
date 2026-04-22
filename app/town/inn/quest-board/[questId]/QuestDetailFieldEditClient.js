@@ -7,13 +7,6 @@ import { ItemsListDisplay } from "./questDetailDisplays.js";
 
 const QUEST_PATCH_RELATIVE_URL = "/api/quest";
 
-// Canonical NPC data — mirrors libs/npcs/index.js (client-safe copy, no server imports)
-import { NPC_REGISTRY, NPC_LIST } from "@/libs/npcs";
-
-const NPC_CHIBI_MAP = Object.fromEntries(
-  Object.entries(NPC_REGISTRY).map(([key, npc]) => [key, { slug: npc.slug, icon: npc.icon, tooltip: npc.tooltip }]),
-);
-
 /** @param {string | null | undefined} iso */
 function dueDateToLocalInput(iso) {
   if (!iso) return "";
@@ -90,7 +83,7 @@ export default function QuestDetailFieldEditClient({
   const [draftAssignee, setDraftAssignee] = useState("");
   const [draftDueLocal, setDraftDueLocal] = useState("");
   const [draftInv, setDraftInv] = useState("");
-  const [showAdvPicker, setShowAdvPicker] = useState(false);
+  const [showAdvPicker, setShowAdvPicker] = useState(true);
   const [advSearch, setAdvSearch] = useState("");
   const [advList, setAdvList] = useState(null);
   const [advLoading, setAdvLoading] = useState(false);
@@ -102,7 +95,7 @@ export default function QuestDetailFieldEditClient({
     setAdvLoading(true);
     (async () => {
       try {
-        const r = await fetch("/api/proving_grounds?action=listAdventurers");
+        const r = await fetch("/api/adventurer?action=search");
         const j = await r.json().catch(() => ({}));
         setAdvList(Array.isArray(j.adventurers) ? j.adventurers : []);
       } catch {
@@ -324,65 +317,34 @@ export default function QuestDetailFieldEditClient({
           </div>
           {editAssignee ? (
             <div className="mt-2 space-y-3">
-              {/* NPC row */}
-              <div className="flex items-center gap-2">
-                {NPC_LIST.map((npc) => {
-                  const selected = draftAssignee.toLowerCase() === npc.name.toLowerCase();
-                  return (
-                    <button
-                      key={npc.name}
-                      type="button"
-                      disabled={saving}
-                      className={`flex flex-col items-center gap-1 rounded-xl border-2 p-2 transition-colors ${selected ? "border-primary bg-primary/10" : "border-base-300 bg-base-200/40 hover:border-primary/50"}`}
-                      onClick={() => { setDraftAssignee(npc.name); setShowAdvPicker(false); }}
-                      title={npc.tooltip}
-                    >
-                      <img src={npc.icon} alt="" className="h-10 w-10" />
-                      <span className="text-[10px] font-medium">{npc.slug}</span>
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  disabled={saving}
-                  className={`flex flex-col items-center gap-1 rounded-xl border-2 p-2 transition-colors ${showAdvPicker ? "border-primary bg-primary/10" : "border-base-300 bg-base-200/40 hover:border-primary/50"}`}
-                  onClick={() => { setShowAdvPicker((p) => !p); setDraftAssignee(""); }}
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-base-300 text-lg">⚔</span>
-                  <span className="text-[10px] font-medium">adventurer</span>
-                </button>
-              </div>
-              {/* Adventurer search panel */}
-              {showAdvPicker && (
-                <div className="rounded-xl border border-primary/30 bg-base-200/50 p-3 space-y-2">
-                  <input
-                    type="text"
-                    className="input input-bordered input-sm w-full text-xs"
-                    placeholder="Search adventurers by name…"
-                    value={advSearch}
-                    onChange={(e) => setAdvSearch(e.target.value)}
-                  />
-                  <div className="max-h-40 overflow-auto space-y-1">
-                    {filteredAdventurers.length === 0 ? (
-                      <p className="text-xs text-base-content/50 py-2 text-center">
-                        {advLoading ? "Loading…" : "No adventurers found"}
-                      </p>
-                    ) : (
-                      filteredAdventurers.map((a) => (
-                        <button
-                          key={a.value}
-                          type="button"
-                          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${draftAssignee === a.label ? "bg-primary/15 border border-primary/40" : "hover:bg-base-300/60"}`}
-                          onClick={() => { setDraftAssignee(a.label); setShowAdvPicker(false); }}
-                        >
-                          <span className="font-medium">{a.label}</span>
-                          <span className="font-mono text-[9px] text-base-content/40">{a.value}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
+              <div className="rounded-xl border border-primary/30 bg-base-200/50 p-3 space-y-2">
+                <input
+                  type="text"
+                  className="input input-bordered input-sm w-full text-xs"
+                  placeholder="Search adventurers by name…"
+                  value={advSearch}
+                  onChange={(e) => setAdvSearch(e.target.value)}
+                />
+                <div className="max-h-60 overflow-auto space-y-1">
+                  {filteredAdventurers.length === 0 ? (
+                    <p className="text-xs text-base-content/50 py-2 text-center">
+                      {advLoading ? "Loading…" : "No adventurers found"}
+                    </p>
+                  ) : (
+                    filteredAdventurers.map((a) => (
+                      <button
+                        key={a.value}
+                        type="button"
+                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${draftAssignee === a.label ? "bg-primary/15 border border-primary/40" : "hover:bg-base-300/60"}`}
+                        onClick={() => { setDraftAssignee(a.label); }}
+                      >
+                        <span className="font-medium">{a.label}</span>
+                        <span className="font-mono text-[9px] text-base-content/40">{a.value}</span>
+                      </button>
+                    ))
+                  )}
                 </div>
-              )}
+              </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={saveAssignee}>
                   {saving ? "Saving…" : "Save"}
@@ -391,7 +353,7 @@ export default function QuestDetailFieldEditClient({
                   type="button"
                   className="btn btn-ghost btn-sm"
                   disabled={saving}
-                  onClick={() => { setEditAssignee(false); setShowAdvPicker(false); }}
+                  onClick={() => { setEditAssignee(false); }}
                 >
                   Cancel
                 </button>
@@ -401,15 +363,7 @@ export default function QuestDetailFieldEditClient({
             <div className="mt-2 flex items-center gap-2 text-sm text-base-content/85">
               {assignedTo.trim() ? (
                 <>
-                  {NPC_CHIBI_MAP[assignedTo.trim().toLowerCase()] && (
-                    <img
-                      src={NPC_CHIBI_MAP[assignedTo.trim().toLowerCase()].icon}
-                      alt=""
-                      className="h-8 w-8 rounded-lg border border-base-300 bg-base-200/50 p-0.5"
-                      title={NPC_CHIBI_MAP[assignedTo.trim().toLowerCase()].tooltip}
-                    />
-                  )}
-                  <span>{NPC_CHIBI_MAP[assignedTo.trim().toLowerCase()]?.slug || assignedTo}</span>
+                  <span>{assignedTo}</span>
                   {assigneeId ? (
                     <span className="ml-1 font-mono text-[10px] text-base-content/45">{String(assigneeId)}</span>
                   ) : null}

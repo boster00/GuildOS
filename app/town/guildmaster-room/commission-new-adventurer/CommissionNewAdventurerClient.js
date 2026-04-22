@@ -34,15 +34,6 @@ function FieldCheckLabel({ fieldId, column, required, checks }) {
 export default function CommissionNewAdventurerClient() {
   const router = useRouter();
   const [draft, setDraft] = useState(() => getDefaultDraft());
-  const [messages, setMessages] = useState(() => [
-    {
-      role: "assistant",
-      content:
-        "Mrow. Tell me what this adventurer should do—I'll nudge the scroll until the roster form is ready.",
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
   const [recruitLoading, setRecruitLoading] = useState(false);
   const [rosterSkillIds, setRosterSkillIds] = useState(() => []);
 
@@ -70,33 +61,6 @@ export default function CommissionNewAdventurerClient() {
       cancelled = true;
     };
   }, []);
-
-  const sendChat = async () => {
-    const text = input.trim();
-    if (!text || chatLoading) return;
-    const nextMessages = [...messages, { role: "user", content: text }];
-    setMessages(nextMessages);
-    setInput("");
-    setChatLoading(true);
-    try {
-      const res = await fetch("/api/cat?action=commissionChat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, draft }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error || "Chat failed");
-        return;
-      }
-      if (json.draft) setDraft(json.draft);
-      if (json.assistantMessage) {
-        setMessages((m) => [...m, { role: "assistant", content: json.assistantMessage }]);
-      }
-    } finally {
-      setChatLoading(false);
-    }
-  };
 
   const recruit = async () => {
     if (!ready || recruitLoading) return;
@@ -128,41 +92,7 @@ export default function CommissionNewAdventurerClient() {
   };
 
   return (
-    <div className="flex min-h-[70vh] flex-col gap-6 lg:flex-row">
-      <div className="flex min-h-[320px] w-full max-w-[500px] flex-1 flex-col rounded-2xl border border-base-300 bg-base-200/50 p-4">
-        <h2 className="text-sm font-semibold text-base-content/80">The cat</h2>
-        <div className="mt-3 flex-1 space-y-3 overflow-y-auto rounded-xl bg-base-100/80 p-3 text-sm">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={
-                m.role === "user" ? "ml-4 rounded-lg bg-primary/15 px-3 py-2" : "mr-4 rounded-lg bg-base-200 px-3 py-2"
-              }
-            >
-              {m.content}
-            </div>
-          ))}
-          {chatLoading && <p className="text-xs text-base-content/50">The cat is thinking…</p>}
-        </div>
-        <div className="mt-3 flex gap-2">
-          <textarea
-            className="textarea textarea-bordered min-h-[80px] flex-1 text-sm"
-            placeholder="Describe the adventurer you need…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendChat();
-              }
-            }}
-          />
-          <button type="button" className="btn btn-primary self-end" disabled={chatLoading} onClick={sendChat}>
-            Send
-          </button>
-        </div>
-      </div>
-
+    <div className="flex min-h-[70vh] flex-col gap-6">
       <div className="flex flex-1 flex-col gap-4 rounded-2xl border border-base-300 bg-base-100/90 p-4">
         <h2 className="text-sm font-semibold text-base-content/80">Commission canvas</h2>
         <p className="text-[11px] text-base-content/55">
@@ -223,7 +153,7 @@ export default function CommissionNewAdventurerClient() {
             onChange={(e) => updateDraft({ capabilities: e.target.value })}
           />
           <span className="label-text-alt text-[10px] text-base-content/45">
-            Plain text: what this agent can do. Used in Cat when choosing an adventurer for a quest.
+            Plain text: what this agent can do. Used when selecting an adventurer for a quest.
           </span>
         </label>
 
