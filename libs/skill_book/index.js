@@ -10,12 +10,7 @@ import { definition as defaultDef, escalate as defaultEscalate } from "./default
 
 export { skillActionOk, skillActionErr } from "./actionResult.js";
 import { skillBook as zohoSkillBook, search as zohoSearch } from "./zoho/index.js";
-import {
-  skillBook as testskillbookDef,
-  testaction,
-  sendpigeonpost,
-  checkPigeonResult,
-} from "./testskillbook/index.js";
+
 import {
   skillBook as browsercontrolSkillBook,
   dispatchBrowserActionsThroughPigeonPost,
@@ -301,7 +296,7 @@ export const SKILL_BOOKS = {
   questmaster: questmasterDef,
   guildmaster: guildmasterSkillBook,
   blacksmith: blacksmithSkillBook,
-  testskillbook: testskillbookDef,
+
   browsercontrol: browsercontrolSkillBook,
   bigquery: bigquerySkillBook,
   claudeCLI: claudeCLISkillBook,
@@ -348,11 +343,6 @@ const zohoAdventurerActions = {
   search: (_userId, input) => zohoSearch(/** @type {Record<string, unknown>} */ (input || {})),
 };
 
-const testskillbookAdventurerActions = {
-  testaction: (_userId, input) => testaction(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  sendpigeonpost: (_userId, input) => sendpigeonpost(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  checkPigeonResult: (_userId, input) => checkPigeonResult(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-};
 
 const browsercontrolAdventurerActions = {
   dispatchBrowserActionsThroughPigeonPost: (_userId, input) =>
@@ -455,7 +445,7 @@ const ADVENTURER_REGISTRY = {
   questmaster: { definition: questmasterDef, adventurerActions: questmasterAdventurerActions },
   guildmaster: { definition: guildmasterSkillBook, adventurerActions: guildmasterAdventurerActions },
   blacksmith: { definition: blacksmithSkillBook, adventurerActions: blacksmithAdventurerActions },
-  testskillbook: { definition: testskillbookDef, adventurerActions: testskillbookAdventurerActions },
+
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: browsercontrolAdventurerActions },
   bigquery: { definition: bigquerySkillBook, adventurerActions: {
     getRecentEvents: (_userId, input) => bigqueryGetRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
