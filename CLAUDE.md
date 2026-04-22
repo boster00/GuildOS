@@ -40,7 +40,9 @@ Skill book: a registry of actions to prompts. A skill book has a table of conten
 - **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, submitForPurrview, comment, seekHelp, etc.).
 - **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
 
-Load the `toc` of each assigned book on boot; read a specific action's `howTo` on demand when you're about to use it. Do NOT read skill books you weren't assigned — if a task needs a capability outside your assigned books, escalate and ask the Guildmaster to recommission you.
+Load the `toc` of each assigned book on boot; read a specific action's `howTo` on demand when you're about to use it.
+
+Your assigned books are the **default working set, not a hard boundary**. If you hit a problem you can't solve with them, before escalating: scan the registry at `libs/skill_book/index.js`, skim the toc of any book whose id suggests it could help, and try it. Only escalate to the Guildmaster (for recommission) after that fallback check comes up empty.
 
 To create a new skill book, read the Blacksmith skill book.
 

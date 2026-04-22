@@ -39,7 +39,7 @@ export const skillBook = {
         "4. Skill books are heavy — you only carry what's been assigned. Load the ones you're licensed for:",
         "   - **Globals (everyone carries these):** `housekeeping`. Read ~/guildos/libs/skill_book/housekeeping/index.js in full.",
         "   - **Your assigned books:** each id listed in your adventurer row's `skill_books` array. For each, read ~/guildos/libs/skill_book/<name>/index.js — load the `toc` into working context but treat each action's full `howTo` as read-on-demand (open it when you're about to use that action).",
-        "5. If a task needs a capability outside your assigned skill books, escalate — do NOT read skill books you were not assigned. Ask the Guildmaster to recommission you with the needed book if this keeps happening.",
+        "5. Your assigned books are your default working set, not a hard limit. If you get stuck and none of your assigned actions fit the problem, BEFORE escalating: scan the registry at libs/skill_book/index.js, skim the toc of any book whose id suggests it could help, and try the relevant action. Only escalate to the Guildmaster (to recommission with a permanent skill book) after that fallback check is exhausted.",
         "",
         "**Step 4: Check for work**",
         "Use getActiveQuests to find quests assigned to you.",

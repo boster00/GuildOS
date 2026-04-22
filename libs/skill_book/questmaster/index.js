@@ -184,6 +184,21 @@ await recordQuestComment(quest.id, {
 When you receive feedback on a quest (comment ping or direct message): act on it immediately. Do not ask for confirmation or permission to implement the feedback. The feedback IS the instruction. Just do it, verify the result, and report back.
 `,
     },
+    assistAdventurer: {
+      description: "When an adventurer reaches out for help, consider all skill books — not just the ones in the adventurer's assigned collection.",
+      howTo: `
+An adventurer's \`skill_books\` array is the common-use load, not a cap on capability. When helping, think comprehensively across the full registry at \`libs/skill_book/index.js\`.
+
+**Process:**
+1. Understand the block — read the quest description, the adventurer's latest comment, and what they tried.
+2. Scan the skill book registry. Look for any book whose scope matches the problem, regardless of whether it's in the adventurer's assigned array.
+3. If you find a fitting action in a book the adventurer doesn't carry: instruct them to load its \`toc\` (and the specific action's \`howTo\`) temporarily and retry. Do NOT modify their DB \`skill_books\` array for a one-off use.
+4. If the adventurer will need that book repeatedly, recommend to the Guildmaster that the adventurer be recommissioned with the book added permanently.
+5. Only after this comprehensive scan comes up empty should the adventurer escalate for human help.
+
+**Anti-pattern:** telling an adventurer "you don't have that skill book, escalate" without first checking the registry yourself. The registry is the upper bound on what's available to the guild, not the adventurer's loaded set.
+`,
+    },
   },
   steps: [],
 };
