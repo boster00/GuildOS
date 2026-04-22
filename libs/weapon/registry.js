@@ -11,6 +11,16 @@ import { ping as pingBosterBio } from "@/libs/weapon/bosterbio_lifecycle";
 import { checkCredentials as checkMiroCredentials } from "@/libs/weapon/miro";
 import { checkCredentials as checkImapCredentials } from "@/libs/weapon/imap";
 import { checkCredentials as checkBioinvsyncCredentials } from "@/libs/weapon/bioinvsync";
+import { checkCredentials as checkStripeCredentials } from "@/libs/weapon/stripe";
+import { checkCredentials as checkMerchantCredentials } from "@/libs/weapon/google_merchant_center";
+import { checkCredentials as checkSemrushCredentials } from "@/libs/weapon/semrush";
+import { checkCredentials as checkSmartleadCredentials } from "@/libs/weapon/smartlead";
+import { checkCredentials as checkInstantlyCredentials } from "@/libs/weapon/instantly";
+import { checkCredentials as checkN8nCredentials } from "@/libs/weapon/n8n";
+import { checkCredentials as checkOpensendCredentials } from "@/libs/weapon/opensend";
+import { checkCredentials as checkHighlevelCredentials } from "@/libs/weapon/highlevel";
+import { checkCredentials as checkLinkedinCredentials } from "@/libs/weapon/linkedin";
+import { checkCredentials as checkPubcompareCredentials } from "@/libs/weapon/pubcompare";
 
 
 /**
@@ -199,6 +209,16 @@ export const WEAPONS = [
     ],
     requiresActivation: false,
   },
+  { id: "stripe", title: "Stripe", tagline: "Read charges, customers, subscriptions via Stripe REST API.", summary: "Billing and payment data weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses STRIPE_SECRET_KEY (Basic auth) to call Stripe REST API v1."], requiresActivation: false },
+  { id: "google_merchant_center", title: "Google Merchant Center", tagline: "Read products, orders, and account info via Content API.", summary: "Merchant Center connector using Google service account.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses GOOGLE_SERVICE_ACCOUNT + GOOGLE_MERCHANT_ID to call Content API v2.1."], requiresActivation: false },
+  { id: "semrush", title: "SEMRush", tagline: "Domain overview, keyword research, and backlinks via SEMRush API.", summary: "SEO intelligence weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses SEMRUSH_API_KEY to call SEMRush REST API."], requiresActivation: false },
+  { id: "smartlead", title: "Smartlead", tagline: "Manage cold email campaigns and leads via Smartlead API.", summary: "Cold email campaign weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses SMARTLEAD_API_KEY to call Smartlead REST API v1."], requiresActivation: false },
+  { id: "instantly", title: "Instantly", tagline: "Manage cold email campaigns via Instantly API.", summary: "Cold email weapon for Instantly platform.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses INSTANTLY_API_KEY to call Instantly REST API v1."], requiresActivation: false },
+  { id: "n8n", title: "N8N", tagline: "Trigger and manage N8N automation workflows via REST API.", summary: "Workflow automation weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses N8N_URL + N8N_API_KEY to call N8N REST API v1."], requiresActivation: false },
+  { id: "opensend", title: "Opensend", tagline: "Manage contacts and nurture flows via Opensend API.", summary: "Lead nurture weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses OPENSEND_API_KEY to call Opensend REST API."], requiresActivation: false },
+  { id: "highlevel", title: "HighLevel", tagline: "CRM contacts and pipeline opportunities via HighLevel REST API.", summary: "HighLevel CRM weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses HIGHLEVEL_API_KEY (Bearer) to call HighLevel REST API v1."], requiresActivation: false },
+  { id: "linkedin", title: "LinkedIn", tagline: "Search profiles and read profile info via browser automation.", summary: "LinkedIn profile scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP (port 9222). Must be logged in via CDP profile."], requiresActivation: false },
+  { id: "pubcompare", title: "PubCompare", tagline: "Search publication comparison data via browser automation.", summary: "PubCompare.ai scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP. Public site — no auth needed."], requiresActivation: false },
   {
     id: "bosterbio_lifecycle",
     title: "BosterBio Lifecycle",
@@ -236,6 +256,16 @@ export async function getWeaponActivationSummaries(userId) {
     miro: () => checkMiroCredentials(),
     imap: () => checkImapCredentials({}, userId),
     bioinvsync: () => checkBioinvsyncCredentials(),
+    stripe: () => checkStripeCredentials(),
+    google_merchant_center: () => checkMerchantCredentials(),
+    semrush: () => checkSemrushCredentials(),
+    smartlead: () => checkSmartleadCredentials(),
+    instantly: () => checkInstantlyCredentials(),
+    n8n: () => checkN8nCredentials(),
+    opensend: () => checkOpensendCredentials(),
+    highlevel: () => checkHighlevelCredentials(),
+    linkedin: () => checkLinkedinCredentials(),
+    pubcompare: () => checkPubcompareCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {
