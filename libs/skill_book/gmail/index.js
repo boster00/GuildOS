@@ -19,7 +19,7 @@ export const skillBook = {
   id: "gmail",
   title: "Gmail — Inbox Triage & Email Operations",
   description:
-    "Search, read, triage, and star emails. Includes automated inbox triage with scoring rules.",
+    "Search, read, triage, and star emails. Includes automated inbox triage with scoring rules. Gmail is controlled via the Gmail REST API directly (not MCP, not CDP/browser); the weapon exchanges GOOGLE_GMAIL_REFRESH_TOKEN for a bearer token — do NOT use Chrome/Playwright for Gmail.",
   steps: [],
   toc: {
     searchInbox: {

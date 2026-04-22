@@ -23,7 +23,7 @@ Skill book: a registry of actions to prompts. A skill book has a table of conten
 For all browser tasks, read `libs/skill_book/browsercontrol/index.js` first and follow its instructions.
 To create a new skill book, read the Blacksmith skill book.
 
-Weapon: protocol for a resource. A weapon could contain scripts that connect to, and perform various actions on external services or using a local tool. A weapon has a table of content (TOC) similar to skill book that describes what each function does. AI agents import and run these scripts through native inline javascript. AI agents would first refer to skill books for how to use the weapon, and if such instructions do not exist, attempt to natively orchestrate weapon usage. 
+Weapon: protocol for a resource. A weapon could contain scripts that connect to, and perform various actions on external services or using a local tool. A weapon has a table of content (TOC) similar to skill book that describes what each function does. AI agents import and run these scripts through native inline javascript. AI agents would first refer to skill books for how to use the weapon, and if such instructions do not exist, attempt to natively orchestrate weapon usage. Weapons read credentials from `profiles.env_vars` first, falling back to `process.env`.
 To create a new weapon, read the Blacksmith skill book.
 
 Quest: a quest is a task to perform. When creating a quest, it should have title, description, assignee. The description should be written in a work breakdown structure—bullet points like 1. 2. 3… 4. 4.1 4.2…. Each main point should contain a clear description of the deliverable. The deliverable is by default a screenshot showing the main item is finished. The total number of screenshots should correspond to total number of main bullet points. The adventurer should read the screenshot taken and self evaluate if the screenshot meets the deliverable requirement and only load to supabase and update to inventory after confirmation of completion. 
@@ -74,22 +74,10 @@ Potions: temporary tokens that require refresh. New tokens refresh old expired t
 | `libs/council/` | Platform infra: auth, database, AI, billing, cron, settings |
 | `libs/quest/` | Quest CRUD, stage transitions, inventory, `advance()` |
 | `libs/adventurer/` | AI agent execution runtime, innate actions (`boast`, `doNextAction`) |
-| `libs/npcs/` | NPC modules (Cat, Pig, Blacksmith, Runesmith). Code-defined, NOT DB rows. |
-| `libs/skill_book/` | Action registry & dispatch |
+| `libs/skill_book/` | Text-prompt action registry (no JS logic) |
 | `libs/weapon/` | External protocol connectors. One weapon per service. |
-| `libs/pigeon_post/` | Async job queue (state machine, polling) |
-| `libs/proving_grounds/` | Agent testing, roster management (legacy stage machine still present but not used by cron) |
-| `libs/cat/` | Mascot/assistant logic, commission chat, quest planning |
-
-## Weapon registry (`libs/weapon/`)
-
-See `libs/weapon/index.js` for the registry and action definitions.
-
-**Usage pattern:** Import weapon functions directly — `import { searchTasks } from "@/libs/weapon/asana"`. Weapons handle auth internally via `profiles.env_vars` or `process.env`.
-
-## Skill book registry (`libs/skill_book/`)
-
-See `libs/skill_book/index.js` for the registry and action definitions.
+| `libs/pigeon_post/` | Async job queue (dormant — reserved for future external async jobs) |
+| `libs/proving_grounds/` | Adventurer roster + quest advance machinery |
 
 ## File & API structure
 
@@ -235,25 +223,6 @@ Claude Code acts as the **strategy and management layer** between the user and c
 - **Bucket:** `GuildOS_Bucket` (public)
 - **Path:** `cursor_cloud/{questId}/{filename}`
 - **Retention:** 30 days (enforce via bucket lifecycle policy or manual cleanup)
-
----
-
-## Daily Tasks
-
-### Gmail inbox triage
-
-**Weapon:** `libs/weapon/gmail/` | **Skill book:** `libs/skill_book/gmail/` | **Preferences:** `docs/gmail-processing-preferences.md`
-
-**How to run a triage scan:**
-```javascript
-import { triageInbox } from "@/libs/skill_book/gmail";
-const result = await triageInbox(userId, { limit: 100, dryRun: false });
-// Scans unread inbox, scores per gmail-processing-preferences.md, stars top ~2%
-```
-
-The skill book embeds the full scoring engine from `docs/gmail-processing-preferences.md`. Scoring rules, skip rules, and the decision framework are all codified in `libs/skill_book/gmail/index.js`.
-
-**Implementation note:** Gmail is controlled via the **Gmail REST API directly** (not MCP, not CDP/browser). The weapon exchanges `GOOGLE_GMAIL_REFRESH_TOKEN` for a bearer token. Do NOT use Chrome/Playwright for Gmail.
 
 ---
 
