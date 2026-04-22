@@ -34,8 +34,14 @@ Adventurer: an agent, defined in database table adventurers. An adventurer is re
 Associated session id: an adventurer is associated with a cursor agent on the cloud, and the id points to it. When a cloud cursor agent becomes unresponsive, the guildmaster will create another agent to replace the adventurer's associated session id.
 Questmaster: a special agent responsible for helping adventure resolve issues and provide feedback to the deliverables. 
 
-Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. 
-For all browser tasks, read `libs/skill_book/browsercontrol/index.js` first and follow its instructions.
+Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts.
+
+**Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
+- **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, submitForPurrview, comment, seekHelp, etc.).
+- **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
+
+Load the `toc` of each assigned book on boot; read a specific action's `howTo` on demand when you're about to use it. Do NOT read skill books you weren't assigned — if a task needs a capability outside your assigned books, escalate and ask the Guildmaster to recommission you.
+
 To create a new skill book, read the Blacksmith skill book.
 
 Weapon: protocol for a resource. A weapon could contain scripts that connect to, and perform various actions on external services or using a local tool. A weapon has a table of content (TOC) similar to skill book that describes what each function does. AI agents import and run these scripts through native inline javascript. AI agents would first refer to skill books for how to use the weapon, and if such instructions do not exist, attempt to natively orchestrate weapon usage. Weapons read credentials from `profiles.env_vars` first, falling back to `process.env`.
