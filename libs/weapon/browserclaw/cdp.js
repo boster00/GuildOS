@@ -162,6 +162,7 @@ export async function executeSteps(steps, opts = {}) {
         value: result?.value ?? null,
         error: result?.error ?? null,
         ...(step.item ? { item: step.item } : {}),
+        ...(result?.buffer ? { buffer: result.buffer } : {}),
       });
       if (!result?.ok) break;
     }
