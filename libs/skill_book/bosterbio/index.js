@@ -106,6 +106,33 @@ See \`docs/product-attributes-migration-plan.md\` for full schema details.
 - [ ] Monitor 404s, indexing, performance for 2 weeks post-launch
 `,
     },
+    sshAccess: {
+      description: "How to access bosterbio.com production server when SSH is IP-blocked.",
+      howTo: `
+**Primary:** \`ssh -p 2223 boster_ooP9u@69.27.32.101\`
+
+**If blocked (connection timeout on port 2223):**
+
+**Option 1 — Hop via Carbon:**
+SSH into Carbon first, then SSH to boster from there:
+\`\`\`bash
+ssh carbon
+ssh -p 2223 boster_ooP9u@69.27.32.101
+\`\`\`
+Carbon has a different outbound IP and may not be blocked.
+
+**Option 2 — Request IP whitelist via Jetrails support:**
+If Carbon also fails, get the current IP and send an email from boster@bosterbio.com to support@jetrails.com:
+\`\`\`
+Subject: SSH Whitelist Request — Add IP [current IP] for bosterbio.com
+Body: Hi Jetrails support, please add IP address [current IP] to the SSH whitelist for bosterbio.com (port 2223, user boster_ooP9u). Thank you.
+\`\`\`
+Use the Gmail weapon with the boster@bosterbio.com account to send.
+After sending, retry SSH in 20-minute intervals for up to 2 hours before escalating.
+
+**Get current IP:** \`curl -s https://api.ipify.org\`
+`,
+    },
     migrateContent: {
       description: "Migrate CMS pages from Magento to Next.js.",
       howTo: `
