@@ -6,6 +6,15 @@ When instructions conflict, follow this order:
 2. **Skill books** (static but concrete)
 3. **Global rules** (lowest — fallback guidance)
 
+## Read, don't improvise
+**Never perform a non-trivial action natively if an instruction exists.** Before acting:
+1. Check your loaded skill book tocs for a matching action.
+2. If one exists, read its `howTo` and follow it.
+3. If nothing fits, scan the registry at `libs/skill_book/index.js` — a fitting action may live in a book you haven't loaded.
+4. Only freestyle when you've confirmed no instruction exists.
+
+**Index first, content on demand.** Load only tocs at boot (for both skill books and weapons). Open a specific action's `howTo` only when you're about to execute it. Discard it after — don't keep it in working context once the action is done.
+
 ## Pending migrations
 
 - **[items workflow migration]** — `quests.inventory` JSONB is moving to dedicated `quest_items` + `quest_item_comments` tables. `UNIQUE (quest_id, item_key)` will enforce the "REPLACE, don't pile on" rule at the DB layer. A helper in `libs/quest/` will assemble quest + items + comments in one call — agents will not orchestrate multi-step inserts. Grep for `[items workflow migration]` to find every code site and prompt that needs updating. Do not start the migration piecemeal; it is a hard cut with a one-shot data-copy step from the old JSONB.
@@ -40,9 +49,14 @@ Skill book: a registry of actions to prompts. A skill book has a table of conten
 - **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, submitForPurrview, comment, seekHelp, etc.).
 - **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
 
-Load the `toc` of each assigned book on boot; read a specific action's `howTo` on demand when you're about to use it.
+Follow the "index first, content on demand" rule above: load toc only at boot; read a specific action's `howTo` only when you're about to execute it.
 
-Your assigned books are the **default working set, not a hard boundary**. If you hit a problem you can't solve with them, before escalating: scan the registry at `libs/skill_book/index.js`, skim the toc of any book whose id suggests it could help, and try it. Only escalate to the Guildmaster (for recommission) after that fallback check comes up empty.
+**Toc-only extraction (use for every assigned book and for registry scans):**
+```bash
+node -e "import('./libs/skill_book/<NAME>/index.js').then(m=>{const sb=m.skillBook||m.definition;const t=sb?.toc||{};console.log(JSON.stringify(Object.fromEntries(Object.entries(t).map(([k,v])=>[k,v?.description||(typeof v==='string'?v.split('\\n')[0].slice(0,120):'')])),null,2));})"
+```
+
+Your assigned books are the **default working set, not a hard boundary**. If you hit a problem you can't solve with them, before escalating: scan the registry at `libs/skill_book/index.js`, extract the toc of any book whose id suggests it could help (use the command above), and try the relevant action. Only escalate to the Guildmaster (for recommission) after that fallback check comes up empty.
 
 To create a new skill book, read the Blacksmith skill book.
 
