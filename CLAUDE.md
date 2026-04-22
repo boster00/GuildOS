@@ -1,4 +1,4 @@
-## GuildOS — Claude Code Guide
+# GuildOS — Claude Code Guide
 
 ## Priority hierarchy
 When instructions conflict, follow this order:
@@ -10,16 +10,21 @@ When instructions conflict, follow this order:
 
 - **[items workflow migration]** — `quests.inventory` JSONB is moving to dedicated `quest_items` + `quest_item_comments` tables. `UNIQUE (quest_id, item_key)` will enforce the "REPLACE, don't pile on" rule at the DB layer. A helper in `libs/quest/` will assemble quest + items + comments in one call — agents will not orchestrate multi-step inserts. Grep for `[items workflow migration]` to find every code site and prompt that needs updating. Do not start the migration piecemeal; it is a hard cut with a one-shot data-copy step from the old JSONB.
 
-## Initiation: load the agent profile, load skill books, load weapons (print list in chat history) 
-Claude: first try to figure out which situation the agent is in: 
-1.	Direct action: User will issue direct actions for Claude to perform. These jobs are usually assigned to the personal assistant thread. When doing direct actions Claude saves screenshots in docs/screenshots. User will handle clean up. 
+## Initiation
+On session start: load the agent profile, load skill books, load weapons (print the list in chat history). Discover skill books and weapons under `libs/skill_book/<name>/index.js` and `libs/weapon/<name>/index.js`; the registries are in `libs/skill_book/index.js` and `libs/weapon/registry.js`.
 
-2.	Chaperon: User will tell the Claude session to Chaperon, guide or directly communicate with a cursor agent to help remove obstacles and work towards objectives. When this happens, the Claude agent must know which quest this is for, and which repo the quest is associated with. Always do self clarity check and if unclear on these two things, saves screenshots: if overseeing a quest, save in quest inventory, more details see skill book questmaster, action reviewScreenshots. 
-Avoid overanchoring cursor agents: When communicating with adventurers/cursor agents, use natural language and do not directly give scripts. Can give programming advices or describe what screenshots to take but must instruct it like a human user. This is because Cursor agents have native workflows and capabilities, giving tactical advices will cause them to diviate from well tuned defaults and cause issues. 
+Then figure out which situation you are in:
 
-Cursor: Primary responsibility is to make the objectives happen, perform smoke tests to prove the objectives done, and take screenshots to document the objectives being finished. When a screenshot is taken, read it first to see if it really shows the objective is accomplished, and if not, analyze the root cost and retry for up to 3 times, before asking the questmaster for help (look up its agent session id in database) via direct messaging. Restart attempt after receiving questmaster replies. If the screenshot shows the correct prove, save it to supabase and add the link to quest inventory. A cursor agent always works on a quest. When it is unclear which quest it is working on and which repo it is for, contact questmaster to clarify. If contacted the questmaster for the same issue twice without able to resolve it, escalate the quest (assign quest to escalate stage). 
+1. **Direct action** — user issues direct tasks for Claude to perform (usually the personal assistant thread). Save screenshots in `docs/screenshots`; the user handles cleanup.
 
-Update agentic instructions: When user instruct to update Claude.md, update the GuildOS repo’s main branch CLAUDE.md file, by adding a timestamp, then the user instruction. Periodically we will compile these newly added instructions. When user instruct to update cursor behavior, update the agent’s corresponding repo’s main branch .cursorrules file. If it is unclear which repo the agent is responsible, update the CLAUDE.md file with the entry, with a tag [cursorrules] in front of the timestamp. 
+2. **Chaperon** — user tells the Claude session to chaperon (guide or directly communicate with) a cursor agent to remove obstacles and drive toward objectives. You must know which quest this is for and which repo the quest is associated with. If unclear, do a self-clarity check. Screenshots during chaperon work go in quest inventory — see `questmaster.reviewScreenshots`. Avoid overanchoring: communicate with cursor agents in natural language. Programming advice or screenshot requirements are fine; do not prescribe scripts or step-by-step tactics. Cursor agents have well-tuned defaults; tactical overrides cause them to deviate and fail.
+
+3. **Cursor** (you ARE a cloud cursor agent): your job is to make the objective happen, smoke-test to prove it, and save screenshots to document the result. After taking a screenshot, READ it to confirm it actually shows the objective accomplished. If not, analyze the root cause and retry — **up to 3 times** — before asking the Questmaster for help via direct message. Resume attempts after the Questmaster replies. If a screenshot proves success, save it to supabase and link it in quest inventory. A cursor agent always works on a quest. If it's unclear which quest or which repo, contact the Questmaster to clarify. If you've contacted the Questmaster for the same issue twice without resolution, escalate the quest (move it to `escalated`).
+
+**Questmaster is NOT bound by the 3-retry rule.** Cat (Questmaster) decides between feedback and escalation based on progress evidence (new method tried, measurable progress, new strategy available), not a fixed count. See Cat's system_prompt.
+
+## Updating agentic instructions
+When the user says "update CLAUDE.md," edit the GuildOS repo's main branch CLAUDE.md in place — restructure and consolidate as you go; do not just append timestamps. When the user says "update cursor behavior," edit the corresponding repo's `.cursorrules` on main. If it's unclear which repo the cursor agent belongs to, add the entry in CLAUDE.md tagged `[cursorrules]` and resolve the owner later.
 
 ## GuildOS repo overview. 
 GuildOS is a fantasy-themed AI agent orchestration platform. Modules are named after typical fantasy role play games, where adventurers work towards completing quests. 
@@ -29,7 +34,7 @@ Adventurer: an agent, defined in database table adventurers. An adventurer is re
 Associated session id: an adventurer is associated with a cursor agent on the cloud, and the id points to it. When a cloud cursor agent becomes unresponsive, the guildmaster will create another agent to replace the adventurer's associated session id.
 Questmaster: a special agent responsible for helping adventure resolve issues and provide feedback to the deliverables. 
 
-Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has, what purpose does each action achieve, then each action (key: action name) value is the string prompt that user natural language to describe how the action should be performed. Skill book actions can refer to weapon for external connections or running scripts. 
+Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. 
 For all browser tasks, read `libs/skill_book/browsercontrol/index.js` first and follow its instructions.
 To create a new skill book, read the Blacksmith skill book.
 
@@ -39,7 +44,7 @@ To create a new weapon, read the Blacksmith skill book.
 Quest: a quest is a task to perform. When creating a quest, it should have title, description, assignee. The description should be written in a work breakdown structure—bullet points like 1. 2. 3… 4. 4.1 4.2…. Each main point should contain a clear description of the deliverable. The deliverable is by default a screenshot showing the main item is finished. The total number of screenshots should correspond to total number of main bullet points. The adventurer should read the screenshot taken and self evaluate if the screenshot meets the deliverable requirement and only load to supabase and update to inventory after confirmation of completion. 
 Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. 
 Quest inventory: holds items, usually screenshots; sometimes special items defined per-quest. Item shape: `{ item_key, url?, description?, source?, comments?: [{role, timestamp, text}] }`. `comments` is per-item — Cat's review notes attach to the specific item being judged. <!-- [items workflow migration] after migration: items live in `quest_items`, comments in `quest_item_comments`. UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on. -->
-Quest initiation interview: when user issues a new quest, only create the quest if the deliverable items and each item's success criterium are described in a clear and actionable way. Do not allow ambiguity if the deliverable items or success criteria are unclear, ask the user clarification questions until they are clear. 
+Quest initiation interview: only create a quest when deliverable items and success criteria are unambiguous. If unclear, ask clarification questions until they are. Operational checklist: `housekeeping.createQuest`. 
 
 Council: controls system level functions such as authentication, cron, settings/account management, formulary (user’s secretes), and database connection. 
 Important: when agent wants to access database, use the following wrapper and not the default libs of supabase. 
@@ -63,10 +68,7 @@ Potions: temporary tokens that require refresh. New tokens refresh old expired t
 1. Do not create new files or database tables unless explicitly requested by the user or listed in an approved plan. If need script, call it inline. 
 2. When instructed to start a new empty repo, clone `boster00/cjrepotemplate` as the starting point
 
-## Critical rules 
-
-
-### Port assignments (locked)
+## Port assignments (locked)
 
 | Port | Repo |
 |------|------|
@@ -84,7 +86,7 @@ Potions: temporary tokens that require refresh. New tokens refresh old expired t
 |---------|---------|
 | `libs/council/` | Platform infra: auth, database, AI, billing, cron, settings |
 | `libs/quest/` | Quest CRUD, stage transitions, inventory, `advance()` |
-| `libs/adventurer/` | AI agent execution runtime, innate actions (`boast`, `doNextAction`) |
+| `libs/adventurer/` | AI agent execution runtime. Agents decide their own actions natively (no `boast`/`doNextAction` dispatcher) |
 | `libs/skill_book/` | Text-prompt action registry (no JS logic) |
 | `libs/weapon/` | External protocol connectors. One weapon per service. |
 | `libs/pigeon_post/` | Async job queue (dormant — reserved for future external async jobs) |

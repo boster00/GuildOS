@@ -1,17 +1,16 @@
 /**
  * Adventurer runtime — execution scope (`advance.js`) + innate actions.
  * Roster, UI registry, and server helpers live under `@/libs/proving_grounds`.
+ *
+ * [innate-actions deprecation] Both `doNextAction` and `boast` are obsolete — agents now
+ * decide and perform actions natively from skill books / weapons. They remain here for
+ * legacy roster-matching (questmaster uses `buildBoast` at assign time). When the
+ * questmaster flow is rewritten to read adventurer.capabilities + skill_books directly,
+ * delete this toc, advance.js, boast/doNextAction, and buildBoast.
  */
 export * from "./advance.js";
 
-export const toc = {
-  doNextAction: {
-    description: "Advance the quest one step for the assigned adventurer. Handles plan (generate execution_plan), execute (run next skill book step), and review (advance to closing).",
-  },
-  boast: {
-    description: "Report this adventurer's capabilities by listing every skill book action available to them. Used by the Questmaster at assign time to decide who fits a quest.",
-  },
-};
+export const toc = {};
 
 /**
  * Advance the quest by one step for an adventurer assignee.
