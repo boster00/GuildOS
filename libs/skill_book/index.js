@@ -34,6 +34,7 @@ import { questmasterRegistry } from "./questmaster/registry.js";
 import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
 import { skillBook as nexusSkillBook } from "./nexus/index.js";
 import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
+import { skillBook as dailiesSkillBook } from "./dailies/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -306,6 +307,7 @@ export const SKILL_BOOKS = {
   cjgeo: cjgeoSkillBook,
   nexus: nexusSkillBook,
   bosterbio: bosterbioSkillBook,
+  dailies: dailiesSkillBook,
   housekeeping: housekeepingSkillBook,
   questmaster_registry: questmasterRegistry,
 };
