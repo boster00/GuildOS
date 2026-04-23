@@ -1,25 +1,20 @@
 /**
- * Pigeon weapon — create pigeon letters (browser action packages) and deliver results to quest inventory.
+ * Pigeon weapon — create pigeon letters (browser action packages) and deliver results to quest items.
  *
- * [items workflow migration] This weapon writes into the JSONB inventory via appendInventoryItem and
- * replaceInventoryPigeonLetters. After the migration it should either (a) write browser-action results
- * into `quest_items` with an upsert, or (b) move pigeon letters into a dedicated table. Decide before
- * the migration starts — pigeon_post is currently dormant, so this is low-risk to change.
+ * Storage:
+ * - Letters live in the `pigeon_letters` table (status, payload, quest_id).
+ * - Delivered results become rows in the `items` table (upsert on quest_id + item_key).
  */
 import { randomUUID } from "node:crypto";
-import {
-  appendInventoryItem,
-  replaceInventoryPigeonLetters,
-  recordQuestComment,
-  removePigeonLetterInventoryEntries,
-} from "@/libs/quest/index.js";
-import { PIGEON_LETTERS_KEY } from "@/libs/quest/inventoryMap.js";
+import { writeItem, recordQuestComment } from "@/libs/quest/index.js";
+import { publicTables } from "@/libs/council/publicTables";
 import { database } from "@/libs/council/database";
 
-export const PIGEON_LETTERS_ITEM_KEY = PIGEON_LETTERS_KEY;
+/** Compat constant used by pigeon_post for filtering. */
+export const PIGEON_LETTERS_ITEM_KEY = "pigeon_letters";
 
 /**
- * Build one stored letter object (inventory `pigeon_letters` entry) — legacy single-step shape.
+ * Build one stored letter object (single-step legacy shape).
  * @param {string} questId
  * @param {{ action?: string, selector?: string, item?: string, url?: string }} letter
  */
@@ -38,8 +33,7 @@ export function buildPigeonLetterPayload(questId, letter) {
 }
 
 /**
- * One pigeon letter with a stack of steps (single `letterId`); Browserclaw runs steps in order and POSTs one deliver.
- * Each step shallow-merges the partial so extra fields (e.g. `attribute`, `value`) survive in storage and the extension.
+ * One pigeon letter with a stack of steps; Browserclaw runs steps in order and POSTs one delivery.
  * @param {string} questId
  * @param {Array<Record<string, unknown>>} partials
  */
@@ -58,149 +52,99 @@ export function buildPigeonLetterFromPartials(questId, partials) {
     else delete step.url;
     steps.push(step);
   }
-  return {
-    letterId: randomUUID(),
-    questId,
-    steps,
-    createdAt: new Date().toISOString(),
-  };
+  return { letterId: randomUUID(), questId, steps, createdAt: new Date().toISOString() };
 }
 
 /**
- * Replace `inventory.pigeon_letters` with exactly one multi-step letter built from `partials` (or clear when empty).
- * When a step omits `url`, Browserclaw runs that step on the active tab (no navigation).
+ * Replace pending pigeon letters for a quest with one multi-step letter.
+ * Writes to the pigeon_letters TABLE (status=pending). Deletes existing pending letters for the quest first.
  * @param {string} questId
  * @param {Array<Record<string, unknown>>} partials
  */
 export async function replacePigeonLetters(questId, partials, { client: injected } = {}) {
+  const db = injected ?? (await database.init("service"));
   const list = Array.isArray(partials) ? partials : [];
-  if (list.length === 0) {
-    const { error } = await replaceInventoryPigeonLetters(questId, [], { client: injected });
-    if (error) return { data: null, error };
-    return { data: [], error: null };
-  }
+
+  // Clear existing pending letters for this quest
+  await db.from(publicTables.pigeonLetters).delete().eq("quest_id", questId).eq("status", "pending");
+
+  if (list.length === 0) return { data: [], error: null };
+
   const letter = buildPigeonLetterFromPartials(questId, list);
   if (!letter.steps.length) {
     return { data: null, error: new Error("No valid pigeon steps (each step needs a non-empty item key).") };
   }
-  const { error } = await replaceInventoryPigeonLetters(questId, [letter], { client: injected });
+
+  // Resolve owner_id from the quest
+  const { data: quest, error: qErr } = await db
+    .from(publicTables.quests)
+    .select("owner_id")
+    .eq("id", questId)
+    .single();
+  if (qErr || !quest) return { data: null, error: qErr || new Error("Quest not found") };
+
+  const { data: row, error } = await db
+    .from(publicTables.pigeonLetters)
+    .insert({
+      quest_id: questId,
+      owner_id: quest.owner_id,
+      channel: "browserclaw",
+      status: "pending",
+      payload: letter,
+    })
+    .select("id")
+    .single();
   if (error) return { data: null, error };
-  return { data: [letter], error: null };
+
+  return { data: [{ ...letter, letterId: row.id }], error: null };
 }
 
 /**
- * Replace pigeon letters with a single letter (same as `replacePigeonLetters(questId, [letter])`).
- * @deprecated Prefer {@link replacePigeonLetters} with a full `browserActions` array.
+ * Single-letter shorthand.
+ * @deprecated Prefer replacePigeonLetters with a full browserActions array.
  */
 export async function writePigeonLetter(questId, letter) {
   return replacePigeonLetters(questId, [letter]);
 }
 
+function extractItemFields(payload) {
+  if (payload == null) return { url: null, description: null };
+  if (typeof payload === "string") return { url: null, description: payload };
+  if (typeof payload !== "object") return { url: null, description: String(payload) };
+  return {
+    url: typeof payload.url === "string" ? payload.url : null,
+    description: typeof payload.description === "string" ? payload.description : JSON.stringify(payload),
+  };
+}
+
 /**
- * Append delivered items to inventory, remove fulfilled pigeon letter(s), log to quest comments.
+ * Pigeon delivered — upsert items into public.items, mark the letter completed, and log a quest comment.
  * @param {string} questId
- * @param {Record<string, unknown>} items
- * @param {{ client?: import("@supabase/supabase-js").SupabaseClient, letterId?: string }} [opts]
- *   When `letterId` is set, only that letter is removed from `pigeon_letters`; otherwise removal matches by `item` key.
+ * @param {Record<string, unknown>} items — map of { item_key: payload }
+ * @param {{ client?: object, letterId?: string }} [opts]
  */
-const DELIVER_LOG = "[pigeon-post:deliver]";
-
 export async function deliverPigeonResult(questId, items, { client: injected, letterId } = {}) {
-  const lidIn = letterId != null ? String(letterId).trim() : "";
-  console.info(`${DELIVER_LOG} start`, {
-    questId,
-    letterId: lidIn || undefined,
-    itemKeys: Object.keys(items || {}),
-  });
+  const db = injected ?? (await database.init("service"));
+  const lid = letterId != null ? String(letterId).trim() : "";
 
-  const results = [];
-  let firstErr = null;
-  for (const [key, value] of Object.entries(items)) {
-    const { data: appendData, error } = await appendInventoryItem(
-      questId,
-      {
-        item_key: key,
-        payload: value,
-        source: "pigeon_delivery",
-      },
-      { client: injected },
+  const delivered = [];
+  const failed = [];
+  for (const [key, value] of Object.entries(items || {})) {
+    const { url, description } = extractItemFields(value);
+    const { error } = await writeItem(
+      { questId, item_key: key, url, description, source: "pigeon_delivery" },
+      { client: db },
     );
-    const ok = !error;
-    if (!ok && !firstErr) firstErr = error;
-    results.push({ key, ok, error: error?.message });
-    if (ok) {
-      const inv = appendData?.inventory;
-      const keys =
-        inv && typeof inv === "object" && !Array.isArray(inv)
-          ? Object.keys(inv)
-          : [];
-      console.info(`${DELIVER_LOG} appendInventoryItem ok`, { questId, item_key: key, inventoryKeysAfter: keys });
-    } else {
-      console.error(`${DELIVER_LOG} appendInventoryItem failed`, {
-        questId,
-        item_key: key,
-        message: error?.message,
-        code: error?.code,
-        details: error?.details,
-        hint: error?.hint,
-      });
-    }
+    if (error) failed.push({ key, error: error.message });
+    else delivered.push(key);
   }
 
-  const successfulKeys = results.filter((r) => r.ok).map((r) => r.key);
-  const lid = lidIn;
-  const allAppendsOk = !firstErr && results.length > 0 && results.every((r) => r.ok);
-  if (successfulKeys.length > 0) {
-    console.info(`${DELIVER_LOG} removePigeonLetterInventoryEntries`, {
-      questId,
-      successfulKeys,
-      letterIds: lid && allAppendsOk ? [lid] : undefined,
-    });
-    const { error: remErr, data: remData } = await removePigeonLetterInventoryEntries(
-      questId,
-      successfulKeys,
-      {
-        client: injected,
-        ...(lid && allAppendsOk ? { letterIds: [lid] } : {}),
-      },
-    );
-    if (remErr) {
-      console.error(`${DELIVER_LOG} removePigeonLetterInventoryEntries failed`, {
-        questId,
-        message: remErr?.message,
-        code: remErr?.code,
-      });
-      if (!firstErr) firstErr = remErr;
-    } else {
-      const inv = remData?.inventory;
-      const pigeon =
-        inv && typeof inv === "object" && !Array.isArray(inv) ? inv.pigeon_letters : undefined;
-      const pigeonLen = Array.isArray(pigeon) ? pigeon.length : pigeon ? 1 : 0;
-      console.info(`${DELIVER_LOG} pigeon_letters after prune`, { questId, pigeonLettersCount: pigeonLen });
-    }
-  } else {
-    console.warn(`${DELIVER_LOG} skip pigeon prune — no inventory keys written successfully`, {
-      questId,
-      results,
-    });
-  }
-
-  // Mark the pigeon_letters table row as completed (if letterId matches a row)
-  if (lid && allAppendsOk) {
-    try {
-      const db = injected ?? await database.init("service");
-      const { error: plErr } = await db
-        .from("pigeon_letters")
-        .update({ status: "completed", result: items })
-        .eq("id", lid);
-      if (plErr) {
-        console.warn(`${DELIVER_LOG} pigeon_letters table update failed (non-fatal)`, { letterId: lid, message: plErr.message });
-      } else {
-        console.info(`${DELIVER_LOG} pigeon_letters table row marked completed`, { letterId: lid });
-      }
-    } catch (e) {
-      console.warn(`${DELIVER_LOG} pigeon_letters table update error (non-fatal)`, { letterId: lid, message: e?.message });
-    }
+  if (lid && failed.length === 0 && delivered.length > 0) {
+    const { error: plErr } = await db
+      .from(publicTables.pigeonLetters)
+      .update({ status: "completed", result: items })
+      .eq("id", lid);
+    if (plErr) console.warn("[pigeon-post:deliver] pigeon_letters update failed", plErr.message);
   }
 
   await recordQuestComment(
@@ -208,11 +152,16 @@ export async function deliverPigeonResult(questId, items, { client: injected, le
     {
       source: "pigeon_post",
       action: "deliver",
-      summary: `Pigeon delivery: ${successfulKeys.length}/${results.length} item(s) stored; pigeon_letters pruned (${lid ? `letterId ${lid}` : "by item key"}).`,
-      detail: { items, results, letterId: lid || undefined },
+      summary: failed.length === 0
+        ? `Delivered ${delivered.length} item(s) via pigeon post.`
+        : `Pigeon delivery partial: ${delivered.length} ok, ${failed.length} failed.`,
+      detail: { letterId: lid, delivered, failed },
     },
-    { client: injected },
+    { client: db },
   );
 
-  return { data: results, error: firstErr ?? null };
+  return {
+    data: { delivered, failed },
+    error: failed.length > 0 && delivered.length === 0 ? new Error("All items failed") : null,
+  };
 }

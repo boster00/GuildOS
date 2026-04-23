@@ -2,13 +2,7 @@ import {
   insertQuest,
   selectQuestIdByOwnerTitle,
   insertQuestMinimal,
-  selectPartyIdByQuestId,
-  insertParty,
   updateQuestStage,
-  insertQuestItem,
-  appendQuestItem,
-  replaceQuestPigeonLetters,
-  removePigeonLetterInventoryEntries as removePigeonLetterRowsByTargetKeys,
   insertQuestComment,
   updateQuestRow,
   selectQuestById,
@@ -81,20 +75,6 @@ export async function createQuest({
   return { data };
 }
 
-export async function ensureQuestParty(userId, title = "Quest 1: Recent Sales Orders", { client: injected } = {}) {
-  const { data: existingQuest } = await selectQuestIdByOwnerTitle(userId, title, {
-    client: injected,
-  });
-  const questId =
-    existingQuest?.id ??
-    (await insertQuestMinimal({ ownerId: userId, title, stage: "execute" }, { client: injected })).data?.id;
-  const { data: existingParty } = await selectPartyIdByQuestId(questId, { client: injected });
-  const partyId =
-    existingParty?.id ??
-    (await insertParty({ ownerId: userId, questId }, { client: injected })).data?.id;
-  return { questId, partyId };
-}
-
 export async function transitionQuestStage(questId, newStage, { client: injected } = {}) {
   if (!ALL_ACCEPTED_STAGES.includes(newStage)) {
     return { error: new Error(`Invalid stage: ${newStage}`) };
@@ -102,16 +82,6 @@ export async function transitionQuestStage(questId, newStage, { client: injected
   const { data, error } = await updateQuestStage(questId, newStage, { client: injected });
   if (error) return { error };
   return { data };
-}
-
-/** @deprecated Use appendInventoryItem instead. Kept for legacy compat. */
-export async function recordQuestItemHandoff({ partyId, questId, itemKey, itemPayload, client: injected }) {
-  const { data: itemRow, error: itemError } = await insertQuestItem(
-    { partyId, questId, itemKey, itemPayload },
-    { client: injected },
-  );
-  if (itemError) return { error: itemError };
-  return { data: itemRow };
 }
 
 /**
@@ -138,23 +108,6 @@ export async function appendInventoryItem(questId, item, { client: injected } = 
   const { data, error } = await writeItem({ questId, item_key: key, url, description, source }, { client: injected });
   if (error) return { error };
   return { data };
-}
-
-/**
- * Replace `inventory.pigeon_letters` with `letters` (or clear when `[]`). Does not merge with existing letters.
- */
-export async function replaceInventoryPigeonLetters(questId, letters, { client: injected } = {}) {
-  return replaceQuestPigeonLetters(questId, letters, { client: injected });
-}
-
-/**
- * After pigeon webhook delivery, remove pigeon letters by `letterIds` or by matching `item` to delivered keys.
- * @param {string} questId
- * @param {string[]} deliveredItemKeys
- * @param {{ client?: import("@supabase/supabase-js").SupabaseClient, letterIds?: string[] }} [opts]
- */
-export async function removePigeonLetterInventoryEntries(questId, deliveredItemKeys, opts = {}) {
-  return removePigeonLetterRowsByTargetKeys(questId, deliveredItemKeys, opts);
 }
 
 /**
