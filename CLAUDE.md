@@ -15,10 +15,6 @@ When instructions conflict, follow this order:
 
 **Index first, content on demand.** Load only tocs at boot (for both skill books and weapons). Open a specific action's `howTo` only when you're about to execute it. Discard it after — don't keep it in working context once the action is done.
 
-## Pending migrations
-
-- **[items workflow migration]** — `quests.inventory` JSONB is moving to dedicated `quest_items` + `quest_item_comments` tables. `UNIQUE (quest_id, item_key)` will enforce the "REPLACE, don't pile on" rule at the DB layer. A helper in `libs/quest/` will assemble quest + items + comments in one call — agents will not orchestrate multi-step inserts. Grep for `[items workflow migration]` to find every code site and prompt that needs updating. Do not start the migration piecemeal; it is a hard cut with a one-shot data-copy step from the old JSONB.
-
 ## Initiation
 On session start: load the agent profile, load skill books, load weapons (print the list in chat history). Discover skill books and weapons under `libs/skill_book/<name>/index.js` and `libs/weapon/<name>/index.js`; the registries are in `libs/skill_book/index.js` and `libs/weapon/registry.js`.
 
