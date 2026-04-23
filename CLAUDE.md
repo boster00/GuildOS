@@ -212,7 +212,7 @@ Never hardcode `localhost:3000` — dev default is **3002**. Check required vars
 | `bigquery` | Google BigQuery | GOOGLE_SERVICE_ACCOUNT | query |
 | `browserclaw` | Chrome CDP browser control | None (local) | `executeSteps`, `ensureCdpChrome`, `isCdpRunning` |
 | `claudecli` | Claude Code CLI subprocess | None (local) | executeTask |
-| `gmail` | Gmail REST API | GOOGLE_ID + GOOGLE_SECRET + GOOGLE_GMAIL_REFRESH_TOKEN | `searchMessages`, `readMessage`, `starMessages`, `writeMessageLabels` |
+| `gmail` | Gmail via MCP (`@gongrzhe/server-gmail-autoauth-mcp`) | GMAIL_MCP_CLIENT_ID + GMAIL_MCP_CLIENT_SECRET + GOOGLE_GMAIL_REFRESH_TOKEN | MCP tools `search_emails`, `read_email`, `modify_email`, `batch_modify_emails` |
 | `pigeon` | Pigeon Post (Browserclaw dispatch) | None | `replacePigeonLetters`, `deliverPigeonResult` |
 | `vercel` | Vercel REST API | VERCEL_API_KEY | projects, deployments, domains, env vars |
 | `zoho` | Zoho Books + CRM | OAuth (potions) | search, CRUD |
@@ -240,7 +240,7 @@ Never hardcode `localhost:3000` — dev default is **3002**. Check required vars
 | `claudeCLI` | Claude CLI subprocess | `executeTask` |
 | `asana` | Asana task management | `readProjectTasks`, `readTaskComments` |
 | `cursor` | Cursor cloud agents + PPT | `dispatchTask`, `readStatus`, `readConversation`, `dispatchPptGeneration` |
-| `gmail` | Gmail triage + email ops | `searchInbox`, `readMessage`, `triageInbox`, `writeStars` |
+| `gmail` | Gmail triage + email ops (MCP-only, no JS actions) | — (agents call `mcp__gmail__*` tools directly) |
 
 ## File & API structure
 
@@ -424,18 +424,13 @@ Claude Code is the **strategy and management layer**, not the coding layer, when
 
 ### Gmail inbox triage
 
-**Weapon:** `libs/weapon/gmail/` | **Skill book:** `libs/skill_book/gmail/` | **Preferences:** `docs/gmail-processing-preferences.md`
+**Weapon:** `libs/weapon/gmail/` (MCP pointer) | **Skill book:** `libs/skill_book/gmail/` (scoring rules)
 
-**How to run a triage scan:**
-```javascript
-import { triageInbox } from "@/libs/skill_book/gmail";
-const result = await triageInbox(userId, { limit: 100, dryRun: false });
-// Scans unread inbox, scores per gmail-processing-preferences.md, stars top ~2%
-```
+Gmail is agent-driven via the `gmail` MCP server (`@gongrzhe/server-gmail-autoauth-mcp`). Agents call `mcp__gmail__search_emails`, `read_email`, `batch_modify_emails`, etc. directly — no JS wrappers. The triage scoring rules live as prose in the skill book; the agent runs the loop itself.
 
-The skill book embeds the full scoring engine from `docs/gmail-processing-preferences.md`. Scoring rules, skip rules, and the decision framework are all codified in `libs/skill_book/gmail/index.js`.
+**Setup state (local):** `~/.gmail-mcp/gcp-oauth.keys.json` (OAuth client from `GMAIL_MCP_CLIENT_ID` / `GMAIL_MCP_CLIENT_SECRET` in formulary) + `~/.gmail-mcp/credentials.json` (refresh token from `GOOGLE_GMAIL_REFRESH_TOKEN`). Registered under `projects["C:/Users/xsj70/GuildOS"].mcpServers.gmail` in `~/.claude.json`. No browser at runtime.
 
-**Implementation note:** Gmail is controlled via the **Gmail REST API directly** (not MCP, not CDP/browser). The weapon exchanges `GOOGLE_GMAIL_REFRESH_TOKEN` for a bearer token. Do NOT use Chrome/Playwright for Gmail.
+**Current scopes:** `gmail.readonly` + `gmail.modify` — read, search, star, label. Send / draft / label-creation tools exist in the MCP server but require a fresh OAuth consent with broader scopes. Do NOT use Chrome/Playwright for Gmail.
 
 ---
 

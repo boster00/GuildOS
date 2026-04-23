@@ -1,5 +1,4 @@
 import { getZohoWeaponStatus } from "@/libs/weapon/zoho";
-import { checkCredentials as checkGmailCredentials } from "@/libs/weapon/gmail";
 import { checkCredentials as checkCursorCredentials } from "@/libs/weapon/cursor";
 import { checkCredentials as checkFigmaCredentials } from "@/libs/weapon/figma";
 import { checkCredentials as checkAsanaCredentials } from "@/libs/weapon/asana";
@@ -80,12 +79,12 @@ export const WEAPONS = [
   {
     id: "gmail",
     title: "Gmail",
-    tagline: "Search, read, star, and label emails via Google Gmail API.",
+    tagline: "Search, read, star, and label emails via the Gmail MCP server.",
     summary:
-      "Lets skill books search inboxes, read messages, star important emails, and modify labels using your Gmail account.",
+      "Agent-only weapon — MCP-mounted under the `gmail` namespace. Agents call mcp__gmail__search_emails, read_email, modify_email, batch_modify_emails, etc.",
     icon: "/images/guildos/chibis/bolt.svg",
     description: [
-      "Uses GOOGLE_SERVICE_ACCOUNT (service account JSON with domain-wide delegation) to access Gmail via the REST API v1. Also requires GOOGLE_GMAIL_IMPERSONATE set to the target Gmail address.",
+      "Runs `@gongrzhe/server-gmail-autoauth-mcp` over stdio. Uses GMAIL_MCP_CLIENT_ID + GMAIL_MCP_CLIENT_SECRET (formulary) and GOOGLE_GMAIL_REFRESH_TOKEN (formulary) via ~/.gmail-mcp/. See libs/weapon/gmail/index.js for setup.",
     ],
     requiresActivation: false,
   },
@@ -224,7 +223,6 @@ export async function getWeaponActivationSummaries(userId) {
   const summaries = {};
   const checks = {
     zoho: () => getZohoWeaponStatus(userId),
-    gmail: () => checkGmailCredentials(userId),
     cursor: () => checkCursorCredentials(userId),
     figma: () => checkFigmaCredentials(userId),
     asana: () => checkAsanaCredentials(userId),
