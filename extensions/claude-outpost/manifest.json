@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Outpost",
+  "description": "Stable Chrome-native bridge between GuildOS and Claude.ai — no CDP required.",
+  "version": "2.0.0",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "http://localhost:3002/*",
+    "https://claude.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

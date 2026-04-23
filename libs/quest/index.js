@@ -2,13 +2,7 @@ import {
   insertQuest,
   selectQuestIdByOwnerTitle,
   insertQuestMinimal,
-  selectPartyIdByQuestId,
-  insertParty,
   updateQuestStage,
-  insertQuestItem,
-  appendQuestItem,
-  replaceQuestPigeonLetters,
-  removePigeonLetterInventoryEntries as removePigeonLetterRowsByTargetKeys,
   insertQuestComment,
   updateQuestRow,
   selectQuestById,
@@ -20,10 +14,10 @@ import {
   insertSubQuest,
   selectQuestCommentsForQuest,
 } from "@/libs/council/database/serverQuest.js";
-import { listAdventurers } from "@/libs/proving_grounds/server.js";
-import { getGlobalAssigneeMeta } from "@/libs/proving_grounds/ui.js";
+import { listAdventurers } from "@/libs/adventurer_runtime/server.js";
+import { getGlobalAssigneeMeta } from "@/libs/adventurer_runtime/ui.js";
 
-export { inventoryRawToMap, inventoryToDisplayRows, PIGEON_LETTERS_KEY } from "./inventoryMap.js";
+export { inventoryRawToMap, inventoryToDisplayRows } from "./inventoryMap.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -47,7 +41,7 @@ export const QUEST_PATCH_RELATIVE_URL = "/api/quest";
 // Runtime helpers (from legacy runtime.js — same signatures, same DB calls)
 // ---------------------------------------------------------------------------
 
-export async function createQuest({
+export async function writeQuest({
   userId,
   title,
   description,
@@ -81,20 +75,6 @@ export async function createQuest({
   return { data };
 }
 
-export async function ensureQuestParty(userId, title = "Quest 1: Recent Sales Orders", { client: injected } = {}) {
-  const { data: existingQuest } = await selectQuestIdByOwnerTitle(userId, title, {
-    client: injected,
-  });
-  const questId =
-    existingQuest?.id ??
-    (await insertQuestMinimal({ ownerId: userId, title, stage: "execute" }, { client: injected })).data?.id;
-  const { data: existingParty } = await selectPartyIdByQuestId(questId, { client: injected });
-  const partyId =
-    existingParty?.id ??
-    (await insertParty({ ownerId: userId, questId }, { client: injected })).data?.id;
-  return { questId, partyId };
-}
-
 export async function transitionQuestStage(questId, newStage, { client: injected } = {}) {
   if (!ALL_ACCEPTED_STAGES.includes(newStage)) {
     return { error: new Error(`Invalid stage: ${newStage}`) };
@@ -102,39 +82,6 @@ export async function transitionQuestStage(questId, newStage, { client: injected
   const { data, error } = await updateQuestStage(questId, newStage, { client: injected });
   if (error) return { error };
   return { data };
-}
-
-/** @deprecated Use appendInventoryItem instead. Kept for legacy compat. */
-export async function recordQuestItemHandoff({ partyId, questId, itemKey, itemPayload, client: injected }) {
-  const { data: itemRow, error: itemError } = await insertQuestItem(
-    { partyId, questId, itemKey, itemPayload },
-    { client: injected },
-  );
-  if (itemError) return { error: itemError };
-  return { data: itemRow };
-}
-
-export async function appendInventoryItem(questId, item, { client: injected } = {}) {
-  const { data, error } = await appendQuestItem(questId, item, { client: injected });
-  if (error) return { error };
-  return { data };
-}
-
-/**
- * Replace `inventory.pigeon_letters` with `letters` (or clear when `[]`). Does not merge with existing letters.
- */
-export async function replaceInventoryPigeonLetters(questId, letters, { client: injected } = {}) {
-  return replaceQuestPigeonLetters(questId, letters, { client: injected });
-}
-
-/**
- * After pigeon webhook delivery, remove pigeon letters by `letterIds` or by matching `item` to delivered keys.
- * @param {string} questId
- * @param {string[]} deliveredItemKeys
- * @param {{ client?: import("@supabase/supabase-js").SupabaseClient, letterIds?: string[] }} [opts]
- */
-export async function removePigeonLetterInventoryEntries(questId, deliveredItemKeys, opts = {}) {
-  return removePigeonLetterRowsByTargetKeys(questId, deliveredItemKeys, opts);
 }
 
 /**
@@ -193,7 +140,7 @@ export async function readRecentCommentThread(questId, { client: injected } = {}
 
 export async function updateQuest(
   questId,
-  { title, description, deliverables, dueDate, stage, assigneeId, inventory, items, nextSteps },
+  { title, description, deliverables, dueDate, stage, assigneeId, nextSteps },
   { client: injected } = {},
 ) {
   const updates = {};
@@ -208,8 +155,6 @@ export async function updateQuest(
     updates.stage = stage;
   }
   if (assigneeId !== undefined) updates.assignee_id = assigneeId;
-  if (inventory !== undefined) updates.inventory = inventory;
-  else if (items !== undefined) updates.inventory = items;
   if (nextSteps !== undefined) updates.next_steps = nextSteps;
 
   if (Object.keys(updates).length === 0) {
@@ -228,14 +173,6 @@ export async function updateQuest(
     return { error };
   }
   return { data };
-}
-
-export async function ensurePartyForQuest(questId, userId, { client: injected } = {}) {
-  const { data: existing } = await selectPartyIdByQuestId(questId, { client: injected });
-  if (existing?.id) return { data: { partyId: existing.id } };
-  const { data: ins, error } = await insertParty({ ownerId: userId, questId }, { client: injected });
-  if (error) return { error };
-  return { data: { partyId: ins.id } };
 }
 
 export async function getQuest(questId, { client: injected } = {}) {
@@ -400,28 +337,18 @@ export async function advanceToNextStep(questId, { client }) {
   const [next, ...rest] = steps;
   const nextObj = typeof next === "string" ? { title: next } : (next && typeof next === "object" ? next : {});
 
-  // Merge inventory: current quest items take priority
-  let mergedInventory = quest.inventory;
-  if (nextObj.inventory && typeof nextObj.inventory === "object") {
-    mergedInventory = { ...nextObj.inventory, ...(quest.inventory || {}) };
-  }
-
   const { error: upErr } = await updateQuest(questId, {
     title: nextObj.title || quest.title,
     description: nextObj.description || quest.description,
     nextSteps: rest,
     stage: nextObj.stage || "assign",
     assigneeId: null,
-    inventory: mergedInventory,
   }, { client });
 
   if (upErr) return { error: upErr };
 
-  // Route to the correct NPC based on prep type, default to Cat
-  const { PREP_NPC_ROUTING, getNpc } = await import("@/libs/npcs");
-  const npcKey = PREP_NPC_ROUTING[nextObj.type] || "cat";
-  const npc = getNpc(npcKey);
-  const assignedTo = npc?.name || "Cat";
+  // Route prep work to the Pig (local Claude handles weapon/skillbook/adventurer prep)
+  const assignedTo = "Pig";
   await updateQuestAssignee(questId, { assigneeId: null, assignedTo }, { client });
 
   return {
@@ -453,7 +380,7 @@ export async function triggerPreparationCascade(quest, { client }) {
     { title: "Prepare weapon", type: "prepare_weapon", stage: "plan", description: `Forge a weapon/connector for: ${domain}` },
     { title: "Prepare skill book", type: "prepare_skillbook", stage: "plan", description: `Create skill book actions for: ${domain}` },
     { title: "Prepare adventurer", type: "prepare_adventurer", stage: "plan", description: `Recruit and configure an adventurer for: ${domain}` },
-    { title: quest.title, description: quest.description, stage: "assign", inventory: quest.inventory },
+    { title: quest.title, description: quest.description, stage: "assign" },
   ];
 
   // Overwrite next_steps with prep cascade + any existing next_steps
@@ -468,28 +395,18 @@ export async function triggerPreparationCascade(quest, { client }) {
 }
 
 // ---------------------------------------------------------------------------
-// Assignee resolution — derives NPC or adventurer from quest.assigned_to
+// Assignee resolution — derives an adventurer DB row from quest.assigned_to
 // ---------------------------------------------------------------------------
 
-/** Known NPC slugs → metadata. */
-// Re-export from canonical source
-export { NPC_REGISTRY as NPC_ROSTER } from "@/libs/npcs";
-
 /**
- * Resolve an `assigned_to` string to either an NPC or an adventurer DB row.
+ * Resolve an `assigned_to` string to an adventurer DB row.
  * @param {string} assignedTo
  * @param {import("@/libs/council/database/types.js").DatabaseClient} client
- * @returns {Promise<{ type: "npc", profile: object } | { type: "adventurer", profile: object } | { type: "unassigned" }>}
+ * @returns {Promise<{ type: "adventurer", profile: object } | { type: "unassigned" }>}
  */
 export async function resolveAssignee(assignedTo, client) {
   const key = String(assignedTo ?? "").trim().toLowerCase();
   if (!key) return { type: "unassigned" };
-
-  const { getNpc } = await import("@/libs/npcs");
-  const npc = getNpc(key);
-  if (npc) {
-    return { type: "npc", profile: { ...npc, id: null } };
-  }
 
   const { publicTables } = await import("@/libs/council/publicTables");
   // Try by name (case-insensitive)
@@ -533,7 +450,92 @@ export async function loadQuest(questId, ownerId, { client }) {
     return { data: null, error: error || new Error("Quest not found.") };
   }
   quest.assignee = await resolveAssignee(quest.assigned_to, client);
+  quest.items = await searchItems(questId, { client });
   return { data: quest, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Items — replaces the old quests.inventory JSONB
+// ---------------------------------------------------------------------------
+
+/**
+ * Upsert an item into quest_items. Same (quest_id, item_key) replaces in place.
+ * @param {{ questId: string, item_key: string, url?: string|null, description?: string|null, source?: string|null }} input
+ * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
+ * @returns {Promise<{ data: object|null, error: Error|null }>}
+ */
+export async function writeItem({ questId, item_key, url = null, description = null, source = null }, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  const { data, error } = await client
+    .from(publicTables.items)
+    .upsert({ quest_id: questId, item_key, url, description, source }, { onConflict: "quest_id,item_key" })
+    .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
+    .single();
+  return { data, error };
+}
+
+/**
+ * Insert a comment on an item (e.g. Cat annotating a screenshot).
+ * @param {string} itemId
+ * @param {{ role: string, text: string }} input
+ * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
+ */
+export async function writeItemComment(itemId, { role, text }, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  const { data, error } = await client
+    .from(publicTables.itemComments)
+    .insert({ item_id: itemId, role, text })
+    .select("id, item_id, role, text, created_at")
+    .single();
+  return { data, error };
+}
+
+/**
+ * List items for a quest, each with its comments[] hydrated.
+ * @param {string} questId
+ * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
+ * @returns {Promise<object[]>}
+ */
+export async function searchItems(questId, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  const { data: items, error } = await client
+    .from(publicTables.items)
+    .select("id, item_key, url, description, source, created_at, updated_at")
+    .eq("quest_id", questId)
+    .order("created_at", { ascending: true });
+  if (error || !items?.length) return [];
+
+  const ids = items.map((i) => i.id);
+  const { data: comments } = await client
+    .from(publicTables.itemComments)
+    .select("id, item_id, role, text, created_at")
+    .in("item_id", ids)
+    .order("created_at", { ascending: true });
+
+  const byItem = new Map();
+  for (const c of comments || []) {
+    if (!byItem.has(c.item_id)) byItem.set(c.item_id, []);
+    byItem.get(c.item_id).push(c);
+  }
+  return items.map((i) => ({ ...i, comments: byItem.get(i.id) || [] }));
+}
+
+/**
+ * Delete an item (comments cascade).
+ * @param {string} questId
+ * @param {string} itemKey
+ */
+export async function deleteItem(questId, itemKey, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  return client.from(publicTables.items).delete().eq("quest_id", questId).eq("item_key", itemKey);
 }
 
 // ---------------------------------------------------------------------------
@@ -548,7 +550,7 @@ export async function loadQuest(questId, ownerId, { client }) {
  * Quest-side entry: resolve assignee → {@link Adventurer#advance}. Use from cron, HTTP, or tools instead of pulling batches inside adventurer.
  */
 export async function advance(quest, opts) {
-  const { advanceQuest } = await import("@/libs/proving_grounds/server.js");
+  const { advanceQuest } = await import("@/libs/adventurer_runtime/server.js");
   return advanceQuest(quest, opts ?? {});
 }
 

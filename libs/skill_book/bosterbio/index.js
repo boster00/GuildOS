@@ -5,7 +5,7 @@
 export const skillBook = {
   id: "bosterbio",
   title: "BosterBio.com2026 — Website Migration",
-  description: "Tactical instructions for BosterBio website: product migration, storefront, launch prep, CMS content.",
+  description: "Execute BosterBio website tasks: product migration, storefront, launch prep, CMS content.",
   steps: [],
   toc: {
     migrateProducts: {
@@ -80,7 +80,7 @@ See \`docs/product-attributes-migration-plan.md\` for full schema details.
 `,
     },
     launchPrep: {
-      description: "SEO, DNS cutover, monitoring, and launch checklist.",
+      description: "Handle SEO, DNS cutover, monitoring, and launch checklist.",
       howTo: `
 **SEO:**
 - Discard ALL Magento URL rewrites. Start clean with new routing.
@@ -104,6 +104,33 @@ See \`docs/product-attributes-migration-plan.md\` for full schema details.
 - [ ] Full backup; verify rollback procedure
 - [ ] DNS cutover; re-submit sitemap; trigger reindexing
 - [ ] Monitor 404s, indexing, performance for 2 weeks post-launch
+`,
+    },
+    connectSsh: {
+      description: "Connect to bosterbio.com production server via SSH, falling back through Carbon hop or Jetrails whitelist when IP-blocked.",
+      howTo: `
+**Primary:** \`ssh -p 2223 boster_ooP9u@69.27.32.101\`
+
+**If blocked (connection timeout on port 2223):**
+
+**Option 1 — Hop via Carbon:**
+SSH into Carbon first, then SSH to boster from there:
+\`\`\`bash
+ssh carbon
+ssh -p 2223 boster_ooP9u@69.27.32.101
+\`\`\`
+Carbon has a different outbound IP and may not be blocked.
+
+**Option 2 — Request IP whitelist via Jetrails support:**
+If Carbon also fails, get the current IP and send an email from boster@bosterbio.com to support@jetrails.com:
+\`\`\`
+Subject: SSH Whitelist Request — Add IP [current IP] for bosterbio.com
+Body: Hi Jetrails support, please add IP address [current IP] to the SSH whitelist for bosterbio.com (port 2223, user boster_ooP9u). Thank you.
+\`\`\`
+Use the Gmail weapon with the boster@bosterbio.com account to send.
+After sending, retry SSH in 20-minute intervals for up to 2 hours before escalating.
+
+**Get current IP:** \`curl -s https://api.ipify.org\`
 `,
     },
     migrateContent: {

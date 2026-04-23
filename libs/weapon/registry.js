@@ -1,4 +1,4 @@
-import { getZohoWeaponStatus } from "@/libs/weapon/zoho";
+import { readWeaponStatus } from "@/libs/weapon/zoho";
 import { checkCredentials as checkGmailCredentials } from "@/libs/weapon/gmail";
 import { checkCredentials as checkCursorCredentials } from "@/libs/weapon/cursor";
 import { checkCredentials as checkFigmaCredentials } from "@/libs/weapon/figma";
@@ -7,6 +7,19 @@ import { checkCredentials as checkStorageCredentials } from "@/libs/weapon/supab
 import { checkCredentials as checkAuthStateCredentials } from "@/libs/weapon/auth_state";
 import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
+import { ping as pingBosterBio } from "@/libs/weapon/bosterbio_lifecycle";
+import { checkCredentials as checkImapCredentials } from "@/libs/weapon/imap";
+import { checkCredentials as checkBioinvsyncCredentials } from "@/libs/weapon/bioinvsync";
+import { checkCredentials as checkStripeCredentials } from "@/libs/weapon/stripe";
+import { checkCredentials as checkMerchantCredentials } from "@/libs/weapon/google_merchant_center";
+import { checkCredentials as checkSemrushCredentials } from "@/libs/weapon/semrush";
+import { checkCredentials as checkSmartleadCredentials } from "@/libs/weapon/smartlead";
+import { checkCredentials as checkInstantlyCredentials } from "@/libs/weapon/instantly";
+import { checkCredentials as checkN8nCredentials } from "@/libs/weapon/n8n";
+import { checkCredentials as checkOpensendCredentials } from "@/libs/weapon/opensend";
+import { checkCredentials as checkHighlevelCredentials } from "@/libs/weapon/highlevel";
+import { checkCredentials as checkLinkedinCredentials } from "@/libs/weapon/linkedin";
+import { checkCredentials as checkPubcompareCredentials } from "@/libs/weapon/pubcompare";
 
 
 /**
@@ -136,12 +149,12 @@ export const WEAPONS = [
   {
     id: "auth_state",
     title: "Auth State",
-    tagline: "Manage Playwright browser auth state — save, load, check expiry.",
+    tagline: "Browser auth state JSON — save, load, check expiry for cloud agents.",
     summary:
-      "Manages saved cookies/localStorage for authenticated browser sessions. Detects expired cookies and stale state files.",
+      "Manages saved cookies/localStorage exported by scripts/auth-capture.mjs. Used by cloud agents that can't connect to the local CDP Chrome on port 9222.",
     icon: "/images/guildos/chibis/bolt.svg",
     description: [
-      "Reads/writes playwright/.auth/user.json. Checks cookie expiry per domain. Use scripts/auth-capture.mjs to refresh.",
+      "Reads/writes playwright/.auth/user.json. Checks cookie expiry per domain. Local Guildmaster uses CDP Chrome directly (port 9222); this JSON is for cloud agents only.",
     ],
     requiresActivation: false,
   },
@@ -157,6 +170,53 @@ export const WEAPONS = [
     ],
     requiresActivation: false,
   },
+  {
+    id: "imap",
+    title: "IMAP",
+    tagline: "Read email from IMAP mailboxes — Zoho Mail Pro and compatible servers.",
+    summary:
+      "Connects to IMAP servers (default: imappro.zoho.com:993) using per-account credentials stored in IMAP_ACCOUNTS env var.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses imapflow library with TLS. Credentials stored as IMAP_ACCOUNTS JSON (email → password) in profile env_vars or process.env. Actions: readMessages, searchAccounts, checkCredentials.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "bioinvsync",
+    title: "Bioinvsync",
+    tagline: "SSH access to the bioinvsync.com legacy server (JetRails hosting).",
+    summary:
+      "Connects to 69.27.32.79:2223 as bioinvsync via plink + bioinvsync.ppk. Requires Pageant running with the key loaded.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses plink.exe (PuTTY) with bioinvsync.ppk for SSH. Pageant must be running with the key loaded for non-interactive access.",
+      "Server hosts legacy Zoho Books PHP integration, FedEx, BigQuery, and ELISA analysis code under /home/bioinvsync/public_html/.",
+    ],
+    requiresActivation: false,
+  },
+  { id: "stripe", title: "Stripe", tagline: "Read charges, customers, subscriptions via Stripe REST API.", summary: "Billing and payment data weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses STRIPE_SECRET_KEY (Basic auth) to call Stripe REST API v1."], requiresActivation: false },
+  { id: "google_merchant_center", title: "Google Merchant Center", tagline: "Read products, orders, and account info via Content API.", summary: "Merchant Center connector using Google service account.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses GOOGLE_SERVICE_ACCOUNT + GOOGLE_MERCHANT_ID to call Content API v2.1."], requiresActivation: false },
+  { id: "semrush", title: "SEMRush", tagline: "Domain overview, keyword research, and backlinks via SEMRush API.", summary: "SEO intelligence weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses SEMRUSH_API_KEY to call SEMRush REST API."], requiresActivation: false },
+  { id: "smartlead", title: "Smartlead", tagline: "Manage cold email campaigns and leads via Smartlead API.", summary: "Cold email campaign weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses SMARTLEAD_API_KEY to call Smartlead REST API v1."], requiresActivation: false },
+  { id: "instantly", title: "Instantly", tagline: "Manage cold email campaigns via Instantly API.", summary: "Cold email weapon for Instantly platform.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses INSTANTLY_API_KEY to call Instantly REST API v1."], requiresActivation: false },
+  { id: "n8n", title: "N8N", tagline: "Trigger and manage N8N automation workflows via REST API.", summary: "Workflow automation weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses N8N_URL + N8N_API_KEY to call N8N REST API v1."], requiresActivation: false },
+  { id: "opensend", title: "Opensend", tagline: "Manage contacts and nurture flows via Opensend API.", summary: "Lead nurture weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses OPENSEND_API_KEY to call Opensend REST API."], requiresActivation: false },
+  { id: "highlevel", title: "HighLevel", tagline: "CRM contacts and pipeline opportunities via HighLevel REST API.", summary: "HighLevel CRM weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses HIGHLEVEL_API_KEY (Bearer) to call HighLevel REST API v1."], requiresActivation: false },
+  { id: "linkedin", title: "LinkedIn", tagline: "Search profiles and read profile info via browser automation.", summary: "LinkedIn profile scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP (port 9222). Must be logged in via CDP profile."], requiresActivation: false },
+  { id: "pubcompare", title: "PubCompare", tagline: "Search publication comparison data via browser automation.", summary: "PubCompare.ai scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP. Public site — no auth needed."], requiresActivation: false },
+  {
+    id: "bosterbio_lifecycle",
+    title: "BosterBio Lifecycle",
+    tagline: "Read genes and write enrichment via bapi.php on bosterbio.com.",
+    summary:
+      "Fetches gene records needing enrichment from the bosterbio_m2 database and writes AI-generated HTML back via the BAPI REST endpoint.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Calls https://www.bosterbio.com/?_bapi=1 with BOSTERBIO_BAPI_KEY. Actions: readGenes (top priority genes with empty enrichment), readGene (single gene), writeEnrichment (write HTML to enrichment column), ping (health check).",
+    ],
+    requiresActivation: false,
+  },
 ];
 
 export function getWeaponById(id) {
@@ -166,10 +226,10 @@ export function getWeaponById(id) {
 /**
  * Activation summary for list cards (one entry per weapon that reports status).
  */
-export async function getWeaponActivationSummaries(userId) {
+export async function readActivationSummaries(userId) {
   const summaries = {};
   const checks = {
-    zoho: () => getZohoWeaponStatus(userId),
+    zoho: () => readWeaponStatus(userId),
     gmail: () => checkGmailCredentials(userId),
     cursor: () => checkCursorCredentials(userId),
     figma: () => checkFigmaCredentials(userId),
@@ -178,6 +238,19 @@ export async function getWeaponActivationSummaries(userId) {
     auth_state: () => checkAuthStateCredentials(),
     ssh: () => checkSshCredentials(userId),
     browserclaw: () => checkCdpCredentials(),
+    bosterbio_lifecycle: () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
+    imap: () => checkImapCredentials({}, userId),
+    bioinvsync: () => checkBioinvsyncCredentials(),
+    stripe: () => checkStripeCredentials(),
+    google_merchant_center: () => checkMerchantCredentials(),
+    semrush: () => checkSemrushCredentials(),
+    smartlead: () => checkSmartleadCredentials(),
+    instantly: () => checkInstantlyCredentials(),
+    n8n: () => checkN8nCredentials(),
+    opensend: () => checkOpensendCredentials(),
+    highlevel: () => checkHighlevelCredentials(),
+    linkedin: () => checkLinkedinCredentials(),
+    pubcompare: () => checkPubcompareCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {

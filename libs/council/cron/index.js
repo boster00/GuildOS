@@ -125,9 +125,10 @@ async function nudgeConfused(db) {
 
 
       const questList = advQuests.map((q) => `- [${q.priority}] "${q.title}" (${q.stage})`).join("\n");
+      const ts = new Date().toISOString();
       await writeFollowup({
         agentId: adv.session_id,
-        message: `${NUDGE_PREFIX} You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest priority one. If you believe all deliverables are met, move the quest to 'purrview' stage for Questmaster review. If blocked, escalate with a comment.`,
+        message: `${NUDGE_PREFIX} [${ts}] You have ${advQuests.length} active quest(s):\n${questList}\n\nFirst: pull ~/guildos and re-read docs/global-instructions.md. Then work on the highest priority quest. When done, follow the submitForPurrview action from your housekeeping skill book exactly. Do not wait for permission. If blocked, escalate.`,
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
@@ -181,7 +182,7 @@ async function notifyQuestmaster(db) {
   try {
     await writeFollowup({
       agentId: cat.session_id,
-      message: `[NUDGE] You have quests needing attention:\n\n${lines.join("\n")}\n\nFor purrview: read quest description + inventory, evaluate deliverables. If 90%+ satisfied, move to review. If not, add feedback comment and move back to execute.\nFor closing: archive summary to Asana, then move to complete.`,
+      message: `[NUDGE] [${new Date().toISOString()}] You have quests needing attention:\n\n${lines.join("\n")}\n\nFor purrview: read quest description + inventory, evaluate deliverables. If 90%+ satisfied, move to review. If not, add feedback comment and move back to execute.\nFor closing: archive summary to Asana, then move to complete.`,
     });
     console.log(`[cron] notified Cat: ${purrviewQuests.length} purrview, ${closingQuests.length} closing`);
   } catch (err) {

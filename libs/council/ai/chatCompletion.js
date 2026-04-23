@@ -45,7 +45,7 @@ export async function runDungeonMasterChat({ userId, messages, model: modelOverr
 }
 
 /**
- * One-off generic chat completion (dev / legacy path). Prefer `libs/cat` for product assistant flows.
+ * One-off generic chat completion.
  * Uses server env OPENAI_API_KEY; model from options or OPENAI_DEFAULT_MODEL or gpt-4o-mini.
  */
 export async function runGenericChat({ messages, model: modelOverride } = {}) {

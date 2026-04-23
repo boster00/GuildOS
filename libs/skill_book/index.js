@@ -10,35 +10,27 @@ import { definition as defaultDef, escalate as defaultEscalate } from "./default
 
 export { skillActionOk, skillActionErr } from "./actionResult.js";
 import { skillBook as zohoSkillBook, search as zohoSearch } from "./zoho/index.js";
-import {
-  skillBook as testskillbookDef,
-  testaction,
-  sendpigeonpost,
-  checkPigeonResult,
-} from "./testskillbook/index.js";
-import {
-  skillBook as browsercontrolSkillBook,
-  dispatchBrowserActionsThroughPigeonPost,
-} from "./browsercontrol/index.js";
+
+import { skillBook as browsercontrolSkillBook } from "./browsercontrol/index.js";
 import {
   definition as questmasterDef,
   planRequestToQuest,
-  findAdventurerForQUest,
+  searchAdventurerForQuest,
   interpretIdea,
   selectAdventurer as runSelectAdventurer,
   assign as runAssign,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
 import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
-import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEvents } from "./bigquery/index.js";
+import { skillBook as bigquerySkillBook, readRecentEvents as bigqueryReadRecentEvents } from "./bigquery/index.js";
 import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
 import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
-import { skillBook as gmailSkillBook, searchInbox as gmailSearchInbox, readMessage as gmailReadMessage, triageInbox as gmailTriageInbox, writeStars as gmailWriteStars } from "./gmail/index.js";
 import { skillBook as housekeepingSkillBook } from "./housekeeping/index.js";
 import { questmasterRegistry } from "./questmaster/registry.js";
 import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
 import { skillBook as nexusSkillBook } from "./nexus/index.js";
 import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
+import { skillBook as dailiesSkillBook } from "./dailies/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -301,29 +293,23 @@ export const SKILL_BOOKS = {
   questmaster: questmasterDef,
   guildmaster: guildmasterSkillBook,
   blacksmith: blacksmithSkillBook,
-  testskillbook: testskillbookDef,
+
   browsercontrol: browsercontrolSkillBook,
   bigquery: bigquerySkillBook,
   claudeCLI: claudeCLISkillBook,
   asana: asanaSkillBook,
   cursor: cursorSkillBook,
-  gmail: gmailSkillBook,
   cjgeo: cjgeoSkillBook,
   nexus: nexusSkillBook,
   bosterbio: bosterbioSkillBook,
+  dailies: dailiesSkillBook,
   housekeeping: housekeepingSkillBook,
   questmaster_registry: questmasterRegistry,
 };
 
-/**
- * Legacy `skill_books` values still allowed on adventurer rows until data is migrated.
- * Not registered in {@link SKILL_BOOKS} — keep this Set in this file only.
- */
-export const LEGACY_SKILL_BOOK_IDS = new Set(["salesOrders"]);
-
-/** Catalog keys plus {@link LEGACY_SKILL_BOOK_IDS} (for persistence validation). */
+/** Catalog keys (for persistence validation). */
 export function getAcceptedSkillBookIds() {
-  return new Set([...Object.keys(SKILL_BOOKS), ...LEGACY_SKILL_BOOK_IDS]);
+  return new Set(Object.keys(SKILL_BOOKS));
 }
 
 /**
@@ -337,27 +323,16 @@ export function filterValidSkillBookNames(names) {
 }
 
 /**
- * Checkbox lists on commission/edit UIs: every assignable book (no implicit `default`) plus legacy ids.
+ * Checkbox lists on commission/edit UIs: every assignable book (no implicit `default`).
  */
 export function listSkillBookIdsForRosterUI() {
-  const fromCatalog = Object.keys(SKILL_BOOKS).filter((id) => id !== "default");
-  return [...fromCatalog, ...LEGACY_SKILL_BOOK_IDS];
+  return Object.keys(SKILL_BOOKS).filter((id) => id !== "default");
 }
 
 const zohoAdventurerActions = {
   search: (_userId, input) => zohoSearch(/** @type {Record<string, unknown>} */ (input || {})),
 };
 
-const testskillbookAdventurerActions = {
-  testaction: (_userId, input) => testaction(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  sendpigeonpost: (_userId, input) => sendpigeonpost(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  checkPigeonResult: (_userId, input) => checkPigeonResult(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-};
-
-const browsercontrolAdventurerActions = {
-  dispatchBrowserActionsThroughPigeonPost: (_userId, input) =>
-    dispatchBrowserActionsThroughPigeonPost(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-};
 
 const guildmasterAdventurerActions = {
   callToArms: (_userId, input) => callToArms(_userId, /** @type {Record<string, unknown>} */ (input || {})),
@@ -385,13 +360,13 @@ const questmasterAdventurerActions = {
     });
     return result;
   },
-  findAdventurerForQUest: async (userId, input) => {
+  searchAdventurerForQuest: async (userId, input) => {
     const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
     const client = getAdventurerExecutionContext()?.client;
     if (!client) {
-      return Promise.reject(new Error("findAdventurerForQUest requires client in adventurer execution context."));
+      return Promise.reject(new Error("searchAdventurerForQuest requires client in adventurer execution context."));
     }
-    return findAdventurerForQUest(userId, { .../** @type {Record<string, unknown>} */ (input || {}), client });
+    return searchAdventurerForQuest(userId, { .../** @type {Record<string, unknown>} */ (input || {}), client });
   },
   interpretIdea: async (userId, input) => {
     const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
@@ -455,10 +430,10 @@ const ADVENTURER_REGISTRY = {
   questmaster: { definition: questmasterDef, adventurerActions: questmasterAdventurerActions },
   guildmaster: { definition: guildmasterSkillBook, adventurerActions: guildmasterAdventurerActions },
   blacksmith: { definition: blacksmithSkillBook, adventurerActions: blacksmithAdventurerActions },
-  testskillbook: { definition: testskillbookDef, adventurerActions: testskillbookAdventurerActions },
-  browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: browsercontrolAdventurerActions },
+
+  browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: {} },
   bigquery: { definition: bigquerySkillBook, adventurerActions: {
-    getRecentEvents: (_userId, input) => bigqueryGetRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readRecentEvents: (_userId, input) => bigqueryReadRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   asana: { definition: asanaSkillBook, adventurerActions: {
     readProjectTasks: (_userId, input) => asanaReadProjectTasks(_userId, /** @type {Record<string, unknown>} */ (input || {})),
@@ -469,12 +444,6 @@ const ADVENTURER_REGISTRY = {
     readStatus: (_userId, input) => cursorReadStatus(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     readConversation: (_userId, input) => cursorReadConversation(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     dispatchPptGeneration: (_userId, input) => cursorDispatchPptGeneration(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  } },
-  gmail: { definition: gmailSkillBook, adventurerActions: {
-    searchInbox: (_userId, input) => gmailSearchInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-    readMessage: (_userId, input) => gmailReadMessage(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-    triageInbox: (_userId, input) => gmailTriageInbox(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-    writeStars: (_userId, input) => gmailWriteStars(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {

@@ -6,9 +6,9 @@
 import { requireUser } from "@/libs/council/auth/server";
 import {
   assignQuest,
-  createQuest,
+  writeQuest,
   getQuest,
-  appendInventoryItem,
+  writeItem,
   updateQuest,
   recordQuestComment,
   QUEST_STAGES,
@@ -65,14 +65,27 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const action = request.nextUrl.searchParams.get("action") || "request";
+  const queryAction = request.nextUrl.searchParams.get("action");
+  let actionBody = null;
+  try { actionBody = await request.clone().json(); } catch { /* ignore */ }
+  const action = queryAction || (actionBody && typeof actionBody.action === "string" ? actionBody.action : "request");
+
+  if (action === "advance") {
+    const user = await requireUser();
+    const db = await database.init("server");
+    const questId = (actionBody && typeof actionBody.questId === "string" ? actionBody.questId : "").trim();
+    if (!questId) return Response.json({ ok: false, error: "questId is required" }, { status: 400 });
+    const { advanceQuest } = await import("@/libs/adventurer_runtime/server.js");
+    const result = await advanceQuest({ questId, ownerId: user.id, client: db });
+    return Response.json(result);
+  }
 
   if (action === "triage_escalated") {
     const user = await requireUser();
     const db = await database.init("server");
     const { data: quests } = await db
       .from("quests")
-      .select("id, title, description, inventory, assigned_to, assignee_id")
+      .select("id, title, description, assigned_to, assignee_id")
       .eq("owner_id", user.id)
       .eq("stage", "escalated");
 
@@ -192,7 +205,7 @@ export async function POST(request) {
     return Response.json({ error: "text is required" }, { status: 400 });
   }
 
-  const { data, error } = await createQuest({
+  const { data, error } = await writeQuest({
     userId: user.id,
     title: "New Request",
     description: text.trim(),
@@ -248,13 +261,13 @@ export async function PATCH(request) {
       return Response.json({ error: "item_key is required" }, { status: 400 });
     }
     const value = body.value;
-    const { error: appendErr } = await appendInventoryItem(id, {
-      item_key,
-      payload: value,
-      source: "manual_ui",
-    });
-    if (appendErr) {
-      return Response.json({ error: appendErr.message }, { status: 500 });
+    const url = typeof value === "object" && value && typeof value.url === "string" ? value.url : null;
+    const description = typeof value === "string"
+      ? value
+      : (typeof value === "object" && value && typeof value.description === "string" ? value.description : null);
+    const { error: writeErr } = await writeItem({ questId: id, item_key, url, description, source: "manual_ui" });
+    if (writeErr) {
+      return Response.json({ error: writeErr.message }, { status: 500 });
     }
     return Response.json({ ok: true });
   }
@@ -292,10 +305,13 @@ export async function PATCH(request) {
   } else if (body.due_date !== undefined) {
     updates.dueDate = body.due_date === null || body.due_date === "" ? null : body.due_date;
   }
-  if (body.inventory !== undefined) {
-    updates.inventory = body.inventory;
-  } else if (body.items !== undefined) {
-    updates.items = body.items;
+  // Inventory/items PATCH is no longer supported — inventory moved to the `items` table.
+  // Callers should PATCH via ?action=addItem (single) or call writeItem directly via libs/quest.
+  if (body.inventory !== undefined || body.items !== undefined) {
+    return Response.json(
+      { error: "Inventory/items PATCH removed. Use ?action=addItem (one at a time) or libs/quest writeItem." },
+      { status: 400 },
+    );
   }
   if (body.nextSteps !== undefined) {
     updates.nextSteps = body.nextSteps;

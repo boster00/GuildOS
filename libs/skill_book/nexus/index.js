@@ -5,11 +5,11 @@
 export const skillBook = {
   id: "nexus",
   title: "Boster Nexus — Nexus Armor & Zoho Integration",
-  description: "Tactical instructions for Nexus development: Zoho data layers, RunPod deployment.",
+  description: "Execute Nexus development tasks: Zoho data sync and RunPod deployment.",
   steps: [],
   toc: {
-    syncZohoData: {
-      description: "Work with Zoho Books/CRM/Desk integration following the layered architecture.",
+    syncNewZohoData: {
+      description: "Sync new Zoho Books/CRM/Desk records since the last sync (follows layered architecture).",
       howTo: `
 **Non-negotiable:** All Zoho HTTP must use the \`Zoho\` class singleton from \`libs/zoho/index.js\`. Never call fetch/axios directly to Zoho APIs.
 

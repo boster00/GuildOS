@@ -4,17 +4,41 @@
 export const skillBook = {
   id: "guildmaster",
   title: "Guildmaster",
-  description: "Recruit adventurers and respond when the guild needs new members.",
+  description: "Recruit adventurers, dispatch new quests, handle escalations.",
   steps: [],
   toc: {
     callToArms: {
-      description: "Activation hook when a quest is handed off for recruitment (idea-stage reroute).",
+      description: "Trigger recruitment when a quest is handed off (idea-stage reroute).",
       input: {
         quest: "object with id, title",
       },
       output: {
         ok: "boolean",
       },
+    },
+    dispatchWork: {
+      description: "Hand a new quest to an adventurer.",
+      howTo: `
+1. Create the quest in DB with full WBS description, deliverables, and priority.
+2. Set \`assignee_id\` and \`assigned_to\` to the chosen adventurer.
+3. Send the adventurer a short message: "You have a new quest assigned. Use searchQuests to check."
+4. NEVER send raw task instructions in chat — the quest description IS the task spec.
+
+Do NOT:
+- Send full task descriptions in chat messages (use quests).
+- Ask the user to do things you can do yourself.
+- Skip quest creation and go straight to agent chat.
+- Auto-provision credentials without user awareness. If an agent is missing env vars, it should escalate. The user decides what to share.
+`,
+    },
+    handleEscalation: {
+      description: "Process an escalated quest.",
+      howTo: `
+1. Check GM desk for escalated quests.
+2. Evaluate if you can resolve (credentials, local commands, config).
+3. If yes: resolve, post a comment explaining the fix, move the quest back to \`execute\`.
+4. If no: flag for user attention.
+`,
     },
   },
 };

@@ -6,7 +6,7 @@
 export const skillBook = {
   id: "housekeeping",
   title: "Housekeeping — Core Agent Operations",
-  description: "Shared actions for all adventurers: quest management, comments, escalation, planning.",
+  description: "Manage quest lifecycle: init, writeQuest, escalate, comment, submit for review.",
   steps: [],
   toc: {
     initAgent: {
@@ -15,7 +15,7 @@ export const skillBook = {
         "**On session start or re-init:**",
         "",
         "**Step 0: Environment check**",
-        "Pull latest on your current branch. If it fails (merge conflicts, env errors), trigger setNewAgent.",
+        "Pull latest on your current branch. If git pull origin main fails, run: git remote show origin | grep HEAD to find the default branch and pull that instead. If merge conflicts or env errors, trigger setNewAgent.",
         "",
         "**Step 1: Clone GuildOS repo**",
         "Run: git clone https://github.com/boster00/GuildOS.git ~/guildos",
@@ -23,18 +23,30 @@ export const skillBook = {
         "Run: cd ~/guildos && npm install",
         "This gives you: global instructions, skill books, weapons, and env credentials.",
         "",
-        "**Step 2: Set up env**",
-        "Check if ~/guildos/.env.local exists and has NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRETE_KEY.",
-        "If missing: escalate to user. Do NOT guess or auto-provision credentials.",
+        "**Step 2: Set up GuildOS env**",
+        "~/guildos/.env.local is gitignored and won't exist after clone.",
+        "GuildOS uses a DIFFERENT Supabase project than your project repo.",
+        "The GuildOS Supabase URL is: https://sdrqhejvvmbolqzfujej.supabase.co",
+        "Check if you have SUPABASE_SECRETE_KEY for THIS project (not your project's key).",
+        "If you do NOT have the GuildOS service role key: escalate immediately.",
+        "Quest operations (read/write quests, comments, inventory) use the GuildOS Supabase, not your project's Supabase.",
+        "Storage uploads (GuildOS_Bucket) also use the GuildOS Supabase.",
         "",
-        "**Step 3: Read instructions**",
-        "1. Read ~/guildos/docs/global-instructions.md",
-        "2. Query your adventurer profile from Supabase (adventurers table by your ID) to get system_prompt and skill_books",
-        "3. Read your system_prompt — project identity and conventions",
-        "4. For each skill book, read ~/guildos/libs/skill_book/<name>/index.js",
+        "**Step 3: Read instructions and load your skill books (index first, content on demand)**",
+        "1. Read ~/guildos/CLAUDE.md. Pay attention to the 'Read, don't improvise' and 'Index first, content on demand' rules — they apply to everything below.",
+        "2. Query your adventurer profile from Supabase (adventurers table by your ID) to get system_prompt and skill_books.",
+        "3. Read your system_prompt in full — project identity and conventions.",
+        "4. Load skill book tocs only (NOT full howTos). Use this one-liner for each book (housekeeping first, then each id in your `skill_books` array):",
+        "   ```",
+        "   cd ~/guildos && node -e \"import('./libs/skill_book/<NAME>/index.js').then(m=>{const sb=m.skillBook||m.definition;const t=sb?.toc||{};console.log(JSON.stringify(Object.fromEntries(Object.entries(t).map(([k,v])=>[k,v?.description||(typeof v==='string'?v.split('\\\\n')[0].slice(0,120):'')])),null,2));})\"",
+        "   ```",
+        "   This prints a compact { actionName: description } map. Keep that in working context. Do NOT read the full file.",
+        "5. When you're about to execute a specific action, open ONLY that action's `howTo` (e.g. `grep -A 40 '<actionName>:' libs/skill_book/<NAME>/index.js`). Follow the instruction verbatim. Discard the howTo from working context after the action completes.",
+        "6. Your assigned books are the default working set, not a hard limit. When stuck with no matching action, BEFORE escalating: scan the registry at libs/skill_book/index.js, extract the toc of any book whose id looks relevant (same one-liner above), and try. Only escalate after that fallback is exhausted.",
+        "7. **Never perform a non-trivial action natively if an instruction exists.** If in doubt, grep the skill books for the action name before freestyling.",
         "",
         "**Step 4: Check for work**",
-        "Use getActiveQuests to find quests assigned to you.",
+        "Use searchQuests to find quests assigned to you.",
         "Work on the highest priority quest first (high > medium > low).",
         "",
         "**When to re-init:** When told to refresh context, switching projects, or after environment errors.",
@@ -77,16 +89,32 @@ Only comment for significant events: major milestone completion, escalation, res
 `,
     },
     escalate: {
-      description: "Move a quest to escalated stage.",
-      howTo: `
-Update the quest stage to escalated. Include a comment explaining the blocker before calling this.
-
-Do NOT escalate for things you can figure out yourself or permission to proceed — just proceed.
-`,
+      description: "Move a quest to escalated stage when truly blocked.",
+      howTo: [
+        "Escalate only when truly blocked — you cannot proceed at all.",
+        "If a workaround exists (use placeholder image, skip non-critical step, etc.), note the issue in a comment and keep working. Reserve formal escalation for situations where you cannot make any progress.",
+        "",
+        "Escalation target: Guildmaster (higher-privilege agent with local machine access).",
+        "",
+        "Steps:",
+        "1. Post a comment on the quest describing:",
+        "   - What you were trying to do (one sentence)",
+        "   - What went wrong — the exact error or blocker (paste the error if any, be specific, e.g. 'Missing ZOHO_CRM_SCOPE in env vars' not 'auth failed')",
+        "   - What you tried and why it failed",
+        "   - What you need from the Guildmaster to unblock you (specific: a credential, a file, a decision)",
+        "2. Update the quest stage to escalated.",
+        "3. The Guildmaster will either resolve directly or give feedback; once resolved, the quest moves back to execute and you continue.",
+        "4. If you have other active quests, work on the next highest-priority one while waiting.",
+        "",
+        "Do NOT escalate for things you can figure out yourself or permission to proceed — just proceed.",
+        "Do NOT escalate with vague descriptions like 'something went wrong' or 'need help'.",
+      ].join("\n"),
     },
     presentPlan: {
       description: "Present a WBS-format plan with clear deliverables and measurement criteria.",
       howTo: `
+**Read before you plan.** When the task references external resources (Figma files, URLs, docs, repos), read them BEFORE presenting the plan. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
+
 **Format:** Work Breakdown Structure (WBS)
 \`\`\`
 1. Phase name
@@ -107,15 +135,20 @@ Do NOT escalate for things you can figure out yourself or permission to proceed 
 - Present to user for iteration before creating the quest
 `,
     },
-    createQuest: {
+    writeQuest: {
       description: "Create a quest in execute stage after user approves the plan.",
       howTo: `
 **Flow:**
 1. User describes a project/task in chat
-2. You present a WBS plan (presentPlan action)
-3. User iterates until satisfied
-4. You ask: "Shall I create this quest and start working on it?"
-5. On confirmation, create the quest:
+2. Present a WBS plan (presentPlan action)
+3. Iterate with the user until they approve
+
+**Pre-execution checklist — do NOT create the quest until ALL are satisfied:**
+- Clear deliverable description (what screenshots should show, acceptance criteria)
+- Priority assigned (high/medium/low)
+
+4. Ask: "I have everything. Shall I create this quest and start working on it?"
+5. On confirmation, create the quest in \`execute\` stage:
 
 \`\`\`javascript
 await db.from('quests').insert({
@@ -133,21 +166,73 @@ await db.from('quests').insert({
 Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' stage. Prefer direct DB insert for execute stage.
 `,
     },
-    seekHelp: {
-      description: "Contact the Questmaster for approval or assistance.",
+    clarifyQuest: {
+      description: "Clarify which quest the user means when their instructions are ambiguous.",
       howTo: `
-Send a message to the Questmaster (Cat) asking for help or approval.
-
-1. Query Cat's session: SELECT session_id FROM adventurers WHERE name = 'Cat'
-2. Send a message identifying yourself, your quest, and what you need
-3. When seeking review, include deliverable URLs in the message
+1. Look up your currently assigned quests.
+2. Present the relevant ones and ask: "Which quest is this for, or should I create a new one?"
 `,
     },
-    getActiveQuests: {
-      description: "Get all quests assigned to you that are not complete.",
+    seekHelp: {
+      description: "Contact the Questmaster (Cat) for approval or assistance.",
+      howTo: `
+Cat is a DB adventurer. Look up her session and send a followup via the cursor weapon:
+
+\`\`\`javascript
+// 1. Find Cat's session id
+const { data } = await db.from('adventurers').select('session_id').eq('name', 'Cat').single();
+
+// 2. Send a followup identifying yourself, your quest, and what you need
+import { writeFollowup } from '@/libs/weapon/cursor';
+await writeFollowup({
+  agentId: data.session_id,
+  message: "Quest <id> (<title>): <what you need>. Deliverable URLs if seeking review: ...",
+});
+\`\`\`
+
+If Cat can't help, escalate to the Guildmaster via the escalate action.
+`,
+    },
+    searchQuests: {
+      description: "Search your assigned quests (default: not complete).",
       howTo: `
 Query the quests table for your assigned quests that are not in complete stage. Order by priority (high > medium > low).
 `,
+    },
+    submitForPurrview: {
+      description: "Submit quest for Questmaster review by moving to purrview stage.",
+      howTo: [
+        "Before moving to purrview, you MUST:",
+        "",
+        "1. Upload every screenshot to Supabase Storage:",
+        "   - Bucket: GuildOS_Bucket",
+        "   - Path: cursor_cloud/<questId>/<filename>",
+        "   - Use the `supabase_storage` weapon: `writeFile` to upload, `readPublicUrl` to get the URL.",
+        "   - NOT file:// paths. NOT raw GitHub URLs. NOT in comments only.",
+        "",
+        "2. Upsert each deliverable into the items table via `writeItem`:",
+        "",
+        "   ```javascript",
+        "   import { writeItem } from '@/libs/quest';",
+        "   await writeItem({",
+        "     questId,",
+        "     item_key: 'screenshot_1',",
+        "     url: 'https://.../bucket/.../screenshot_1.png',",
+        "     description: 'what it shows',",
+        "     source: '<your-adventurer-name>',",
+        "   });",
+        "   ```",
+        "",
+        "   The UNIQUE(quest_id, item_key) constraint makes resubmissions an UPSERT — same key overwrites in place. REPLACE, don't pile on.",
+        "",
+        "3. SELECT items for the quest and confirm the expected keys are all present.",
+        "4. Move the quest stage to `purrview`.",
+        "5. SELECT the quest back and confirm stage is purrview.",
+        "",
+        "**REPLACE, do not pile on.** If resubmitting after feedback: for each deliverable item that changed, delete the old storage file and call writeItem with the SAME item_key — the DB constraint handles the replace. Do NOT invent new keys like screenshot_1_v2. A pile of mostly-similar screenshots is an auto-reject.",
+        "",
+        "If no items exist for the quest when you move to purrview, Cat rejects immediately. Cat reviews from the items table, not from comments or your filesystem.",
+      ].join("\n"),
     },
     summarizeComments: {
       description: "Compress old comments to prevent flooding. Keep latest 4, summarize the rest.",

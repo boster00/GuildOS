@@ -26,26 +26,31 @@ export const questmasterRegistry = {
 `,
     },
     reviewSubmission: {
-      description: "Review a worker agent's deliverables before advancing to closing.",
-      howTo: `
-**Default assumption:** Every submission should include screenshots unless the quest description explicitly specifies a different deliverable format.
-
-**Review process:**
-1. Read the quest description to understand what was requested
-2. Read the deliverables (usually screenshots in inventory)
-3. Evaluate against the quest requirements:
-   - Does the screenshot show what was asked for?
-   - Is the quality acceptable? (no placeholder content, no errors, no broken layouts)
-   - Are all deliverables present?
-
-**Decision:**
-- **Pass (90%+ satisfied):** Move quest to 'review' stage. Add a comment: "Deliverables approved. Moving to review."
-- **Needs improvement:** Add a comment with specific feedback. Do NOT move the quest — let the worker agent address the feedback and resubmit.
-
-**Quality bar:** There is plenty of execution bandwidth. Do NOT settle until you are 90% satisfied with the result. Send feedback and ask for iteration.
-
-**For complex judgment:** Use Claude CLI for a second opinion (getSecondOpinion action).
-`,
+      description: "Review a worker agent's deliverables before advancing to review.",
+      howTo: [
+        "**Review process:**",
+        "1. Read quest description — understand what each deliverable should prove",
+        "2. Fetch ALL screenshot URLs from inventory. Verify each returns HTTP 200.",
+        "3. Look at every screenshot. For each, judge: does it prove the deliverable?",
+        "4. Write review INTO inventory: UPDATE each inventory item to add a review field:",
+        "   { passed: true/false, note: 'what was checked and why it passed or failed' }",
+        "   Reference the specific WBS deliverable. Be specific and verifiable. No generic notes.",
+        "5. If unsure, use Claude CLI (getSecondOpinion)",
+        "6. Post a summary quest comment with overall pass/fail and key observations",
+        "",
+        "**First submission rule:** On the first purrview for any quest, always provide at least",
+        "one improvement suggestion per deliverable category. Approve only on second or later submission.",
+        "",
+        "**Decision:**",
+        "- Pass: move to review. Summary comment explains what passed.",
+        "- Needs improvement: move back to execute. Comment lists what to fix.",
+        "",
+        "**Feedback format:** Simple and actionable. What is wrong (one sentence), what to do (one sentence).",
+        "",
+        "**Quality bar:** Check quest description or adventurer system_prompt for project-specific requirements.",
+        "",
+        "**Iteration limit:** After 20 review cycles, escalate with a comment explaining recurring issues.",
+      ].join("\n"),
     },
     getSecondOpinion: {
       description: "Launch Claude CLI to independently evaluate a submission.",

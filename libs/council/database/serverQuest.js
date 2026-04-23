@@ -3,7 +3,6 @@
  * `libs/quest` + `libs/adventurer` (`advance` / `advanceAssignedQuest`); do not add business rules here.
  */
 import { publicTables } from "@/libs/council/publicTables";
-import { inventoryRawToMap, PIGEON_LETTERS_KEY } from "@/libs/quest/inventoryMap.js";
 import { resolveServerClient } from "./resolveServer.js";
 
 async function resolve(injected) {
@@ -38,36 +37,9 @@ export async function insertQuestMinimal({ ownerId, title, stage }, { client: in
   return client.from(publicTables.quests).insert({ owner_id: ownerId, title, stage }).select("id").single();
 }
 
-export async function selectPartyIdByQuestId(questId, { client: injected } = {}) {
-  const client = await resolve(injected);
-  return client.from(publicTables.parties).select("id").eq("quest_id", questId).maybeSingle();
-}
-
-export async function insertParty({ ownerId, questId }, { client: injected } = {}) {
-  const client = await resolve(injected);
-  return client.from(publicTables.parties).insert({ owner_id: ownerId, quest_id: questId }).select("id").single();
-}
-
 export async function updateQuestStage(questId, newStage, { client: injected } = {}) {
   const client = await resolve(injected);
   return client.from(publicTables.quests).update({ stage: newStage }).eq("id", questId).select("id, stage").single();
-}
-
-export async function insertQuestItem(
-  { partyId, questId, itemKey, itemPayload },
-  { client: injected } = {},
-) {
-  const client = await resolve(injected);
-  return client
-    .from(publicTables.items)
-    .insert({
-      party_id: partyId,
-      quest_id: questId,
-      item_key: itemKey,
-      payload: itemPayload,
-    })
-    .select("id")
-    .single();
 }
 
 export async function updateQuestRow(questId, updates, { client: injected } = {}) {
@@ -77,145 +49,8 @@ export async function updateQuestRow(questId, updates, { client: injected } = {}
     .update(updates)
     .eq("id", questId)
     .select(
-      "id, title, description, deliverables, due_date, stage, assignee_id, assigned_to, inventory, execution_plan, next_steps",
+      "id, title, description, deliverables, due_date, stage, assignee_id, assigned_to, execution_plan, next_steps",
     )
-    .single();
-}
-
-export async function appendQuestItem(questId, item, { client: injected } = {}) {
-  const client = await resolve(injected);
-  const { data: row, error: readErr } = await client
-    .from(publicTables.quests)
-    .select("inventory")
-    .eq("id", questId)
-    .single();
-  if (readErr) return { data: null, error: readErr };
-  const map = inventoryRawToMap(row?.inventory);
-  const ik = String(item.item_key ?? "");
-  if (!ik) return { data: null, error: new Error("item_key is required") };
-
-  if (ik === PIGEON_LETTERS_KEY) {
-    const letter = item.payload;
-    const prev = map[ik];
-    let prevLetters = [];
-    if (Array.isArray(prev)) {
-      prevLetters = [...prev];
-    } else if (prev && typeof prev === "object" && Array.isArray(prev.letters)) {
-      prevLetters = [...prev.letters];
-    } else if (prev && typeof prev === "object" && Array.isArray(prev.payload?.letters)) {
-      prevLetters = [...prev.payload.letters];
-    }
-    if (letter && typeof letter === "object") {
-      prevLetters.push(letter);
-    }
-    map[ik] = prevLetters;
-  } else {
-    map[ik] = item.payload;
-  }
-
-  return client
-    .from(publicTables.quests)
-    .update({ inventory: map })
-    .eq("id", questId)
-    .select("id, inventory")
-    .single();
-}
-
-/**
- * Replace `inventory.pigeon_letters` entirely (not append). Pass `[]` to clear the key.
- * @param {string} questId
- * @param {unknown[]} letters — canonical Letter[] objects
- */
-export async function replaceQuestPigeonLetters(questId, letters, { client: injected } = {}) {
-  const client = await resolve(injected);
-  const { data: row, error: readErr } = await client
-    .from(publicTables.quests)
-    .select("inventory")
-    .eq("id", questId)
-    .single();
-  if (readErr) return { data: null, error: readErr };
-  const map = inventoryRawToMap(row?.inventory);
-  const arr = Array.isArray(letters) ? letters : [];
-  if (arr.length === 0) {
-    delete map[PIGEON_LETTERS_KEY];
-  } else {
-    map[PIGEON_LETTERS_KEY] = arr;
-  }
-  return client
-    .from(publicTables.quests)
-    .update({ inventory: map })
-    .eq("id", questId)
-    .select("id, inventory")
-    .single();
-}
-
-/**
- * Remove pigeon letters after delivery: by `letterIds` when provided, else by matching `item` to delivered keys.
- * @param {string} questId
- * @param {string[]} deliveredItemKeys — keys that were written to inventory (e.g. `h1text`)
- * @param {{ client?: import("@supabase/supabase-js").SupabaseClient, letterIds?: string[] }} [opts]
- */
-export async function removePigeonLetterInventoryEntries(
-  questId,
-  deliveredItemKeys,
-  { client: injected, letterIds } = {},
-) {
-  const client = await resolve(injected);
-  const keySet = new Set((deliveredItemKeys || []).map((k) => String(k)));
-  const idSet = new Set((letterIds || []).map((id) => String(id)).filter(Boolean));
-  if (idSet.size === 0 && keySet.size === 0) {
-    return { data: null, error: null };
-  }
-  const { data: row, error: readErr } = await client
-    .from(publicTables.quests)
-    .select("inventory")
-    .eq("id", questId)
-    .single();
-  if (readErr) return { data: null, error: readErr };
-  const map = inventoryRawToMap(row?.inventory);
-  const entry = map[PIGEON_LETTERS_KEY];
-  const letters = Array.isArray(entry)
-    ? entry
-    : Array.isArray(entry?.letters)
-      ? entry.letters
-      : Array.isArray(entry?.payload?.letters)
-        ? entry.payload.letters
-        : [];
-  if (!Array.isArray(letters) || letters.length === 0) {
-    console.info("[pigeon-post:remove-letters] no pigeon_letters in inventory to prune", { questId });
-    return { data: row, error: null };
-  }
-  const nextLetters = letters.filter((l) => {
-    if (idSet.size > 0) {
-      const lid = l && typeof l === "object" && l.letterId != null ? String(l.letterId) : "";
-      if (lid && idSet.has(lid)) return false;
-      return true;
-    }
-    const target = l && typeof l === "object" && l.item != null ? String(l.item) : "";
-    if (!target || !keySet.has(target)) return true;
-    return false;
-  });
-  console.info("[pigeon-post:remove-letters]", {
-    questId,
-    mode: idSet.size > 0 ? "letterId" : "itemKey",
-    deliveredItemKeys: [...keySet],
-    letterIds: [...idSet],
-    beforeCount: letters.length,
-    afterCount: nextLetters.length,
-    letterIdsInQueue: letters
-      .map((l) => (l && typeof l === "object" && l.letterId != null ? String(l.letterId) : ""))
-      .filter(Boolean),
-  });
-  if (nextLetters.length === 0) {
-    delete map[PIGEON_LETTERS_KEY];
-  } else {
-    map[PIGEON_LETTERS_KEY] = nextLetters;
-  }
-  return client
-    .from(publicTables.quests)
-    .update({ inventory: map })
-    .eq("id", questId)
-    .select("id, inventory")
     .single();
 }
 
@@ -302,10 +137,6 @@ export async function selectQuestForOwner(questId, ownerId, { client: injected }
 
 export async function selectQuestOwnerId(questId, client) {
   return client.from(publicTables.quests).select("owner_id").eq("id", questId).maybeSingle();
-}
-
-export async function selectPartyOwnerIdsForQuest(questId, client) {
-  return client.from(publicTables.parties).select("owner_id").eq("quest_id", questId).limit(1);
 }
 
 export async function selectQuestsForOwnerList(userId, { client: injected } = {}) {

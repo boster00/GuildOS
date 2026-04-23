@@ -79,8 +79,8 @@ export const definition = {
         stage: "string, one of: idea, plan",
       },
     },
-    findAdventurerForQuest: {
-      description: "Given a quest and a roster of adventurers, pick the best-fit adventurer by capability.",
+    searchAdventurerForQuest: {
+      description: "Pick the best-fit adventurer for a quest by capability match.",
       input: {
         quest: "object with title, description, deliverables",
         adventurers: "array of { id, name, capabilities }",
@@ -91,7 +91,7 @@ export const definition = {
       },
     },
     selectAdventurer: {
-      description: "Roster match for a new request: load adventurer capabilities + boast, AI chooses one or returns no-match.",
+      description: "Match a new request to a roster adventurer (returns the id or no-match).",
       input: {
         quest: "object with id, title, description",
       },
@@ -123,6 +123,87 @@ export const definition = {
         deliverables: "string",
         due_date: "string, ISO 8601 or null",
       },
+    },
+    reviewCloudAgentWork: {
+      description: "Review artifacts produced by a cloud agent before presenting to the user. Strategy + management layer.",
+      howTo: `
+Never present raw agent output directly to the user without review.
+
+**After every agent task completion:**
+1. Pull artifacts (screenshots, PPTs, videos) and inspect them.
+2. Validate against success criteria. Check for:
+   - CAPTCHA/bot detection pages (Google reCAPTCHA, Cloudflare challenges)
+   - Blank/black screenshots
+   - Error pages or unexpected redirects
+   - Missing or corrupt files
+   - PPTs with wrong slide count or placeholder content
+3. If validation fails: reject the delivery, post a quest comment explaining the failure, and re-dispatch with corrective instructions (e.g. "use DuckDuckGo instead of Google", "add anti-detection flags", "retry with different approach").
+4. Only present results to the user after they pass review.
+
+**Common cloud agent pitfalls to catch:**
+- Google/Bing CAPTCHA on headless cloud IPs → use DuckDuckGo or add \`--disable-blink-features=AutomationControlled\`
+- Full-page screenshots that are blank/black → use viewport capture instead
+- Secrets appearing in committed code → agent's repo has secret scanner
+- \`localhost:3002\` unreachable → agent forgot to start dev server
+`,
+    },
+    reportChaperonWork: {
+      description: "Report chaperon work by creating a review-stage quest on the Guildmaster.s Desk.",
+      howTo: `
+Every completed chaperon engagement must produce a review task visible on \`/town/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
+
+\`\`\`javascript
+import { writeQuest, writeItem, recordQuestComment } from "@/libs/quest";
+
+// 1. Create the review quest
+const { data: quest } = await writeQuest({
+  userId,
+  title: "Review: <what was done>",
+  description: "<summary of work and success criteria>",
+  stage: "review",
+});
+
+// 2. Upsert each deliverable into the items table (UNIQUE(quest_id, item_key) enforces replace-not-pile-on)
+await writeItem({
+  questId: quest.id,
+  item_key: "screenshot_1",
+  url: "https://...",
+  description: "Login page after fix",
+  source: "chaperon",
+});
+
+// 3. Post one hand-off comment at the quest level
+await recordQuestComment(quest.id, {
+  source: "chaperon",
+  action: "deliver",
+  summary: "Agent completed: built login page, tested with Playwright, 3 screenshots attached.",
+  detail: { agentId: "bc-xxx", artifacts: ["screenshot_1", "screenshot_2"] },
+});
+\`\`\`
+
+**Per-item review notes (Cat annotating a specific screenshot):** use \`writeItemComment(itemId, { role, text })\` — quest-level comments (\`recordQuestComment\`) are a separate channel for hand-offs and major events.
+`,
+    },
+    handleFeedback: {
+      description: "Act on feedback from a quest comment or direct message.",
+      howTo: `
+When you receive feedback on a quest (comment ping or direct message): act on it immediately. Do not ask for confirmation or permission to implement the feedback. The feedback IS the instruction. Just do it, verify the result, and report back.
+`,
+    },
+    assistAdventurer: {
+      description: "Assist an adventurer asking for help; scan the full skill-book registry, not just their loaded set.",
+      howTo: `
+An adventurer's \`skill_books\` array is the common-use load, not a cap on capability. When helping, think comprehensively across the full registry at \`libs/skill_book/index.js\`.
+
+**Process:**
+1. Understand the block — read the quest description, the adventurer's latest comment, and what they tried.
+2. Scan the skill book registry. Look for any book whose scope matches the problem, regardless of whether it's in the adventurer's assigned array.
+3. If you find a fitting action in a book the adventurer doesn't carry: instruct them to load its \`toc\` (and the specific action's \`howTo\`) temporarily and retry. Do NOT modify their DB \`skill_books\` array for a one-off use.
+4. If the adventurer will need that book repeatedly, recommend to the Guildmaster that the adventurer be recommissioned with the book added permanently.
+5. Only after this comprehensive scan comes up empty should the adventurer escalate for human help.
+
+**Anti-pattern:** telling an adventurer "you don't have that skill book, escalate" without first checking the registry yourself. The registry is the upper bound on what's available to the guild, not the adventurer's loaded set.
+`,
     },
   },
   steps: [],
@@ -297,7 +378,7 @@ Respond with ONLY one JSON object (no prose) using exactly these keys:
  *   client: import("@/libs/council/database/types.js").DatabaseClient
  * }} opts
  */
-export async function findAdventurerForQUest(userId, { quest, adventurers, client }) {
+export async function searchAdventurerForQuest(userId, { quest, adventurers, client }) {
   const roster = Array.isArray(adventurers) ? adventurers : [];
   if (roster.length === 0) {
     return { data: null, error: new Error("No adventurers on roster.") };
@@ -411,7 +492,7 @@ export async function selectAdventurer(userId, { quest, client }) {
     return { data: null, error: new Error("selectAdventurer: request text is too short.") };
   }
 
-  const { listAdventurers } = await import("@/libs/proving_grounds/server.js");
+  const { listAdventurers } = await import("@/libs/adventurer_runtime/server.js");
   const { data: roster, error: rosterErr } = await listAdventurers(userId, { client });
   if (rosterErr) {
     return { data: null, error: rosterErr };
@@ -726,7 +807,7 @@ export async function assign(userId, { questId, guildos, client }) {
 const questmaster = {
   definition,
   planRequestToQuest,
-  findAdventurerForQUest,
+  searchAdventurerForQuest,
   selectAdventurer,
   interpretIdea,
   assign,

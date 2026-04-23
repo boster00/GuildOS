@@ -20,6 +20,8 @@ node_modules/
 # Claude Code worktrees and local settings
 .claude/worktrees/
 .claude/settings.json
+.claude/scheduled_tasks.lock
+.claude/*.lock
 .mcp.json
 .playwright-mcp/
 
@@ -29,3 +31,4 @@ auth-states/
 
 # Local smoke / agent screenshots (not for git)
 .cursor-artifacts/
+libs/weapon/playwright/user.json

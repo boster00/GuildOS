@@ -64,6 +64,29 @@ export const skillBook = {
         agentId: "string — agent ID for followup checks",
       },
     },
+    prepareEnvironment: {
+      description: "Generate the env setup script for a fresh Cursor cloud agent session and send it as the first followup.",
+      howTo: `
+Use the cursor weapon:
+
+\`\`\`javascript
+import { readEnvSetupInstructions } from "@/libs/weapon/cursor";
+const { setupScript } = await readEnvSetupInstructions({ userId });
+// Send setupScript to the agent as the first followup message
+\`\`\`
+`,
+    },
+    writeMinimalSystemPrompt: {
+      description: "Write a minimal adventurer system_prompt — only rules that change behavior from the default.",
+      howTo: `
+System prompts must be minimal:
+- Only include instructions that change behavior from the default. If Claude would do it anyway, don't say it.
+- No descriptions of what the agent "is" or "can do" — just actionable rules and constraints.
+- Point to a guideline file if rules are detailed. One sentence referencing the file is better than repeating its contents.
+- Bad: "You are a general-purpose agent. You handle research, analysis, browser automation..." (fluff, changes nothing)
+- Good: "Read /docs/adventurer-claude-non-development-guideline.md before starting. Do not modify GuildOS source code." (actionable, changes behavior)
+`,
+    },
   },
 };
 

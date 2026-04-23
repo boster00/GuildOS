@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { isRecruitReady, mergeDraftPatch } from "@/libs/proving_grounds/ui.js";
+import { isRecruitReady, mergeDraftPatch } from "@/libs/adventurer_runtime/ui.js";
 
 /**
  * @param {{ adventurerId: string, initialDraft: Record<string, unknown> }} props

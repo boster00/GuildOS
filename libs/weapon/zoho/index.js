@@ -1,7 +1,8 @@
 /**
- * Zoho weapon — single module covering Zoho Books + Zoho CRM (shared OAuth).
- * Public API: getAccessToken, searchBooks (Books), searchCrm (CRM).
+ * Zoho weapon — single module covering Zoho Books, Zoho CRM, and Zoho Mail (shared OAuth).
+ * Public API: searchBooks (Books), searchCrm (CRM), readMailAccounts, readMailMessages, readWeaponStatus, readOrganizationId (OAuth setup only).
  *
+ * Token acquisition (readAccessToken) is internal plumbing — agents never decide when to refresh a token.
  * Auth: User identity resolves via adventurer execution context first, then Next.js requireUser.
  * This lets the weapon work in both execution context (cron/scripts) and HTTP handlers.
  */
@@ -27,6 +28,14 @@ const ZOHO_API_BASE = {
   in: "https://www.zohoapis.in",
   com_au: "https://www.zohoapis.com.au",
   jp: "https://www.zohoapis.jp",
+};
+
+const ZOHO_MAIL_BASE = {
+  com: "https://mail.zoho.com",
+  eu: "https://mail.zoho.eu",
+  in: "https://mail.zoho.in",
+  com_au: "https://mail.zoho.com.au",
+  jp: "https://mail.zoho.jp",
 };
 
 function rowToLegacyShape(row) {
@@ -264,7 +273,7 @@ export async function exchangeZohoCode({ code, region, clientId, clientSecret, r
  * @param {string} accessToken
  * @param {string} [region]
  */
-export async function fetchZohoOrganizationId(accessToken, region = "com") {
+export async function readOrganizationId(accessToken, region = "com") {
   const baseUrl = ZOHO_API_BASE[region] || ZOHO_API_BASE.com;
   const response = await fetch(`${baseUrl}/books/v3/organizations`, {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
@@ -280,7 +289,7 @@ export async function fetchZohoOrganizationId(accessToken, region = "com") {
  * @param {string} [userId] — optional; resolves from execution context or requireUser if omitted
  * @returns {Promise<string>} Bearer access token for Zoho API.
  */
-export async function getAccessToken(userId) {
+async function readAccessToken(userId) {
   const uid = await resolveUserId(userId);
   const s = await ensureSecretsForCurrentUser(uid);
   return s.access_token;
@@ -417,6 +426,8 @@ export function buildZohoOAuthAuthorizeUrl({ region = "com", clientId, redirectU
     "ZohoCRM.modules.quotes.READ",
     "ZohoCRM.modules.leads.READ",
     "ZohoCRM.modules.deals.READ",
+    "ZohoMail.messages.ALL",
+    "ZohoMail.accounts.READ",
   ];
   const scopes = [...new Set([...defaultScopes, ...extraScopes])].join(",");
   const url = new URL(`${host}/oauth/v2/auth`);
@@ -466,7 +477,7 @@ async function readZohoSecretsRow(userId) {
  * Sanitized status for forge / diagnostics (no secrets exposed).
  * @param {string} userId
  */
-export async function getZohoWeaponStatus(userId) {
+export async function readWeaponStatus(userId) {
   const { data, error } = await readZohoSecretsRow(userId);
   if (error) {
     return {
@@ -491,6 +502,93 @@ export async function getZohoWeaponStatus(userId) {
     region: d?.region || null,
     expiresAt: d?.expires_at || null,
   };
+}
+
+function getMailScopeMessage() {
+  const L = getAuthLinks();
+  return (
+    `WEAPON_REAUTH_REQUIRED: The Zoho weapon does not have Mail scope (received 401 from Zoho Mail API). ` +
+    `Go to the Forge, click "Scrap weapon & forge again", then re-authorize to grant Mail access: ${L.forgeZoho}`
+  );
+}
+
+/**
+ * List Zoho Mail accounts for the authenticated user.
+ * Returns account IDs needed for reading messages.
+ *
+ * @param {string} [userId]
+ * @returns {Promise<Array<{ accountId: string, emailAddress: string, displayName: string }>>}
+ */
+export async function readMailAccounts(userId) {
+  const uid = await resolveUserId(userId);
+  const secrets = await ensureSecretsForCurrentUser(uid);
+  const region = secrets.region || "com";
+  const baseUrl = ZOHO_MAIL_BASE[region] || ZOHO_MAIL_BASE.com;
+
+  const response = await fetch(`${baseUrl}/api/accounts`, {
+    headers: { Authorization: `Zoho-oauthtoken ${secrets.access_token}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(getMailScopeMessage());
+    }
+    throw new Error(`ZOHO_MAIL_ACCOUNTS_FAILED:${response.status}:${text.slice(0, 500)}`);
+  }
+
+  const json = await response.json();
+  const accounts = Array.isArray(json?.data) ? json.data : [];
+  return accounts.map((a) => ({
+    accountId: String(a.accountId ?? a.account_id ?? ""),
+    emailAddress: a.emailAddress ?? a.incomingUserName ?? "",
+    displayName: a.displayName ?? a.name ?? "",
+  }));
+}
+
+/**
+ * List Zoho Mail messages for a specific account.
+ * Defaults to the authenticated user's primary inbox.
+ *
+ * @param {string} accountId — from readMailAccounts()
+ * @param {{ limit?: number, folder?: string }} [opts]
+ * @param {string} [userId]
+ * @returns {Promise<Array<{ messageId: string, subject: string, fromAddress: string, receivedTime: string, summary: string }>>}
+ */
+export async function readMailMessages(accountId, opts = {}, userId) {
+  const uid = await resolveUserId(userId);
+  const secrets = await ensureSecretsForCurrentUser(uid);
+  const region = secrets.region || "com";
+  const baseUrl = ZOHO_MAIL_BASE[region] || ZOHO_MAIL_BASE.com;
+  const limit = Math.max(1, Math.min(200, Number(opts.limit) || 5));
+
+  const url = new URL(`${baseUrl}/api/accounts/${accountId}/messages/view`);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("sortorder", "false"); // newest first
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Zoho-oauthtoken ${secrets.access_token}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(getMailScopeMessage());
+    }
+    throw new Error(`ZOHO_MAIL_MESSAGES_FAILED:${response.status}:${text.slice(0, 500)}`);
+  }
+
+  const json = await response.json();
+  const messages = Array.isArray(json?.data) ? json.data : [];
+  return messages.slice(0, limit).map((m) => ({
+    messageId: String(m.messageId ?? ""),
+    subject: m.subject ?? "(no subject)",
+    fromAddress: m.fromAddress ?? "",
+    receivedTime: m.receivedTime ?? "",
+    summary: m.summary ?? "",
+  }));
 }
 
 /**

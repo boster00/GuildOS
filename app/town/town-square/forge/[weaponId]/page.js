@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { getWeaponById } from "@/libs/weapon/registry";
-import { getZohoWeaponStatus } from "@/libs/weapon/zoho";
+import { readWeaponStatus } from "@/libs/weapon/zoho";
 import { ZohoForgeWeaponPanel } from "@/components/ZohoForgeWeaponPanel";
 
 function callbackBanner(zohoParam) {
@@ -49,7 +49,7 @@ export default async function ForgeWeaponDetailPage({ params, searchParams }) {
 
   let zohoStatus = null;
   if (user && weaponId === "zoho") {
-    zohoStatus = await getZohoWeaponStatus(user.id);
+    zohoStatus = await readWeaponStatus(user.id);
   }
 
   const isZohoForged =

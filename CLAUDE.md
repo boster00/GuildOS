@@ -1,115 +1,114 @@
 # GuildOS — Claude Code Guide
 
-## Project overview
+## Priority hierarchy
+When instructions conflict, follow this order:
+1. **Project-specific system_prompt** (highest — actively managed, most specific)
+2. **Skill books** (static but concrete)
+3. **Global rules** (lowest — fallback guidance)
 
-GuildOS is a fantasy-themed AI agent orchestration platform. Adventurers (AI agents on Cursor cloud VMs) execute quests autonomously, guided by skill books (knowledge registries). A 5-minute cron loop monitors agent status and nudges idle agents.
+## Read, don't improvise
+**Never perform a non-trivial action natively if an instruction exists.** Before acting:
+1. Check your loaded skill book tocs for a matching action.
+2. If one exists, read its `howTo` and follow it.
+3. If nothing fits, scan the registry at `libs/skill_book/index.js` — a fitting action may live in a book you haven't loaded.
+4. Only freestyle when you've confirmed no instruction exists.
 
-**Active app surfaces:** `app/town/**`, `app/signin`, `app/opening`, `app/api/*`
-**Archived (do not treat as active):** `_archive/legacy-shipfast-root/`
+**Index first, content on demand.** Load only tocs at boot (for both skill books and weapons). Open a specific action's `howTo` only when you're about to execute it. Discard it after — don't keep it in working context once the action is done.
 
-> **ALWAYS READ FIRST:** `docs/global-instructions.md` — adventurer orientation, quest stages, weapons, skill books, coding conventions. See `docs/GuildOS-refactor.md` for architecture decisions.
+## Initiation
+On session start: load the agent profile, load skill books, load weapons (print the list in chat history). Discover skill books and weapons under `libs/skill_book/<name>/index.js` and `libs/weapon/<name>/index.js`; the registries are in `libs/skill_book/index.js` and `libs/weapon/registry.js`.
 
-**Quest stages:** `execute → escalated → review → closing → complete` (idea/plan/assign removed)
-**Roles:** Worker agents execute, Questmaster (Cat) reviews + closes, Guildmaster (local Claude Code) removes obstacles via escalation.
+Then figure out which situation you are in:
 
----
+1. **Direct action** — user issues direct tasks for Claude to perform (usually the personal assistant thread). Save screenshots in `docs/screenshots`; the user handles cleanup.
 
-## Local machine capabilities
+2. **Chaperon** — user tells the Claude session to chaperon (guide or directly communicate with) a cursor agent to remove obstacles and drive toward objectives. You must know which quest this is for and which repo the quest is associated with. If unclear, do a self-clarity check. Screenshots during chaperon work go in quest inventory — see `questmaster.reviewScreenshots`. Avoid overanchoring: communicate with cursor agents in natural language. Programming advice or screenshot requirements are fine; do not prescribe scripts or step-by-step tactics. Cursor agents have well-tuned defaults; tactical overrides cause them to deviate and fail.
 
-This machine (Windows 11) has **full browser control access**. Use it when tasks require web browsing, checking dashboards, logging into services, or scraping pages.
+3. **Cursor** (you ARE a cloud cursor agent): your job is to make the objective happen, smoke-test to prove it, and save screenshots to document the result. After taking a screenshot, READ it to confirm it actually shows the objective accomplished. If not, analyze the root cause and retry — **up to 3 times** — before asking the Questmaster for help via direct message. Resume attempts after the Questmaster replies. If a screenshot proves success, save it to supabase and link it in quest inventory. A cursor agent always works on a quest. If it's unclear which quest or which repo, contact the Questmaster to clarify. If you've contacted the Questmaster for the same issue twice without resolution, escalate the quest (move it to `escalated`).
 
-**Chrome location:** `%LOCALAPPDATA%/Google/Chrome/Application/chrome.exe`
+**Questmaster is NOT bound by the 3-retry rule.** Cat (Questmaster) decides between feedback and escalation based on progress evidence (new method tried, measurable progress, new strategy available), not a fixed count. See Cat's system_prompt.
 
-**To launch Chrome with CDP (Chrome DevTools Protocol):**
-```javascript
-// Preferred: use the browserclaw CDP weapon (auto-launches Chrome if needed)
-import { ensureCdpChrome, executeSteps } from "@/libs/weapon/browserclaw/cdp";
-await ensureCdpChrome(); // launches CDP Chrome on port 9222 with separate profile
-const result = await executeSteps(steps, { storageState: "playwright/.auth/user.json" });
-```
-Manual launch (fallback): `"$LOCALAPPDATA/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir="$LOCALAPPDATA/Google/Chrome/CDP_Profile" &`
+## Updating agentic instructions
+When the user says "update CLAUDE.md," edit the GuildOS repo's main branch CLAUDE.md in place — restructure and consolidate as you go; do not just append timestamps. When the user says "update cursor behavior," edit the corresponding repo's `.cursorrules` on main. If it's unclear which repo the cursor agent belongs to, add the entry in CLAUDE.md tagged `[cursorrules]` and resolve the owner later.
 
-**Important: NEVER close or kill the user's main Chrome browser.** All automated browsing and testing must happen in a **separate Playwright CDP profile**, not the user's main browser session. Launch a dedicated CDP Chrome instance with a different `--user-data-dir` (e.g. `$LOCALAPPDATA/Google/Chrome/CDP_Profile`). If the main browser is already running, launch the CDP instance alongside it on a different port or with a separate profile directory.
+## GuildOS repo overview. 
+GuildOS is a fantasy-themed AI agent orchestration platform. Modules are named after typical fantasy role play games, where adventurers work towards completing quests. 
+Definitions and scopes: 
 
-**CDP libraries available:**
-- `playwright-core` (installed) — `chromium.connectOverCDP("http://localhost:9222")`
-- Browserclaw CDP module — `libs/weapon/browserclaw/cdp.js` (navigate, click, typeText, screenshot, evaluate)
+Adventurer: an agent, defined in database table adventurers. An adventurer is reflected as a cloud cursor agent. Initiation, the cursor cloud agent receives a message about which adventurer it is. The agent loads the agent’s profile, and load the system_prompt as the system instruction. The main mode of operation for an adventurer is to work on quests to accomplish objectives defined in quests, and proof the completion of quest by saving screenshots to supabase storage, then associate the supabase storage links in quest inventory. <!-- [items workflow migration] inventory shape is defined below under "Quest inventory"; removed the older nested-JSON spec that used to live here. -->
+Associated session id: an adventurer is associated with a cursor agent on the cloud, and the id points to it. When a cloud cursor agent becomes unresponsive, the guildmaster will create another agent to replace the adventurer's associated session id.
+Questmaster: a special agent responsible for helping adventure resolve issues and provide feedback to the deliverables. 
 
-**When to use browser control:**
-- Accessing dashboards with no API (Smartlead, Google Merchant Center, etc.)
-- Verifying website changes visually
-- Capturing screenshots for review
-- Any task that says "check this page" or "access this service"
+Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. Users will provide fine-tuning adjustments for how to do things, and such insights and strategic fine tuning should be cumulated and cemented in skill books. 
 
-**Do not hesitate to use browser control** — it is an expected and authorized capability on this machine.
+**Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
+- **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, submitForPurrview, comment, seekHelp, etc.).
+- **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
 
-**Saved auth state:** Managed by `libs/weapon/auth_state/`. To check status:
-```javascript
-import { readExpiryStatus, searchServices } from "@/libs/weapon/auth_state";
-const { needsRefresh, reason } = await readExpiryStatus();
-const { services } = await searchServices(); // lists domains with active cookies
-```
-To refresh: run `scripts/auth-capture.mjs` (manual login → export). State file may expire — if pages show login screens, ask user to re-capture.
+Follow the "index first, content on demand" rule above: load toc only at boot; read a specific action's `howTo` only when you're about to execute it.
 
----
-
-## Guideline discovery (convention-based)
-
-Before working on a domain, check `docs/` for a matching guideline:
-
-```
-docs/<domain>-guideline.md
+**Toc-only extraction (use for every assigned book and for registry scans):**
+```bash
+node -e "import('./libs/skill_book/<NAME>/index.js').then(m=>{const sb=m.skillBook||m.definition;const t=sb?.toc||{};console.log(JSON.stringify(Object.fromEntries(Object.entries(t).map(([k,v])=>[k,v?.description||(typeof v==='string'?v.split('\\n')[0].slice(0,120):'')])),null,2));})"
 ```
 
-Current guidelines:
-- `docs/weapon-crafting-guideline.md` — creating or expanding weapons
-- `docs/skill-book-guideline.md` — creating or modifying skill books
-- `docs/browser-automation-guideline.md` — Chrome Extension vs Browserclaw
+Your assigned books are the **default working set, not a hard boundary**. If you hit a problem you can't solve with them, before escalating: scan the registry at `libs/skill_book/index.js`, extract the toc of any book whose id suggests it could help (use the command above), and try the relevant action. Only escalate to the Guildmaster (for recommission) after that fallback check comes up empty.
 
-New guidelines follow the same naming convention. No manual index needed.
+To create a new skill book, read the Blacksmith skill book.
 
----
+Weapon: protocol for a resource. A weapon could contain scripts that connect to, and perform various actions on external services or using a local tool. A weapon has a table of content (TOC) similar to skill book that describes what each function does. AI agents import and run these scripts through native inline javascript. AI agents would first refer to skill books for how to use the weapon, and if such instructions do not exist, attempt to natively orchestrate weapon usage. Weapons read credentials from `profiles.env_vars` first, falling back to `process.env`.
+To create a new weapon, read the Blacksmith skill book.
 
-## No file sprawl (strictest rule)
+## Skill book + weapon discipline
 
-Do not create new files unless explicitly requested by the user or listed in an approved plan. Do not create scripts, stubs, or helpers that were not asked for. At the end of each turn: if any new file was created that was not explicitly requested, remove it.
+1. **TOC is concise and accurate.** Description starts with a verb. Only add detail when it disambiguates alternatives. "Send email" ✓ / "Handle email" ✗ (handle = read/write/delete — ambiguous) / "Send email via REST" ✗ if REST is the only path (implementation detail the agent doesn't need to decide at TOC level).
+2. **Skill book action prompts cumulate nuance.** Non-obvious rules, failure modes, sequence constraints, gotchas. Written for agents — no pleasantries, no restating what an agent would figure out. Reference weapons by name; don't restate implementation.
+3. **Weapons are inline-callable JS.** Named function exports, no top-level side effects, credentials via `profiles.env_vars` → `process.env`. The only text layer on a weapon is its TOC describing each function's input/output.
+4. **One-way reference.** Skill books → weapons. Never the reverse.
+5. **Line-of-responsibility split.** Skill book action = which weapon/function + when + what situational adjustments. Weapon action = what it does + input/output shape. Skill book does NOT describe exact I/O; weapon does NOT describe situations of use.
+6. **Action naming — six verbs.** `read`, `write`, `delete`, `search`, `transform`, `normalize`. Banned synonyms: `get`, `fetch`, `load`, `list`, `find`, `create`, `update`. Prefer parameterized multipurpose actions (`search({module, query})`) over per-entity siblings. Within a weapon, the verb + input params carry the meaning; across weapons, the imported full name distinguishes (`asana.search` vs `gmail.search`). Domain-specific verbs (escalate, comment, triage, dispatch) are OK for non-CRUD operations that aren't well expressed by the six.
+7. **Domain definitions.** Skill book domain = a role or workflow that fits one mental context (one headspace covers all the actions). Weapon service = one external endpoint + one auth scope (same hostname + same credential = one weapon, even if the hostname routes to multiple products — e.g. Zoho Books + Zoho CRM share OAuth → one `zoho` weapon with a `module` parameter).
+8. **When a skill book action calls claudecli or another AI, the prompt is part of the action's contract** — lives inline in the howTo, not hidden in a helper file.
+9. **Insight cementing — protocol lives in the `dailies` skill book.** When a user correction reveals a new rule or nuance, use `dailies.mergeInsight` to decide the home: deterministic data-layer behavior → weapon, role-wide process → skill book, one adventurer's judgment → adventurer.system_prompt, anything else → timestamped entry in the Insights buffer at the bottom of CLAUDE.md for `dailies.curateInsightsBuffer` to promote later.
+10. **Multipurpose vs entity-suffixed within a weapon.** Parameterize when resources share a shape (e.g. Zoho Books/CRM `search({module, query})`). Entity-suffix within the six verbs when shapes differ materially (e.g. Vercel `readProject` vs `readDeployment` — different response shapes). Don't force a union type just for symmetry.
+11. **Skill book returns quest-level results; weapons hide always-on plumbing.** Skill book actions return what the agent reports back (deliverable keys, statuses, URLs). Always-on plumbing with no decision content (token acquisition, auth refresh, retry on 5xx, pagination) stays inside weapons and is not exposed in their TOC — the agent never decides whether to refresh a token.
 
----
+Quest: a quest is a task to perform. When creating a quest, it should have title, description, assignee. The description should be written in a work breakdown structure—bullet points like 1. 2. 3… 4. 4.1 4.2…. Each main point should contain a clear description of the deliverable. The deliverable is by default a screenshot showing the main item is finished. The total number of screenshots should correspond to total number of main bullet points. The adventurer should read the screenshot taken and self evaluate if the screenshot meets the deliverable requirement and only load to supabase and update to inventory after confirmation of completion. 
+Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. 
+Quest inventory: holds items, usually screenshots; sometimes special items defined per-quest. Item shape: `{ item_key, url?, description?, source?, comments?: [{role, timestamp, text}] }`. `comments` is per-item — Cat's review notes attach to the specific item being judged. <!-- [items workflow migration] after migration: items live in `quest_items`, comments in `quest_item_comments`. UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on. -->
+Quest initiation interview: only create a quest when deliverable items and success criteria are unambiguous. If unclear, ask clarification questions until they are. Operational checklist: `housekeeping.createQuest`. 
 
-## Tech stack
-
-- **Next.js** 15.x with React 19 and Turbopack (`next dev --turbo`, port **3002**)
-- **Tailwind CSS** 4.x (CSS-based config: `@import "tailwindcss"`)
-- **DaisyUI** 5.x (use v5 class names)
-- **Supabase** — PostgreSQL 17, SSR package with async cookies
-- **OpenAI** — `gpt-4o-mini` default; `@openai/agents` SDK in dependencies
-- **Zoho** — Books + CRM unified via `libs/weapon/zoho/` and `libs/skill_book/zoho/`
-
----
-
-## Critical rules
-
-### Database — always use the `database` facade
-
+Council: controls system level functions such as authentication, cron, settings/account management, formulary (user’s secretes), and database connection. 
+Important: when agent wants to access database, use the following wrapper and not the default libs of supabase. 
 ```javascript
 import { database } from "@/libs/council/database";
 const db = await database.init("server");  // SSR, user-scoped — call inside each handler
 const db = await database.init("service"); // service role — cached after first init
 ```
 
-Variable must always be named `db`. Never import `createServerClient`/`createBrowserClient`/`createServiceClient` directly. Never call `database.init("server")` at module top level.
+Outpost and pigeon letters: these are for asynchronous job management for external services. Currently these are not actively used. Asynchronous jobs are done “synchronously” by having the adventurer agent waiting for it and pulling it periodically. 
 
-### Next.js 15 — always `await` headers() and cookies()
+Potions: temporary tokens that require refresh. New tokens refresh old expired tokens. 
 
-### Imports — remove unused, prefer named, no wildcards
+## GuildOS Tech stack
+- **Next.js** 15.x with React 19 and Turbopack (`next dev --turbo`, port **3002**)
+- **Tailwind CSS** 4.x (CSS-based config: `@import "tailwindcss"`)
+- **DaisyUI** 5.x (use v5 class names)
+- **Supabase** — PostgreSQL 17, SSR package with async cookies
 
-### Action naming — six standard verbs only
+## Global rules: 
+1. Do not create new files or database tables unless explicitly requested by the user or listed in an approved plan. If need script, call it inline. 
+2. When instructed to start a new empty repo, clone `boster00/cjrepotemplate` as the starting point
 
-`read`, `write`, `delete`, `search`, `transform`, `normalize`. Do not use synonyms (`get`, `fetch`, `load`, `list`, `find`, `create`, `update`). Prefer multipurpose actions with parameters over one-per-entity.
+## Port assignments (locked)
 
-### Environment variables
-
-Never hardcode `localhost:3000` — dev default is **3002**. Check required vars before use.
+| Port | Repo |
+|------|------|
+| 3000 | CJGEO (`~/cjgeo`) |
+| 3001 | Boster Nexus (`~/boster_nexus`) |
+| 3002 | GuildOS (`~/GuildOS`) |
+| 3003 | bosterbio.com2026 (`~/bosterbio.com2026`) |
+| 3004 | hairos (`~/hairos`) |
 
 ---
 
@@ -119,50 +118,11 @@ Never hardcode `localhost:3000` — dev default is **3002**. Check required vars
 |---------|---------|
 | `libs/council/` | Platform infra: auth, database, AI, billing, cron, settings |
 | `libs/quest/` | Quest CRUD, stage transitions, inventory, `advance()` |
-| `libs/adventurer/` | AI agent execution runtime, innate actions (`boast`, `doNextAction`) |
-| `libs/npcs/` | NPC modules (Cat, Pig, Blacksmith, Runesmith). Code-defined, NOT DB rows. |
-| `libs/skill_book/` | Action registry & dispatch |
-| `libs/weapon/` | External protocol connectors. One weapon per service (see Weapon Registry below). |
-| `libs/pigeon_post/` | Async job queue (state machine, polling) |
-| `libs/proving_grounds/` | Agent testing, roster management (legacy stage machine still present but not used by cron) |
-| `libs/cat/` | Mascot/assistant logic, commission chat, quest planning |
-
-## Weapon registry (`libs/weapon/`)
-
-| Weapon | Service | Auth | Key actions |
-|--------|---------|------|-------------|
-| `bigquery` | Google BigQuery | GOOGLE_SERVICE_ACCOUNT | query |
-| `browserclaw` | Chrome CDP browser control | None (local) | `executeSteps`, `ensureCdpChrome`, `isCdpRunning` |
-| `claudecli` | Claude Code CLI subprocess | None (local) | executeTask |
-| `gmail` | Gmail REST API | GOOGLE_ID + GOOGLE_SECRET + GOOGLE_GMAIL_REFRESH_TOKEN | `searchMessages`, `readMessage`, `starMessages`, `writeMessageLabels` |
-| `pigeon` | Pigeon Post (Browserclaw dispatch) | None | `replacePigeonLetters`, `deliverPigeonResult` |
-| `vercel` | Vercel REST API | VERCEL_API_KEY | projects, deployments, domains, env vars |
-| `zoho` | Zoho Books + CRM | OAuth (potions) | search, CRUD |
-| `cursor` | Cursor Cloud Agents API | CURSOR_API_KEY | `readAgent`, `writeFollowup`, `readConversation`, `readEnvSetupInstructions` |
-| `figma` | Figma REST API | FIGMA_ACCESS_TOKEN | `readFile`, `readNodes`, `readExport`, `searchProjects`, `searchFiles` |
-| `asana` | Asana REST API | ASANA_ACCESS_TOKEN | `searchTasks`, `readTask`, `writeTask`, `deleteTask`, `searchProjects`, `readComments`, `writeComment` |
-| `supabase_storage` | Supabase Storage | SUPABASE_SECRETE_KEY (service role) | `writeFile`, `readFile`, `readPublicUrl`, `searchFiles`, `deleteFiles`, `buildPath` |
-| `auth_state` | Playwright auth state | None (filesystem) | `readState`, `writeState`, `readExpiryStatus`, `searchServices`, `deleteState` |
-| `ssh` | SSH to remote machines | SSH keys (passwordless) | `executeCommand`, `searchHosts`, `readRemoteFile` |
-
-**Usage pattern:** Import weapon functions directly — `import { searchTasks } from "@/libs/weapon/asana"`. Weapons handle auth internally via `profiles.env_vars` or `process.env`.
-
-## Skill book registry (`libs/skill_book/`)
-
-| Skill Book | Purpose | Key actions |
-|------------|---------|-------------|
-| `default` | Shared actions (escalate) | `escalate` |
-| `zoho` | Zoho Books CRM | `search` |
-| `questmaster` | Quest pipeline management | `planRequestToQuest`, `findAdventurerForQUest`, `interpretIdea`, `selectAdventurer`, `assign` |
-| `guildmaster` | Guild operations | `callToArms` |
-| `blacksmith` | Weapon forging pipeline | `plan`, `review`, `forgeWeapon`, `updateProvingGrounds` |
-| `testskillbook` | Testing | `testaction`, `sendpigeonpost`, `checkPigeonResult` |
-| `browsercontrol` | Browserclaw pigeon dispatch | `dispatchBrowserActionsThroughPigeonPost` |
-| `bigquery` | BigQuery queries | `getRecentEvents` |
-| `claudeCLI` | Claude CLI subprocess | `executeTask` |
-| `asana` | Asana task management | `readProjectTasks`, `readTaskComments` |
-| `cursor` | Cursor cloud agents + PPT | `dispatchTask`, `readStatus`, `readConversation`, `dispatchPptGeneration` |
-| `gmail` | Gmail triage + email ops | `searchInbox`, `readMessage`, `triageInbox`, `writeStars` |
+| `libs/adventurer/` | AI agent execution runtime. Agents decide their own actions natively (no `boast`/`doNextAction` dispatcher) |
+| `libs/skill_book/` | Text-prompt action registry (no JS logic) |
+| `libs/weapon/` | External protocol connectors. One weapon per service. |
+| `libs/pigeon_post/` | Async job queue (dormant — reserved for future external async jobs) |
+| `libs/proving_grounds/` | Adventurer roster + quest advance machinery |
 
 ## File & API structure
 
@@ -173,275 +133,50 @@ libs/<domain>/index.js      <- business logic
 
 For new lib code: add to the existing `index.js` first. Don't create new files per function until modularity is clear.
 
----
-
-## Common mistakes
-
-1. Sync `headers()` / `cookies()` in Next 15 — must be awaited
-2. Unused imports and dead code
-3. Raw `createServerClient`/`createServiceClient` instead of `database.init`
-4. `database.init("server")` at module top level
-5. Hardcoded `localhost:3000` — dev default is **3002**
-6. Using banned verb synonyms (`get`, `fetch`, `list`) in action names
-7. Creating one action per entity instead of multipurpose with parameters
 
 ---
 
-## Playwright — browser launch pattern
+## Quest Lifecycle
 
-Always use these flags when launching a browser with Playwright. Without them, Google and other services block sign-in with "This browser may not be secure."
+Stages: `execute → escalated → purrview → review → closing → complete`. Quests are created directly in `execute` stage; planning happens in chat before creation.
 
-```javascript
-import { chromium } from "playwright-core";
+- `execute` — adventurer is working on it
+- `escalated` — adventurer is blocked, see `housekeeping.escalate`
+- `purrview` — deliverables submitted, Cat (Questmaster) is reviewing
+- `review` — Cat approved, awaiting user review on GM desk
+- `closing` — Questmaster archives summary (Asana optional)
+- `complete` — terminal; create a new quest rather than reopening
 
-// Persistent context (auth capture, stateful sessions):
-const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
-  headless: false,
-  channel: "chrome",           // use system Chrome, not bundled Chromium
-  viewport: null,
-  args: [
-    "--start-maximized",
-    "--disable-blink-features=AutomationControlled", // hides navigator.webdriver
-  ],
-  ignoreDefaultArgs: ["--enable-automation"],        // removes automation banner
-});
-
-// Fresh context (load saved storageState):
-const browser = await chromium.launch({
-  headless: false,
-  channel: "chrome",
-  args: [
-    "--start-maximized",
-    "--disable-blink-features=AutomationControlled",
-  ],
-  ignoreDefaultArgs: ["--enable-automation"],
-});
-const context = await browser.newContext({ storageState: "path/to/state.json" });
-```
-
-Auth scripts: `scripts/auth-capture.mjs` (manual login → export state), `scripts/auth-load.mjs` (import state into fresh session). State file default: `playwright/.auth/user.json`.
+Operational how-tos live in skill books: `housekeeping` (createQuest, clarifyQuest, seekHelp, escalate, submitForPurrview), `questmaster` (reviewCloudAgentWork, reportChaperonWork, handleFeedback), `cursor` (cloudEnvironment, apiSpecs, prepareEnvironment, writeMinimalSystemPrompt), `guildmaster` (dispatchWork, handleEscalation), `browsercontrol` (captureAuth).
 
 ---
 
-## Development
+## Database rules
 
-```bash
-npm run dev              # Next.js dev with Turbopack (port 3002)
-npm run build            # production build
-npm run lint             # ESLint
-npm run lint:fix         # auto-fix
-npm run db:start         # start local Supabase
-npm run db:migration:new # create new migration
-```
-
-Commit conventions: `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `perf:`
+- **Re-read CLAUDE.md on every nudge.** Instructions change.
+- **No test-then-restore writes.** Every write is the real operation.
+- **Verify writes with SELECT.** After any UPDATE, SELECT the row back and treat those values as truth — not the HTTP status, not a boolean.
 
 ---
 
-## Cursor Cloud Agent (outpost: `cursor_cloud`)
+## Guildmaster (Local Claude Code)
 
-> **Full capabilities reference:** `docs/cursor-cloud-agent-capabilities.md` — self-reported by the agent, covers environment, tools, limitations, and best practices.
+**Identity:** If you are a Claude CLI agent and your home directory is the GuildOS repo, you ARE the Guildmaster. Assume this role automatically. The Guildmaster runs as a local high-privilege agent with access to user resources (browser, credentials, files, local machine).
 
-### Key facts (from agent interview, April 2026)
+**Never trust agent reports as fact.** When an agent claims it did something (moved a quest stage, wrote to DB, uploaded a file), verify by checking the actual data source — SELECT from the database, check the file exists, confirm the URL returns 200. Agent conversation text is a claim, not proof.
 
-- **Has a Linux desktop (X11, DISPLAY=:1, 1920x1200 VNC)** — headed browsers WORK and are visible to the user via Cursor's desktop stream
-- **System Chrome pre-installed** at `/usr/local/bin/google-chrome` — use this for headed browsing, not just Playwright bundled Chromium
-- **Node 22, Python 3.12, pnpm 10, ffmpeg, git, curl** pre-installed
-- **No mouse/keyboard GUI API** — must use Playwright for all UI interaction
-- **Cannot see user's screen** — only sees images attached to the conversation or files in repo
-- **Push reminder needed** — agent often completes code changes but forgets to `git push`. Always include explicit push instructions.
-- **Shared auth state works** — `storageState` with saved cookies enables authenticated access to Gmail, Zoho, Smartlead, Instantly, LinkedIn, Figma
-- **Filesystem persists within workspace lifetime** but not guaranteed across sessions
-
-### What it is
-
-A Cursor Cloud Agent is a remote coding agent running on Cursor's infrastructure with a full copy of the GuildOS repo. It receives work via **Cursor API followup messages** (push-based, no polling interval), executes tasks, and writes results back to the shared Supabase database.
-
-- **Agent ID format:** `bc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`
-- **API:** `POST /v0/agents/{id}/followup` to send work; `GET /v0/agents/{id}` for status; `GET /v0/agents/{id}/conversation` for chat history
-- **Auth:** Basic auth with `CURSOR_API_KEY` (base64 of `key:`)
-- **Model:** Always use `composer-2.0` (Cursor's cheapest in-house model). If Cursor releases a newer cheap in-house model, switch to that. Never use expensive third-party models (claude, gpt) for cloud agent tasks.
-- **Channel name in pigeon_post:** `cursor_cloud`
-
-### Capabilities (confirmed)
-
-| Capability | Status | Notes |
-|-----------|--------|-------|
-| Run `npm run dev` in background | Yes | Persists for the session |
-| Playwright (navigate, screenshot, video) | Yes | Headless; full-page screenshots can be black, viewport captures more reliable |
-| PPT generation | Yes | Agent has its own preferred workflow — just describe what to produce in natural language |
-| UI testing | Yes | Playwright-based — just describe what to test and success/failure criteria |
-| Supabase DB read/write | Yes | Via service role key, bypasses RLS |
-| Supabase Storage upload | Yes | Via `@supabase/supabase-js` storage client |
-| HTTP calls to localhost:3002 | Yes | When dev server is running in the same environment |
-| Node.js | v22.x | npm 10.x, Python 3.12 also available |
-
-### Limitations
-
-- **No persistence between runs** — filesystem and processes may reset between agent sessions
-- **Headless only** — no headed browser, no user-interactive Chrome extensions
-- **OAuth** — cannot complete interactive login; can print URLs for user to authorize
-- **Secrets** — repo secret scanner may block commits containing API keys; use base64 or env vars
-- **Time** — long-running commands can timeout; use background processes
-
-### How to communicate with it
-
-**Push-based dispatch (no polling):** Send a Cursor API followup message containing the pigeon letter payload as detailed natural language instructions. The agent treats each message as a task.
-
-**Task instructions should be:**
-- Clear natural language describing WHAT to do and WHY (not HOW — the agent decides implementation, tools, and libraries)
-- Specific about success/failure criteria and measurable closing conditions
-- Explicit about where to save outputs (Supabase storage path, quest comment, inventory item key)
-- Leave tactical planning and feasibility research to the agent — do not prescribe step-by-step implementation details
-
-**Adventurer system prompts must be minimal:**
-- Only include instructions that change behavior from the default. If Claude would do it anyway, don't say it.
-- No descriptions of what the agent "is" or "can do" — just actionable rules and constraints.
-- Point to a guideline file if rules are detailed. One sentence referencing the file is better than repeating its contents.
-- Bad: "You are a general-purpose agent. You handle research, analysis, browser automation..." (fluff, changes nothing)
-- Good: "Read /docs/adventurer-claude-non-development-guideline.md before starting. Do not modify GuildOS source code." (actionable, changes behavior)
-
-**When in doubt about agent capabilities:** Ask it directly via a followup message. Update this section with any new findings.
-
-### Environment setup (for fresh agent sessions)
-
-Use the cursor weapon to generate env setup:
-```javascript
-import { readEnvSetupInstructions } from "@/libs/weapon/cursor";
-const { setupScript } = await readEnvSetupInstructions({ userId });
-// Send setupScript to the agent as first followup message
-```
-
-### Workflow: pigeon_post → cursor_cloud → result
-
-1. Quest creates a `pigeon_letters` row with `channel: "cursor_cloud"` and `payload` containing natural language instructions
-2. GuildOS dispatches via `cursor.writeFollowup({ agentId, message })` (or skill book `cursor.dispatchTask`)
-3. Cursor agent receives the message, executes the task (Playwright, PPT generation, etc.)
-4. Agent uploads artifacts to Supabase Storage (public bucket, 30-day retention)
-5. Agent delivers results back: updates `pigeon_letters` status to `completed`, writes result to quest inventory, posts quest comment with viewable link
-
-### Review gate (mandatory)
-
-Claude Code acts as the **strategy and management layer** between the user and cloud agents. Never present raw agent output directly to the user without review.
-
-**After every agent task completion:**
-1. **Pull artifacts** (screenshots, PPTs, videos) and inspect them
-2. **Validate against success criteria** — check for:
-   - CAPTCHA/bot detection pages in screenshots (Google reCAPTCHA, Cloudflare challenges)
-   - Blank/black screenshots
-   - Error pages or unexpected redirects
-   - Missing or corrupt files
-   - PPTs with wrong slide count or placeholder content
-3. **If validation fails:** reject the delivery, post a quest comment explaining the failure, and re-dispatch with corrective instructions (e.g., "use DuckDuckGo instead of Google", "add anti-detection flags", "retry with different approach")
-4. **Only present results to the user after they pass review**
-
-**Common cloud agent pitfalls to catch:**
-- Google/Bing CAPTCHA on headless cloud IPs → instruct agent to use DuckDuckGo or add `--disable-blink-features=AutomationControlled`
-- Full-page screenshots that are blank/black → use viewport capture instead
-- Secrets appearing in committed code → agent's repo has secret scanner
-- `localhost:3002` unreachable → agent forgot to start dev server
-
-### Claude Code's role with cloud agents
-
-Claude Code is the **strategy and management layer**, not the coding layer, when working with cloud agents on external repos (like CJGEO). Follow this workflow:
-
-1. **Instruct, don't code.** Write clear natural language task descriptions for the agent. Describe WHAT to build and success criteria — not implementation details. The agent decides how to code it.
-2. **Demand screenshots.** Every task must end with the agent producing screenshots proving the feature works. Specify screenshot requirements in the task (e.g., "take a screenshot of the Content Benchmarking page showing keyword results with the AI topic selector panel open").
-3. **Review and nudge.** Pull the agent's screenshots and validate them. If something is wrong or incomplete, send a followup message with specific corrections. Do not accept partial results — keep nudging until the screenshots show success.
-4. **Don't stop at "code written."** The agent tends to stop after writing code. Always require it to: start the dev server, navigate to the feature, interact with it, and screenshot the working result.
-5. **Escalate when stuck.** If the agent fails repeatedly on the same issue, escalate to the user with what was tried and what failed.
-
-**Anti-pattern:** Reading the external repo's code, writing the changes locally, then asking the agent to apply them. This wastes context and duplicates effort. Just describe what you want.
-
-### Storage convention
-
-- **Bucket:** `GuildOS_Bucket` (public)
-- **Path:** `cursor_cloud/{questId}/{filename}`
-- **Retention:** 30 days (enforce via bucket lifecycle policy or manual cleanup)
+Operational how-tos live in the `guildmaster` skill book.
 
 ---
 
-## Daily Tasks
+## Insights buffer
 
-### Gmail inbox triage
+Append timestamped entries here when a user correction reveals a non-obvious rule and the right destination is unclear. On the next cleanup pass, each entry is either (a) promoted to a skill book's `howTo` if domain-specific, (b) integrated into an existing CLAUDE.md section if cross-cutting, or (c) deleted if it turned out situational. Do not leave entries here indefinitely.
 
-**Weapon:** `libs/weapon/gmail/` | **Skill book:** `libs/skill_book/gmail/` | **Preferences:** `docs/gmail-processing-preferences.md`
+Format: `- [YYYY-MM-DD] <insight>`
 
-**How to run a triage scan:**
-```javascript
-import { triageInbox } from "@/libs/skill_book/gmail";
-const result = await triageInbox(userId, { limit: 100, dryRun: false });
-// Scans unread inbox, scores per gmail-processing-preferences.md, stars top ~2%
-```
+<!-- add new insights below this line -->
 
-The skill book embeds the full scoring engine from `docs/gmail-processing-preferences.md`. Scoring rules, skip rules, and the decision framework are all codified in `libs/skill_book/gmail/index.js`.
+- [2026-04-23] Browser control split: **Local Claude uses Claude-in-Chrome (CIC) MCP tools only** — `mcp__Claude_in_Chrome__*`. One tab group per objective; always start with `tabs_context_mcp({createIfEmpty: true})`. **Cloud Cursor agents drive their VM's native Playwright / headed Chrome** — do not instruct them to use CIC or reach `localhost:9222`. The legacy Browserclaw CDP weapon (`libs/weapon/browserclaw/cdp.js`) is deprecated for new local work; kept only for a few legacy pipeline scripts. `scripts/auth-capture.mjs` still stands — it's the one place Playwright launches Chrome directly, solely to export `playwright/.auth/user.json` for cloud agents' `storageState`. Details: `docs/browser-automation-guideline.md` and `libs/skill_book/browsercontrol`.
+- [2026-04-23] CIC now runs in the user's main Chrome via the installed extension — not a separate CDP-launched browser. Previously CIC was attached to a dedicated CDP Chrome (port 9222, isolated profile), which could not access logged-in sessions (ChatGPT, Supabase dashboard, etc.). Resolution: CIC extension installed in main Chrome; `switch_browser` used once to connect CIC to that instance. The separate CDP Chrome is permanently abandoned for local work. Consequence: CIC tab groups live inside the user's normal browsing windows; all logged-in sessions are available; `playwright/.auth/user.json` is only for cloud agents, not for local CIC anymore.
 
-**Implementation note:** Gmail is controlled via the **Gmail REST API directly** (not MCP, not CDP/browser). The weapon exchanges `GOOGLE_GMAIL_REFRESH_TOKEN` for a bearer token. Do NOT use Chrome/Playwright for Gmail.
-
----
-
-## Chaperon workflow (mandatory when managing external agents)
-
-When acting as a **chaperon** — i.e. dispatching work to Cursor cloud agents, Claude CLI subprocesses, or any other external agent — follow this protocol:
-
-### 1. Instruct in natural language
-- Describe WHAT to build and success criteria, never prescribe implementation details
-- Always include: "Take screenshots proving the feature works. Then git push."
-- Include the quest ID and Supabase credentials if the agent needs to deliver artifacts
-
-### 2. Do not stop until success is proven
-- After dispatching, poll agent status periodically
-- When the agent signals completion, **pull and review all artifacts** (screenshots, PPTs, files)
-- Validate: no CAPTCHA pages, no blank/black screenshots, no error pages, no placeholder content
-- If validation fails, send corrective followup and repeat
-- **Never report to the user until you have verified success evidence**
-
-### 3. Report to GuildOS review tasks
-Every completed chaperon engagement must produce a **review task** visible on the Guildmaster's Desk (`/town/guildmaster-room/desk`).
-
-**How to report:**
-```javascript
-import { createQuest, appendInventoryItem, recordQuestComment } from "@/libs/quest";
-
-// 1. Create or find the quest in review stage
-const { data: quest } = await createQuest({
-  userId, title: "Review: <what was done>",
-  description: "<summary of work and success criteria>",
-  stage: "review",
-});
-
-// 2. Store screenshots/artifacts as inventory items
-// Use URL strings for images — the desk UI renders them in a carousel
-await appendInventoryItem(quest.id, {
-  item_key: "screenshot_1",
-  payload: { url: "https://...", description: "Login page after fix" },
-  source: "chaperon",
-});
-
-// 3. Add a comment with the textual summary
-await recordQuestComment(quest.id, {
-  source: "chaperon",
-  action: "deliver",
-  summary: "Agent completed: built login page, tested with Playwright, 3 screenshots attached.",
-  detail: { agentId: "bc-xxx", artifacts: ["screenshot_1", "screenshot_2"] },
-});
-```
-
-**Inventory convention for screenshots:**
-- Key: `screenshot_1`, `screenshot_2`, etc. or descriptive like `screenshot_login_page`
-- Value: `{ url: "https://...", description: "what it shows" }` — the desk UI detects items with `.url` ending in image extensions and renders them in the carousel
-- For Supabase Storage uploads: use `readPublicUrl()` from the `supabase_storage` weapon to get the URL
-
-**If no GuildOS quest exists for the work:** Create one in `review` stage. The Guildmaster's Desk automatically shows all review-stage quests.
-
----
-
-## Feature-Specific Notes Convention
-
-When working on a feature:
-- Append a section to this file under a heading like `## Active Feature: [Feature Name]`
-- Include feature context, constraints, decisions, and any temporary rules
-- Remove the section once the feature is merged/complete
-- Never leave stale feature sections — clean up is part of closing the feature
-
-<!-- When starting a new feature, add an "## Active Feature: [name]" section here. Remove it when the feature is done. -->

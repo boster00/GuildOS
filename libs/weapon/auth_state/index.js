@@ -1,7 +1,8 @@
 /**
- * Auth State weapon — Playwright browser auth state management.
+ * Auth State weapon — browser auth state management.
  *
- * Manages saved auth state (cookies/localStorage) for authenticated browser sessions.
+ * Manages saved auth state (cookies/localStorage) exported by scripts/auth-capture.mjs.
+ * Used by cloud agents that can't connect to the local CDP Chrome.
  * Default state file: playwright/.auth/user.json
  */
 import { readFile, writeFile, stat } from "node:fs/promises";
@@ -152,7 +153,7 @@ export async function deleteState({ statePath } = {}) {
 export async function checkCredentials() {
   const { exists, expired, cookieCount, lastModified } = await readState();
   if (!exists) {
-    return { ok: false, msg: "No auth state file — run scripts/auth-capture.mjs to create one." };
+    return { ok: false, msg: "No auth state JSON — run scripts/auth-capture.mjs to create one." };
   }
   if (expired) {
     return { ok: false, msg: `Auth state expired (last modified: ${lastModified}). Re-run scripts/auth-capture.mjs.` };

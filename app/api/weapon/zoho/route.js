@@ -1,11 +1,13 @@
 /**
- * Zoho weapon API route — OAuth connect/callback, status, search.
+ * Zoho weapon API route — OAuth connect/callback, status, search, mail.
  *
- * GET  ?action=connect   → redirect to Zoho OAuth (Books + CRM scopes)
- * GET  ?action=callback  → exchange code, store token, redirect to forge page
- * GET  ?action=status    → token status (no secrets exposed)
- * POST ?action=scrap     → delete OAuth tokens so the weapon can be re-forged
- * POST ?action=search    → search any Zoho module (Books or CRM)
+ * GET  ?action=connect          → redirect to Zoho OAuth (Books + CRM + Mail scopes)
+ * GET  ?action=callback         → exchange code, store token, redirect to forge page
+ * GET  ?action=status           → token status (no secrets exposed)
+ * GET  ?action=readMailAccounts → list Zoho Mail accounts for authenticated user
+ * GET  ?action=readMailMessages → read messages (?accountId=&limit=)
+ * POST ?action=scrap            → delete OAuth tokens so the weapon can be re-forged
+ * POST ?action=search           → search any Zoho module (Books or CRM)
  */
 import { requireUser } from "@/libs/council/auth/server";
 import { getZohoBooksAppCredentials } from "@/libs/council/profileEnvVars";
@@ -13,13 +15,15 @@ import { getSiteUrl } from "@/libs/council/auth/urls";
 import {
   buildZohoOAuthAuthorizeUrl,
   exchangeZohoCode,
-  fetchZohoOrganizationId,
+  readOrganizationId,
   upsertZohoConnection,
   deleteZohoConnection,
   getZohoOAuthCallbackUrl,
-  getZohoWeaponStatus,
+  readWeaponStatus,
   searchBooks,
   searchCrm,
+  readMailAccounts,
+  readMailMessages,
   zohoErrorToJsonPayload,
 } from "@/libs/weapon/zoho";
 
@@ -62,7 +66,7 @@ export async function GET(request) {
 
     const token = exchanged.token;
     const expiresAt = new Date(Date.now() + (token.expires_in || 3600) * 1000).toISOString();
-    const organizationId = await fetchZohoOrganizationId(token.access_token, region);
+    const organizationId = await readOrganizationId(token.access_token, region);
 
     const { error } = await upsertZohoConnection({
       user_id: user.id, region,
@@ -79,12 +83,40 @@ export async function GET(request) {
   // ── status ──
   if (action === "status") {
     const user = await requireUser();
-    const status = await getZohoWeaponStatus(user.id);
+    const status = await readWeaponStatus(user.id);
     return Response.json(status);
   }
 
+  // ── readMailAccounts ──
+  if (action === "readMailAccounts") {
+    const user = await requireUser();
+    try {
+      const accounts = await readMailAccounts(user.id);
+      return Response.json({ ok: true, accounts });
+    } catch (e) {
+      return Response.json({ ok: false, ...zohoErrorToJsonPayload(e) }, { status: 500 });
+    }
+  }
+
+  // ── readMailMessages ──
+  if (action === "readMailMessages") {
+    const user = await requireUser();
+    const params = new URL(request.url).searchParams;
+    const accountId = params.get("accountId") ?? "";
+    const limit = Number(params.get("limit") ?? 5);
+    if (!accountId) {
+      return Response.json({ ok: false, error: "accountId is required" }, { status: 400 });
+    }
+    try {
+      const messages = await readMailMessages(accountId, { limit }, user.id);
+      return Response.json({ ok: true, messages });
+    } catch (e) {
+      return Response.json({ ok: false, ...zohoErrorToJsonPayload(e) }, { status: 500 });
+    }
+  }
+
   return Response.json(
-    { error: "Missing or invalid action", validGetActions: ["connect", "callback", "status"] },
+    { error: "Missing or invalid action", validGetActions: ["connect", "callback", "status", "readMailAccounts", "readMailMessages"] },
     { status: 400 },
   );
 }

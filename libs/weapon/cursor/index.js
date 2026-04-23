@@ -124,7 +124,7 @@ export async function readQueuedMessages({ agentId } = {}, userId) {
  * @param {{ repository: string, ref: string, prompt?: string }} input
  * @param {string} [userId]
  */
-export async function createAgent({ repository, ref, prompt } = {}, userId) {
+export async function writeAgent({ repository, ref, prompt } = {}, userId) {
   if (!repository) throw new Error("repository is required");
   if (!ref) throw new Error("ref is required");
   const key = await getApiKey(userId);

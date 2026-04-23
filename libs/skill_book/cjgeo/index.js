@@ -5,7 +5,7 @@
 export const skillBook = {
   id: "cjgeo",
   title: "CJGEO — SEO Content Writer Platform",
-  description: "Tactical instructions for CJGEO development: article pipeline, billing, content rendering.",
+  description: "Run CJGEO article-pipeline and content-rendering workflows.",
   steps: [],
   toc: {
     writePipeline: {
@@ -32,35 +32,6 @@ export const skillBook = {
 **AI module:** All AI calls route through \`@/libs/monkey\`. Use \`runTask()\` for new features. Model tiers via env vars only, never hardcoded.
 `,
     },
-    manageBilling: {
-      description: "Work with Stripe billing, credits, and subscription tiers.",
-      howTo: `
-**Stripe provisioning flow:**
-Checkout → Webhook → Provisioner → profiles table → PlanContext
-
-**API routes must use:**
-\`\`\`javascript
-import { getPlanContext } from '@/libs/monkey/registry/planContext';
-const plan = await getPlanContext(supabase, userId);
-// Use assertPlan(plan, feature) for feature checks
-\`\`\`
-Never query \`profiles.subscription_plan\` directly.
-
-**Tier definitions:** Live in code ONLY (\`libs/monkey/registry/subscriptionTiers.js\`), NOT in database. Do not create tier tables or seeds.
-
-**Credit philosophy:**
-- Consumes credits: external API calls, AI generation, data enrichment
-- Free: viewing, basic UI actions, navigation
-
-**Pricing:**
-- Starter $99/mo: 500 credits, PAYG $0.50/credit, 1 concurrent process, 1 project
-- Pro $399/mo: 4000 credits, PAYG $0.10/credit, 3 concurrent, multi-project
-
-**Credit ledger:** Use \`credit_ledger\` table. Do NOT reintroduce \`api_usage_logs\`.
-
-**Webhook idempotency:** Via \`stripe_webhook_events.event_id\`.
-`,
-    },
     renderContent: {
       description: "Render content with Shadow DOM CSS isolation.",
       howTo: `
@@ -73,8 +44,8 @@ Never query \`profiles.subscription_plan\` directly.
 - Inline CSS: strip scope wrappers, place in \`<style>\` inside shadow root
 `,
     },
-    databaseMigration: {
-      description: "Create or modify database migrations for CJGEO.",
+    writeMigration: {
+      description: "Write a new database migration for CJGEO and refresh the schema dump.",
       howTo: `
 **After any schema change, run:**
 \`\`\`bash

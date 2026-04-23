@@ -1,22 +1,22 @@
 /**
  * auth-capture.mjs
  *
- * Path 2 (recommended): opens Chrome with a dedicated persistent profile
- * (`launchPersistentContext`). Log in manually, press Enter, and the profile
- * on disk stays authenticated for later runs.
+ * Logs in to key services using a persistent Chrome profile, then exports
+ * a storageState JSON for agents that can't use CDP directly.
  *
- * Optionally also exports Playwright storageState JSON (Path 1 portable
- * artifact) unless you pass --profile-only.
+ * The persistent profile written here is the SAME directory that ensureCdpChrome()
+ * in libs/weapon/browserclaw/cdp.js uses when launching Chrome on port 9222.
+ * This means after running this script, CDP Chrome starts already logged in.
  *
  * Usage:
  *   node scripts/auth-capture.mjs
- *   node scripts/auth-capture.mjs --profile-only
+ *   node scripts/auth-capture.mjs --profile-only   (skip JSON export)
  *
  * Env:
- *   GUILDOS_PLAYWRIGHT_USER_DATA_DIR — persistent profile folder (default: ~/.guildos-playwright-profile)
- *   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH — Chrome/Chromium path; if unset, uses channel "chrome"
+ *   GUILDOS_CDP_PROFILE_DIR — CDP profile folder (default: ~/.guildos-cdp-profile)
+ *   CHROME_EXECUTABLE_PATH  — Chrome binary path (auto-detected by platform if unset)
  *   PLAYWRIGHT_STORAGE_STATE_PATH — JSON export path (default: playwright/.auth/user.json)
- *   NEXT_PUBLIC_SITE_URL | GUILDOS_PLAYWRIGHT_START_URL — optional first tab (e.g. http://localhost:3002)
+ *   NEXT_PUBLIC_SITE_URL | GUILDOS_PLAYWRIGHT_START_URL — optional first tab
  */
 
 import { chromium } from "playwright-core";
@@ -29,15 +29,25 @@ import * as readline from "readline";
 
 const profileOnly = process.argv.includes("--profile-only");
 
-const CAPTURE_PROFILE_DIR =
-  process.env.GUILDOS_PLAYWRIGHT_USER_DATA_DIR ||
-  join(homedir(), ".guildos-playwright-profile");
+// Must match CDP_PROFILE_DIR in libs/weapon/browserclaw/cdp.js
+const CDP_PROFILE_DIR =
+  process.env.GUILDOS_CDP_PROFILE_DIR ||
+  join(homedir(), ".guildos-cdp-profile");
 
 const STORAGE_STATE_PATH =
   process.env.PLAYWRIGHT_STORAGE_STATE_PATH ||
   join(process.cwd(), "playwright", ".auth", "user.json");
 
-const CHROME_EXECUTABLE = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim() || null;
+function getChromeExe() {
+  if (process.env.CHROME_EXECUTABLE_PATH) return process.env.CHROME_EXECUTABLE_PATH;
+  if (process.platform === "win32") {
+    return `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`;
+  }
+  if (process.platform === "darwin") {
+    return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  }
+  return "/usr/local/bin/google-chrome";
+}
 
 const guildStart =
   process.env.GUILDOS_PLAYWRIGHT_START_URL?.trim() ||
@@ -45,10 +55,10 @@ const guildStart =
   "";
 
 const DEFAULT_SITES = [
-  { name: "Gmail", url: "https://mail.google.com" },
+  { name: "Gmail",  url: "https://mail.google.com" },
   { name: "Claude", url: "https://claude.ai" },
   { name: "Cursor", url: "https://www.cursor.com" },
-  { name: "Asana", url: "https://app.asana.com" },
+  { name: "Asana",  url: "https://app.asana.com" },
 ];
 
 const SITES = guildStart
@@ -63,34 +73,29 @@ function waitForEnter(prompt) {
 }
 
 function launchOptions() {
-  const base = {
+  return {
     headless: false,
     viewport: null,
+    executablePath: getChromeExe(),
     args: [
       "--start-maximized",
-      "--disable-blink-features=AutomationControlled",  // hides webdriver flag → Google allows sign-in
+      "--disable-blink-features=AutomationControlled",
     ],
     ignoreDefaultArgs: ["--enable-automation"],
   };
-  if (CHROME_EXECUTABLE) {
-    return { ...base, executablePath: CHROME_EXECUTABLE };
-  }
-  return { ...base, channel: "chrome" };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const context = await chromium.launchPersistentContext(
-  CAPTURE_PROFILE_DIR,
-  launchOptions(),
-);
-
-console.log("\n=== Auth capture (persistent profile) ===");
-console.log(`Profile directory:\n  ${CAPTURE_PROFILE_DIR}`);
+console.log("\n=== Auth capture (CDP profile) ===");
+console.log(`Profile directory:\n  ${CDP_PROFILE_DIR}`);
+console.log(`(This is the same profile used by ensureCdpChrome / CDP Chrome on port 9222)`);
 if (!profileOnly) {
-  console.log(`Will also export storageState to:\n  ${STORAGE_STATE_PATH}`);
+  console.log(`\nWill also export storageState to:\n  ${STORAGE_STATE_PATH}`);
 }
-console.log(`Opening ${SITES.length} tabs...\n`);
+console.log(`\nOpening ${SITES.length} tabs...\n`);
+
+const context = await chromium.launchPersistentContext(CDP_PROFILE_DIR, launchOptions());
 
 const pages = await context.pages();
 const firstPage = pages[0];
@@ -103,11 +108,9 @@ for (let i = 0; i < SITES.length; i++) {
 }
 
 console.log("\nLog in to each tab manually.");
-console.log(
-  "Wait until redirects finish and you clearly see logged-in UI — then press Enter.",
-);
+console.log("Wait until redirects finish and you clearly see logged-in UI — then press Enter.");
 
-await waitForEnter("\n> Press Enter to close and persist profile: ");
+await waitForEnter("\n> Press Enter to save and close: ");
 
 if (!profileOnly) {
   const dir = dirname(STORAGE_STATE_PATH);
@@ -117,12 +120,8 @@ if (!profileOnly) {
 
 await context.close();
 
-console.log("\n✓ Profile saved on disk (reuse the same GUILDOS_PLAYWRIGHT_USER_DATA_DIR).");
+console.log("\n✓ CDP profile saved — ensureCdpChrome() will now start Chrome already logged in.");
 if (!profileOnly) {
   console.log(`✓ storageState exported: ${STORAGE_STATE_PATH}`);
-  console.log("  Run  node scripts/auth-load.mjs  to verify with injected cookies.\n");
-} else {
-  console.log(
-    "  Run  node scripts/auth-load.mjs --persistent  to open this profile again.\n",
-  );
+  console.log("  Run  node scripts/auth-load.mjs  to verify.\n");
 }

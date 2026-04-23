@@ -7,7 +7,6 @@
  *
  * Examples:
  *   node libs/adventurer/run-action.mjs zoho search '{"module":"Contacts","limit":5}'
- *   node libs/adventurer/run-action.mjs testskillbook testaction '{"num1":3,"num2":7}'
  *   node libs/adventurer/run-action.mjs browsercontrol dispatchBrowserActionsThroughPigeonPost '{"questId":"...","browserActions":[...]}'
  *
  * Output: JSON to stdout with { ok, msg, items, error }

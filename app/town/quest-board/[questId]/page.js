@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { database } from "@/libs/council/database";
 import { selectQuestCommentsForQuest } from "@/libs/council/database/serverQuest.js";
-import { GLOBAL_QUEST_ASSIGNEES } from "@/libs/proving_grounds/ui.js";
-import { listAdventurers } from "@/libs/proving_grounds/server.js";
+import { GLOBAL_QUEST_ASSIGNEES } from "@/libs/adventurer_runtime/ui.js";
+import { listAdventurers } from "@/libs/adventurer_runtime/server.js";
 import { getQuestForOwner } from "@/libs/quest";
 import QuestActivityCommentsPanel from "./QuestActivityCommentsPanel.js";
 import QuestDetailFieldEditClient from "./QuestDetailFieldEditClient.js";
@@ -150,6 +150,14 @@ export default async function QuestDetailPage({ params }) {
   if (error || !quest) {
     notFound();
   }
+
+  // Hydrate items from the new table (replaces quests.inventory JSONB)
+  const { data: items } = await db
+    .from("items")
+    .select("id, item_key, url, description, source, created_at, updated_at")
+    .eq("quest_id", quest.id)
+    .order("created_at", { ascending: true });
+  quest.inventory = items || [];
 
   const { data: roster } = await listAdventurers(user.id, { client: db });
   const assigneeOptions = [

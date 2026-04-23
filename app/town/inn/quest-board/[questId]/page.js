@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { database } from "@/libs/council/database";
 import { selectQuestCommentsForQuest } from "@/libs/council/database/serverQuest.js";
-import { GLOBAL_QUEST_ASSIGNEES } from "@/libs/proving_grounds/ui.js";
-import { listAdventurers } from "@/libs/proving_grounds/server.js";
+import { GLOBAL_QUEST_ASSIGNEES } from "@/libs/adventurer_runtime/ui.js";
+import { listAdventurers } from "@/libs/adventurer_runtime/server.js";
 import { getQuestForOwner, QUEST_PATCH_RELATIVE_URL, QUEST_STAGES } from "@/libs/quest";
 import QuestActivityCommentsPanel from "./QuestActivityCommentsPanel.js";
 import QuestDetailFieldEditClient from "./QuestDetailFieldEditClient.js";
@@ -122,6 +122,7 @@ function ExecutionPlanTable({ plan }) {
 
 /** Stage changes use PATCH /api/quest → updateQuest (cookies). Inline script drives optimistic UI + saving + tick. */
 import QuestStageMenuClient from "./QuestStageMenuClient.js";
+import ScreenshotReviewPopup from "./ScreenshotReviewPopup.js";
 
 function QuestStageMenu({ questId, currentStage }) {
   return <QuestStageMenuClient questId={questId} initialStage={currentStage} />;
@@ -150,6 +151,14 @@ export default async function QuestDetailPage({ params }) {
   if (error || !quest) {
     notFound();
   }
+
+  // Hydrate items from the new table (replaces quests.inventory JSONB)
+  const { data: items } = await db
+    .from("items")
+    .select("id, item_key, url, description, source, created_at, updated_at")
+    .eq("quest_id", quest.id)
+    .order("created_at", { ascending: true });
+  quest.inventory = items || [];
 
   const { data: roster } = await listAdventurers(user.id, { client: db });
   const assigneeOptions = [
@@ -191,7 +200,7 @@ export default async function QuestDetailPage({ params }) {
           initialAssigneeId={quest.assignee_id}
           initialDueDate={quest.due_date}
           assigneeOptions={assigneeOptions}
-          stageControls={<QuestStageMenu questId={quest.id} currentStage={quest.stage} />}
+          stageControls={<><QuestStageMenu questId={quest.id} currentStage={quest.stage} /><ScreenshotReviewPopup inventory={quest.inventory} /></>}
         />
 
         <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">

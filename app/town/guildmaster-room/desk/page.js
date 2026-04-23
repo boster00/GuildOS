@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { MerchantGuildExplain } from "@/components/MerchantGuildExplain";
 import { database } from "@/libs/council/database";
-import { inventoryRawToMap } from "@/libs/quest/inventoryMap.js";
+import { inventoryRawToMap } from "@/libs/quest";
 import DeskReviewClient from "./DeskReviewClient";
 
 export const metadata = {
@@ -15,7 +15,7 @@ async function loadReviewQuests(userId) {
   // Fetch review-stage AND escalated-stage quests
   const { data: quests, error } = await db
     .from("quests")
-    .select("id, title, description, stage, assigned_to, assignee_id, inventory, created_at, updated_at")
+    .select("id, title, description, stage, assigned_to, assignee_id, created_at, updated_at")
     .eq("owner_id", userId)
     .in("stage", ["review", "escalated", "closing"])
     .order("updated_at", { ascending: false });
@@ -23,26 +23,36 @@ async function loadReviewQuests(userId) {
   if (error) return { quests: [], error: error.message };
   if (!quests || quests.length === 0) return { quests: [], error: null };
 
-  // Fetch comments for all review quests in one query
   const questIds = quests.map((q) => q.id);
-  const { data: allComments } = await db
-    .from("quest_comments")
-    .select("id, quest_id, source, action, summary, detail, created_at")
-    .in("quest_id", questIds)
-    .order("created_at", { ascending: false })
-    .limit(500);
 
-  // Group comments by quest ID
+  // Fetch comments and items in parallel
+  const [{ data: allComments }, { data: allItems }] = await Promise.all([
+    db.from("quest_comments")
+      .select("id, quest_id, source, action, summary, detail, created_at")
+      .in("quest_id", questIds)
+      .order("created_at", { ascending: false })
+      .limit(500),
+    db.from("items")
+      .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
+      .in("quest_id", questIds)
+      .order("created_at", { ascending: true }),
+  ]);
+
   const commentsByQuest = {};
   for (const c of allComments || []) {
     if (!commentsByQuest[c.quest_id]) commentsByQuest[c.quest_id] = [];
     commentsByQuest[c.quest_id].push(c);
   }
 
-  // Normalize inventory and attach comments
+  const itemsByQuest = {};
+  for (const i of allItems || []) {
+    if (!itemsByQuest[i.quest_id]) itemsByQuest[i.quest_id] = [];
+    itemsByQuest[i.quest_id].push(i);
+  }
+
   const enriched = quests.map((q) => ({
     ...q,
-    inventory: inventoryRawToMap(q.inventory),
+    inventory: inventoryRawToMap(itemsByQuest[q.id] || []),
     _comments: commentsByQuest[q.id] || [],
   }));
 

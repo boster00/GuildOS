@@ -30,7 +30,7 @@ export const skillBook = {
   steps: [],
   toc: {
     readProjectTasks: {
-      description: "Fetch all incomplete tasks from an Asana project by name or ID. Returns task titles, notes, sections, assignees, and completion status.",
+      description: "Read all incomplete tasks from an Asana project by name or ID. Returns task titles, notes, sections, assignees, and completion status.",
       input: {
         project_name: "string — project name to search for (e.g. '[CJ] backlogs'). Used if project_id is not provided.",
         project_id: "string — Asana project GID. If provided, project_name is ignored.",
@@ -43,7 +43,7 @@ export const skillBook = {
       },
     },
     readTaskComments: {
-      description: "Fetch recent comments/stories on an Asana task.",
+      description: "Read recent comments/stories on an Asana task.",
       input: {
         task_id: "string — Asana task GID",
         limit: "number — max comments to return (default: 10)",

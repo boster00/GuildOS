@@ -6,8 +6,8 @@ import {
   commissionAvatarPath,
   adventurerAvatarPath,
   generateAndStoreAvatarSheet,
-} from "@/libs/proving_grounds/server.js";
-import { logDatabaseError, mergeEnvelopeXIntoCapabilitiesColumn } from "@/libs/proving_grounds/ui.js";
+} from "@/libs/adventurer_runtime/server.js";
+import { logDatabaseError, mergeEnvelopeXIntoCapabilitiesColumn } from "@/libs/adventurer_runtime/ui.js";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });

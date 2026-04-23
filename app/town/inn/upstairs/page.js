@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
-import { listAdventurers } from "@/libs/proving_grounds/server.js";
+import { listAdventurers } from "@/libs/adventurer_runtime/server.js";
 import { database } from "@/libs/council/database";
 import AdventurerRoomCard from "./AdventurerRoomCard.js";
 

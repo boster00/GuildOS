@@ -4,7 +4,7 @@
  * POST deliver: session or `X-Pigeon-Key` (see handler for owner checks).
  */
 import { requireUser } from "@/libs/council/auth/server";
-import { getPendingPigeonLetters, createPigeonLetter, searchReviewItems, writeReviewVerdict } from "@/libs/pigeon_post";
+import { getPendingPigeonLetters, writePigeonLetter, searchReviewItems, writeReviewVerdict } from "@/libs/pigeon_post";
 import { deliverPigeonResult } from "@/libs/weapon/pigeon";
 import { getQuest } from "@/libs/quest";
 
@@ -147,19 +147,7 @@ export async function POST(request) {
       return Response.json({ error: "Quest not found" }, { status: 404 });
     }
 
-    console.info(`${LOG} POST deliver: quest loaded`, {
-      questId,
-      owner_id: quest.owner_id,
-      stage: quest.stage,
-      inventoryShape:
-        quest.inventory == null
-          ? "null"
-          : Array.isArray(quest.inventory)
-            ? `array(len=${quest.inventory.length})`
-            : typeof quest.inventory === "object"
-              ? `map(keys=${Object.keys(quest.inventory).join(",")})`
-              : typeof quest.inventory,
-    });
+    console.info(`${LOG} POST deliver: quest loaded`, { questId, owner_id: quest.owner_id, stage: quest.stage });
 
     if (userId && quest.owner_id !== userId) {
       console.warn(`${LOG} POST deliver: rejected — 403 owner mismatch`, {
@@ -232,7 +220,7 @@ export async function POST(request) {
     } catch {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { data, error } = await createPigeonLetter(user.id, { questId, channel, payload });
+    const { data, error } = await writePigeonLetter(user.id, { questId, channel, payload });
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ ok: true, letter: data });
   }
