@@ -101,10 +101,8 @@ The project root is the current working directory. Use ES module syntax (import/
 - When adding an action to an existing skill book, only add a new key to its toc and a new top-level prompt string — do not add functions
 - Follow the patterns in existing files exactly
 
-## Action naming (weapons)
-- Use only these six verbs: read, write, delete, search, transform, normalize.
-- Do NOT use synonyms: get, fetch, load, list, find, create, update.
-- Prefer multipurpose actions with parameters over one-per-entity (e.g. readTask({id}) / searchTasks({filters}) rather than getTaskById + listOpenTasks + findTaskByName).
+## Discipline
+Follow the "Skill book + weapon discipline" section in CLAUDE.md — especially the six-verb action naming rule and the line-of-responsibility split between weapons and skill books.
 
 ## Spec
 Name: <weaponName>

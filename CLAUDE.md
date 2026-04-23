@@ -43,7 +43,7 @@ Adventurer: an agent, defined in database table adventurers. An adventurer is re
 Associated session id: an adventurer is associated with a cursor agent on the cloud, and the id points to it. When a cloud cursor agent becomes unresponsive, the guildmaster will create another agent to replace the adventurer's associated session id.
 Questmaster: a special agent responsible for helping adventure resolve issues and provide feedback to the deliverables. 
 
-Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts.
+Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. Users will provide fine-tuning adjustments for how to do things, and such insights and strategic fine tuning should be cumulated and cemented in skill books. 
 
 **Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
 - **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, submitForPurrview, comment, seekHelp, etc.).
@@ -62,6 +62,20 @@ To create a new skill book, read the Blacksmith skill book.
 
 Weapon: protocol for a resource. A weapon could contain scripts that connect to, and perform various actions on external services or using a local tool. A weapon has a table of content (TOC) similar to skill book that describes what each function does. AI agents import and run these scripts through native inline javascript. AI agents would first refer to skill books for how to use the weapon, and if such instructions do not exist, attempt to natively orchestrate weapon usage. Weapons read credentials from `profiles.env_vars` first, falling back to `process.env`.
 To create a new weapon, read the Blacksmith skill book.
+
+## Skill book + weapon discipline
+
+1. **TOC is concise and accurate.** Description starts with a verb. Only add detail when it disambiguates alternatives. "Send email" ✓ / "Handle email" ✗ (handle = read/write/delete — ambiguous) / "Send email via REST" ✗ if REST is the only path (implementation detail the agent doesn't need to decide at TOC level).
+2. **Skill book action prompts cumulate nuance.** Non-obvious rules, failure modes, sequence constraints, gotchas. Written for agents — no pleasantries, no restating what an agent would figure out. Reference weapons by name; don't restate implementation.
+3. **Weapons are inline-callable JS.** Named function exports, no top-level side effects, credentials via `profiles.env_vars` → `process.env`. The only text layer on a weapon is its TOC describing each function's input/output.
+4. **One-way reference.** Skill books → weapons. Never the reverse.
+5. **Line-of-responsibility split.** Skill book action = which weapon/function + when + what situational adjustments. Weapon action = what it does + input/output shape. Skill book does NOT describe exact I/O; weapon does NOT describe situations of use.
+6. **Action naming — six verbs.** `read`, `write`, `delete`, `search`, `transform`, `normalize`. Banned synonyms: `get`, `fetch`, `load`, `list`, `find`, `create`, `update`. Prefer parameterized multipurpose actions (`search({module, query})`) over per-entity siblings. Within a weapon, the verb + input params carry the meaning; across weapons, the imported full name distinguishes (`asana.search` vs `gmail.search`). Domain-specific verbs (escalate, comment, triage, dispatch) are OK for non-CRUD operations that aren't well expressed by the six.
+7. **Domain definitions.** Skill book domain = a role or workflow that fits one mental context (one headspace covers all the actions). Weapon service = one external endpoint + one auth scope (same hostname + same credential = one weapon, even if the hostname routes to multiple products — e.g. Zoho Books + Zoho CRM share OAuth → one `zoho` weapon with a `module` parameter).
+8. **When a skill book action calls claudecli or another AI, the prompt is part of the action's contract** — lives inline in the howTo, not hidden in a helper file.
+9. **Insight cementing — timestamped append to CLAUDE.md first, promote later.** User corrections that reveal non-obvious rules: first, append a timestamped entry at the bottom of CLAUDE.md (see "Insights buffer"). On the next cleanup pass, either promote to a skill book's howTo if domain-specific, integrate into an existing CLAUDE.md section if cross-cutting, or drop if it turned out situational.
+10. **Multipurpose vs entity-suffixed within a weapon.** Parameterize when resources share a shape (e.g. Zoho Books/CRM `search({module, query})`). Entity-suffix within the six verbs when shapes differ materially (e.g. Vercel `readProject` vs `readDeployment` — different response shapes). Don't force a union type just for symmetry.
+11. **Skill book returns quest-level results; weapons hide always-on plumbing.** Skill book actions return what the agent reports back (deliverable keys, statuses, URLs). Always-on plumbing with no decision content (token acquisition, auth refresh, retry on 5xx, pagination) stays inside weapons and is not exposed in their TOC — the agent never decides whether to refresh a token.
 
 Quest: a quest is a task to perform. When creating a quest, it should have title, description, assignee. The description should be written in a work breakdown structure—bullet points like 1. 2. 3… 4. 4.1 4.2…. Each main point should contain a clear description of the deliverable. The deliverable is by default a screenshot showing the main item is finished. The total number of screenshots should correspond to total number of main bullet points. The adventurer should read the screenshot taken and self evaluate if the screenshot meets the deliverable requirement and only load to supabase and update to inventory after confirmation of completion. 
 Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. 
@@ -156,3 +170,14 @@ Operational how-tos live in skill books: `housekeeping` (createQuest, clarifyQue
 **Never trust agent reports as fact.** When an agent claims it did something (moved a quest stage, wrote to DB, uploaded a file), verify by checking the actual data source — SELECT from the database, check the file exists, confirm the URL returns 200. Agent conversation text is a claim, not proof.
 
 Operational how-tos live in the `guildmaster` skill book.
+
+---
+
+## Insights buffer
+
+Append timestamped entries here when a user correction reveals a non-obvious rule and the right destination is unclear. On the next cleanup pass, each entry is either (a) promoted to a skill book's `howTo` if domain-specific, (b) integrated into an existing CLAUDE.md section if cross-cutting, or (c) deleted if it turned out situational. Do not leave entries here indefinitely.
+
+Format: `- [YYYY-MM-DD] <insight>`
+
+<!-- add new insights below this line -->
+
