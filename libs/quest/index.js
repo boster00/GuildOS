@@ -85,32 +85,6 @@ export async function transitionQuestStage(questId, newStage, { client: injected
 }
 
 /**
- * Legacy shim — redirects to writeItem (upserts into public.items).
- * Extracts url/description from the payload shape.
- * @deprecated Use writeItem directly with { questId, item_key, url, description, source }.
- */
-export async function appendInventoryItem(questId, item, { client: injected } = {}) {
-  const key = item?.item_key != null ? String(item.item_key) : "";
-  if (!key) return { error: new Error("appendInventoryItem: item_key is required") };
-  const payload = item?.payload;
-  let url = null;
-  let description = null;
-  if (typeof payload === "string") {
-    description = payload;
-  } else if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    url = typeof payload.url === "string" ? payload.url : null;
-    description = typeof payload.description === "string" ? payload.description : null;
-    if (!url && !description) description = JSON.stringify(payload);
-  } else if (payload != null) {
-    description = String(payload);
-  }
-  const source = typeof item?.source === "string" ? item.source : null;
-  const { data, error } = await writeItem({ questId, item_key: key, url, description, source }, { client: injected });
-  if (error) return { error };
-  return { data };
-}
-
-/**
  * Best-effort activity log row for quest detail / audit (fails open — warns to console).
  * @param {string} questId
  * @param {{ source: string, action: string, summary: string, detail?: Record<string, unknown> }} payload

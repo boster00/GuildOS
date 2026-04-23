@@ -8,7 +8,7 @@ import {
   assignQuest,
   createQuest,
   getQuest,
-  appendInventoryItem,
+  writeItem,
   updateQuest,
   recordQuestComment,
   QUEST_STAGES,
@@ -261,13 +261,13 @@ export async function PATCH(request) {
       return Response.json({ error: "item_key is required" }, { status: 400 });
     }
     const value = body.value;
-    const { error: appendErr } = await appendInventoryItem(id, {
-      item_key,
-      payload: value,
-      source: "manual_ui",
-    });
-    if (appendErr) {
-      return Response.json({ error: appendErr.message }, { status: 500 });
+    const url = typeof value === "object" && value && typeof value.url === "string" ? value.url : null;
+    const description = typeof value === "string"
+      ? value
+      : (typeof value === "object" && value && typeof value.description === "string" ? value.description : null);
+    const { error: writeErr } = await writeItem({ questId: id, item_key, url, description, source: "manual_ui" });
+    if (writeErr) {
+      return Response.json({ error: writeErr.message }, { status: 500 });
     }
     return Response.json({ ok: true });
   }

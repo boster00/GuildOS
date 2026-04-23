@@ -152,23 +152,27 @@ Never present raw agent output directly to the user without review.
       howTo: `
 Every completed chaperon engagement must produce a review task visible on \`/town/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
 
-[items workflow migration] The three-call orchestration below (createQuest + appendInventoryItem + recordQuestComment) will be replaced by a single helper \`writeReviewQuest({ title, description, items, summary })\` that handles the transaction. When that helper lands, replace the example here.
-
 \`\`\`javascript
-import { createQuest, appendInventoryItem, recordQuestComment } from "@/libs/quest";
+import { createQuest, writeItem, recordQuestComment } from "@/libs/quest";
 
+// 1. Create the review quest
 const { data: quest } = await createQuest({
-  userId, title: "Review: <what was done>",
+  userId,
+  title: "Review: <what was done>",
   description: "<summary of work and success criteria>",
   stage: "review",
 });
 
-await appendInventoryItem(quest.id, {
+// 2. Upsert each deliverable into the items table (UNIQUE(quest_id, item_key) enforces replace-not-pile-on)
+await writeItem({
+  questId: quest.id,
   item_key: "screenshot_1",
-  payload: { url: "https://...", description: "Login page after fix" },
+  url: "https://...",
+  description: "Login page after fix",
   source: "chaperon",
 });
 
+// 3. Post one hand-off comment at the quest level
 await recordQuestComment(quest.id, {
   source: "chaperon",
   action: "deliver",
@@ -176,6 +180,8 @@ await recordQuestComment(quest.id, {
   detail: { agentId: "bc-xxx", artifacts: ["screenshot_1", "screenshot_2"] },
 });
 \`\`\`
+
+**Per-item review notes (Cat annotating a specific screenshot):** use \`writeItemComment(itemId, { role, text })\` — quest-level comments (\`recordQuestComment\`) are a separate channel for hand-offs and major events.
 `,
     },
     handleFeedback: {
