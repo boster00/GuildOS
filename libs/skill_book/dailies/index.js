@@ -59,9 +59,11 @@ Periodically scan the "Insights buffer" section at the bottom of CLAUDE.md. For 
 `.trim(),
 
   triageEmailStep1: `
-**Goal:** from the filtered inbox view (unread, not already marked important, no Asana notifications), identify emails the user SHOULD look at and STAR them.
+**Goal:** from the filtered inbox view (unread, not already marked important, no Asana notifications), identify the highest-signal emails and STAR them.
 
 All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/weapon/gmail\` — that weapon is an MCP pointer with no runtime exports.
+
+**⛔ Do NOT chain into step 2.** Stop after this step and wait for the user to review the starred results before proceeding. The user must review between steps — never volunteer to run step 2 next.
 
 **Filter query:** \`-label:important in:unread in:inbox -asana\`
 **Browser reference (for manual review):** https://mail.google.com/mail/u/0/#search/-label%3Aimportant+in%3Aunread+in%3Ainbox+-asana
@@ -70,22 +72,24 @@ All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/we
 1. Search the inbox via MCP:
    \`mcp__gmail__search_emails { query: "-label:important in:unread in:inbox -asana", maxResults: 100 }\`
 
-2. For each message, apply the scoring rules from the \`gmail\` skill book (skip rules, score signals).
+2. For each message, apply scoring rules:
    - Skip shared mailboxes, automated reports, marketing, utility notices.
    - Score signals: wire transfers / invoices / POs (+10), Calendly events (+9), customer replies to quotes (+9), SalesIQ / live chat (+8), etc.
 
-3. Star the top ~2% by score (or a handful — this is pass 1, be selective, only "definitely worth a look"):
+3. Star the top ~2% by score (be selective — only "definitely worth a look" this pass):
    \`mcp__gmail__batch_modify_emails { messageIds: [...topScoringIds], addLabelIds: ["STARRED"] }\`
 
-4. Post a summary comment in the GuildOS quest (if running under a quest) or the PA thread: how many scanned, how many starred, 1-line reason per star.
+4. Report: how many scanned, how many starred, 1-line reason per star. Then stop.
 
-**Success criterion:** user's starred view shows a short, high-signal list to open first.
+**Success criterion:** user's starred view shows a short, high-signal must-read list.
 `.trim(),
 
   triageEmailStep2: `
-**Goal:** from the REMAINING unread emails in the inbox (everything pass 1 didn't star), identify emails the user could SKIP and mark them (label \`triage/skip\`).
+**Goal:** from the REMAINING unread emails (everything pass 1 didn't star), identify emails the user can skip and STAR them — so the user's starred view contains both must-reads and skippable emails for a single review pass.
 
 All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/weapon/gmail\`.
+
+**⛔ Do NOT chain into step 1.** This step must only be run after the user has reviewed step 1's output. Never volunteer to run step 1 before this step, and never volunteer to run this step immediately after step 1 — the user decides when to proceed.
 
 **Filter query:** \`in:unread in:inbox -label:starred\` (excludes what pass 1 already starred)
 
@@ -93,23 +97,18 @@ All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/we
 1. Search via MCP:
    \`mcp__gmail__search_emails { query: "in:unread in:inbox -label:starred", maxResults: 200 }\`
 
-2. For each message, decide SKIP / KEEP using the skip-signal rules from the \`gmail\` skill book:
-   - SKIP signals: shared mailbox sender (orders@/account@/support@/etc.), automated report (DMARC, Search Console, Bing Webmaster), utility (PG&E, energy), marketing / newsletter / webinar / conference (check for "unsubscribe" in body), "New Order #" notifications, no-reply@asana.com, kybc@kyinno.com.
+2. For each message, decide SKIP / KEEP using skip-signal rules:
+   - SKIP signals: shared mailbox sender (orders@/account@/support@/etc.), automated report (DMARC, Search Console, Bing Webmaster), utility (PG&E, energy), marketing / newsletter / webinar / conference, "New Order #" notifications, no-reply@asana.com, kybc@kyinno.com.
    - KEEP = default (don't touch). Only explicitly flag SKIP.
 
-3. Resolve the \`triage/skip\` label ID (create it if it doesn't exist):
-   \`mcp__gmail__get_or_create_label { name: "triage/skip" }\` → captures \`labelId\`.
+3. Star the SKIP emails in one batch:
+   \`mcp__gmail__batch_modify_emails { messageIds: [...skipIds], addLabelIds: ["STARRED"] }\`
 
-4. Apply it to SKIP messages in one batch:
-   \`mcp__gmail__batch_modify_emails { messageIds: [...skipIds], addLabelIds: [labelId] }\`
+4. Report: how many scanned, how many starred as skippable, rough category breakdown. Then stop.
 
-5. Post a summary: how many scanned, how many flagged to skip, rough category breakdown.
+**Success criterion:** starred view now contains both high-priority emails (from step 1) and low-priority/skippable ones (from this step) — user reviews the full starred list and acts on each.
 
-**Success criterion:** the remaining unread inbox shows only emails worth glancing at — the obvious clutter has been labeled out.
-
-**Do NOT delete or archive permanently in this pass.** Labeling gives the user a chance to sanity-check before pruning.
-
-**Note on scopes:** \`get_or_create_label\` requires broader scopes than the current refresh token has (\`gmail.readonly\` + \`gmail.modify\` only). If the call fails with a permission error, fall back to an existing label (e.g. STARRED on an "already triaged" variant) and surface the scope gap to the user — re-consent is a manual step.
+**Do NOT delete or archive permanently in this pass.**
 `.trim(),
 };
 
