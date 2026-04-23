@@ -2,6 +2,11 @@
  * BigQuery weapon — queries Google BigQuery via the REST API v2 (jobs.query).
  * Auth: GOOGLE_SERVICE_ACCOUNT in profiles.env_vars (service account JSON), falls back to process.env.
  */
+
+export const toc = {
+  searchDatasets: "Search BigQuery datasets available to the service account.",
+  readRecentEvents: "Read the most recent rows from a BigQuery table.",
+};
 import { getGoogleCredentials } from "@/libs/council/profileEnvVars";
 
 const BIGQUERY_API = "https://bigquery.googleapis.com/bigquery/v2";

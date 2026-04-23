@@ -3,6 +3,19 @@
  *
  * Auth: ASANA_ACCESS_TOKEN from profiles.env_vars or process.env.
  */
+
+export const toc = {
+  searchWorkspaces: "Search visible Asana workspaces for the authenticated user.",
+  searchProjects: "Search Asana projects by name or workspace.",
+  readProject: "Read a single Asana project by id.",
+  searchTasks: "Search Asana tasks across projects with filters.",
+  readTask: "Read full details of one Asana task.",
+  writeTask: "Create or update an Asana task (upsert).",
+  deleteTask: "Delete an Asana task.",
+  readSections: "Read sections of an Asana project.",
+  readComments: "Read stories/comments on an Asana task.",
+  writeComment: "Post a comment on an Asana task.",
+};
 import { database } from "@/libs/council/database";
 
 const API_BASE = "https://app.asana.com/api/1.0";

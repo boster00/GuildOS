@@ -1,3 +1,10 @@
+
+export const toc = {
+  searchContacts: "Search HighLevel CRM contacts.",
+  readContact: "Read a single HighLevel contact by id.",
+  searchOpportunities: "Search HighLevel pipeline opportunities.",
+  writeContact: "Create or update a HighLevel contact.",
+};
 import { database } from "@/libs/council/database";
 
 const BASE = "https://rest.gohighlevel.com/v1";

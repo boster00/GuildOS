@@ -3,6 +3,16 @@
  * Auth: GOOGLE_ID + GOOGLE_SECRET + GOOGLE_REFRESH_TOKEN
  *       Read from profiles.env_vars first, falls back to process.env.
  */
+
+export const toc = {
+  searchMessages: "Search Gmail messages using a query string.",
+  readMessage: "Read a Gmail message with full body content.",
+  writeMessageLabels: "Add or remove labels on Gmail messages.",
+  starMessage: "Star a single Gmail message.",
+  starMessages: "Star multiple Gmail messages.",
+  readProfile: "Read the authenticated user's Gmail profile.",
+  searchLabels: "Search Gmail labels for the authenticated user.",
+};
 import { getGoogleCredentials } from "@/libs/council/profileEnvVars";
 
 const GMAIL_API = "https://www.googleapis.com/gmail/v1";

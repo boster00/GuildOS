@@ -1,3 +1,7 @@
+
+export const toc = {
+  readSearch: "Read PubCompare search results via Browserclaw CDP (public site, no auth).",
+};
 import { ensureCdpChrome, executeSteps } from "@/libs/weapon/browserclaw/cdp";
 
 export async function readSearch({ query } = {}) {

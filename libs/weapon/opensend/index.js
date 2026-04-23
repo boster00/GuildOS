@@ -1,3 +1,8 @@
+
+export const toc = {
+  searchContacts: "Search Opensend contacts and nurture flow state.",
+  writeContact: "Create or update an Opensend contact.",
+};
 import { database } from "@/libs/council/database";
 
 const BASE = "https://app.opensend.com/api";

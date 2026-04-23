@@ -3,6 +3,10 @@
  * stdout. Uses exec() with a temp file for the prompt to avoid shell escaping issues
  * and environment quirks in the Next.js dev server.
  */
+
+export const toc = {
+  invoke: "Invoke Claude Code CLI as a subprocess with a prompt; returns stdout / raw output.",
+};
 import { exec } from "child_process";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";

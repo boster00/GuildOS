@@ -1,3 +1,9 @@
+
+export const toc = {
+  readAccount: "Read the Google Merchant Center account info.",
+  readProducts: "Read products from the Merchant Center feed.",
+  readOrders: "Read orders from the Merchant Center.",
+};
 import { getGoogleCredentials } from "@/libs/council/profileEnvVars";
 import { database } from "@/libs/council/database";
 

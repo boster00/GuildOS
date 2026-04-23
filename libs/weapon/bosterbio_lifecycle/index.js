@@ -10,6 +10,12 @@
  *   writeEnrichment — write HTML enrichment back to the genes table
  */
 
+
+export const toc = {
+  readGenes: "Read gene records from the BosterBio lifecycle DB.",
+  readGene: "Read a single gene record by id.",
+  writeEnrichment: "Write an enrichment record to the BosterBio lifecycle DB.",
+};
 import { database } from "@/libs/council/database";
 
 const BAPI_BASE = process.env.BOSTERBIO_BAPI_URL || "https://www.bosterbio.com/";

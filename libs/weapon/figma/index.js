@@ -4,6 +4,15 @@
  *
  * Auth: FIGMA_ACCESS_TOKEN from profiles.env_vars or process.env.
  */
+
+export const toc = {
+  readFile: "Read a Figma file's document tree.",
+  readNodes: "Read specific nodes from a Figma file by id.",
+  readExport: "Export images of Figma nodes (PNG/SVG/etc).",
+  searchProjects: "Search Figma projects within a team.",
+  searchFiles: "Search Figma files within a project.",
+  readComments: "Read comments on a Figma file.",
+};
 import { database } from "@/libs/council/database";
 
 const API_BASE = "https://api.figma.com/v1";

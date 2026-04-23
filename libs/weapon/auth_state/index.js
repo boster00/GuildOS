@@ -5,6 +5,14 @@
  * Used by cloud agents that can't connect to the local CDP Chrome.
  * Default state file: playwright/.auth/user.json
  */
+
+export const toc = {
+  readState: "Read the Playwright auth state for a named service.",
+  searchServices: "Search stored auth-state services by name.",
+  writeState: "Write a Playwright auth state blob for a service.",
+  readExpiryStatus: "Read the auth-state expiry status (fresh / stale).",
+  deleteState: "Delete a stored auth state for a service.",
+};
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 

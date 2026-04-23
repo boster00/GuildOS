@@ -6,6 +6,11 @@
  *
  * Default server: imappro.zoho.com:993 (Zoho Mail Pro)
  */
+
+export const toc = {
+  readMessages: "Read messages from an IMAP mailbox (e.g. Zoho Mail Pro).",
+  searchAccounts: "Search configured IMAP accounts for the user.",
+};
 import { ImapFlow } from "imapflow";
 import { database } from "@/libs/council/database";
 

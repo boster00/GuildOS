@@ -1,3 +1,10 @@
+
+export const toc = {
+  searchCampaigns: "Search Smartlead cold-email campaigns.",
+  readCampaign: "Read a single Smartlead campaign.",
+  readLeads: "Read leads in a Smartlead campaign.",
+  readAnalytics: "Read Smartlead campaign analytics.",
+};
 import { database } from "@/libs/council/database";
 
 const BASE = "https://server.smartlead.ai/api/v1";

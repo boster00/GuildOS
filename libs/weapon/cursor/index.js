@@ -5,6 +5,16 @@
  * Endpoint: https://api.cursor.com/v0/agents
  * Model: composer-2.0 (cheapest in-house model)
  */
+
+export const toc = {
+  readAgent: "Read a Cursor cloud agent's status and metadata.",
+  readConversation: "Read a Cursor agent's full conversation history.",
+  writeFollowup: "Send a followup message to a Cursor agent (push-based dispatch).",
+  searchAgents: "Search Cursor agents (wraps readAgent; API has no list endpoint).",
+  readQueuedMessages: "Read queued user messages sent after the last assistant reply.",
+  writeAgent: "Create a new Cursor cloud agent for a given repository.",
+  readEnvSetupInstructions: "Generate an env setup script to bootstrap a fresh Cursor agent session.",
+};
 import { database } from "@/libs/council/database";
 
 const API_BASE = "https://api.cursor.com/v0/agents";

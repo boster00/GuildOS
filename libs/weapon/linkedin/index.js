@@ -1,3 +1,8 @@
+
+export const toc = {
+  searchProfiles: "Search LinkedIn profiles via Browserclaw CDP (requires authenticated profile).",
+  readProfile: "Read a single LinkedIn profile by URL.",
+};
 import { ensureCdpChrome, executeSteps } from "@/libs/weapon/browserclaw/cdp";
 
 export async function searchProfiles({ query, limit = 10 } = {}) {

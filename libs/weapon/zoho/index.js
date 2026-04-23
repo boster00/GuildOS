@@ -6,6 +6,15 @@
  * Auth: User identity resolves via adventurer execution context first, then Next.js requireUser.
  * This lets the weapon work in both execution context (cron/scripts) and HTTP handlers.
  */
+
+export const toc = {
+  searchBooks: "Search a Zoho Books module (sales orders, invoices, bills, contacts, quotes).",
+  searchCrm: "Search a Zoho CRM module (leads, deals, contacts, accounts).",
+  readMailAccounts: "Read Zoho Mail accounts for the authenticated user.",
+  readMailMessages: "Read recent messages from the authenticated Zoho Mail inbox.",
+  readWeaponStatus: "Read the Zoho weapon's auth/credential status for the current user.",
+  readOrganizationId: "OAuth setup only: fetch the org id after exchanging the code.",
+};
 import { getZohoBooksAppCredentials } from "@/libs/council/profileEnvVars";
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";

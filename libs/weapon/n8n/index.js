@@ -1,3 +1,10 @@
+
+export const toc = {
+  searchWorkflows: "Search N8N workflows.",
+  readWorkflow: "Read a single N8N workflow definition.",
+  writeExecution: "Trigger an N8N workflow execution.",
+  readExecutions: "Read recent executions for a workflow.",
+};
 import { database } from "@/libs/council/database";
 
 async function loadConfig(userId) {

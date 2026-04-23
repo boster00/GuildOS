@@ -9,6 +9,15 @@
  *         cloud agent artifacts use channel="cursor_cloud"
  * - Retention: 30 days (enforced via bucket lifecycle policy or manual cleanup)
  */
+
+export const toc = {
+  buildPath: "Build a canonical storage path: {channel}/{questId}/{filename}.",
+  writeFile: "Upload a file buffer to Supabase Storage.",
+  readPublicUrl: "Get the public URL for a stored file.",
+  readFile: "Download a file from Supabase Storage.",
+  searchFiles: "Search files in a storage path.",
+  deleteFiles: "Delete files from Supabase Storage.",
+};
 import { database } from "@/libs/council/database";
 
 const DEFAULT_BUCKET = "GuildOS_Bucket";

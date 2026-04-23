@@ -1,3 +1,10 @@
+
+export const toc = {
+  readBalance: "Read the Stripe account balance.",
+  readCharges: "Read recent Stripe charges.",
+  readCustomers: "Read Stripe customers.",
+  readSubscriptions: "Read Stripe subscriptions.",
+};
 import { database } from "@/libs/council/database";
 
 const BASE = "https://api.stripe.com/v1";

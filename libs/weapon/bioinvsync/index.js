@@ -8,6 +8,12 @@
  * Requires Pageant to be running with the key loaded for non-interactive use.
  * Start Pageant: C:\Program Files\PuTTY\pageant.exe C:\Users\xsj70\bioinvsync.ppk
  */
+
+export const toc = {
+  executeCommand: "Execute a shell command on the bioinvsync host over SSH.",
+  readRemoteFile: "Read a file from the bioinvsync host.",
+  searchFiles: "Search files on the bioinvsync host.",
+};
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 

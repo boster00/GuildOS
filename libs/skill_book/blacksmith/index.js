@@ -101,6 +101,26 @@ The project root is the current working directory. Use ES module syntax (import/
 - When adding an action to an existing skill book, only add a new key to its toc and a new top-level prompt string — do not add functions
 - Follow the patterns in existing files exactly
 
+## Weapon TOC (required for every weapon)
+Every weapon MUST export a \`toc\` constant at the top of its \`index.js\`. It maps each agent-facing exported function to a one-line description. Used by agents to discover capabilities at boot without reading the whole file.
+
+\`\`\`javascript
+export const toc = {
+  searchTasks: "Search Asana tasks across projects with filters.",
+  readTask: "Read full details of a single Asana task by id.",
+  writeTask: "Create or update an Asana task (upsert semantics).",
+};
+\`\`\`
+
+Rules:
+- **Include:** only agent-facing exports — functions an adventurer might call for a quest.
+- **Exclude:** internal plumbing (token acquisition, auth refresh, URL builders, path helpers). Per discipline rule 11, these are invisible to agents.
+- **Shape:** \`{ functionName: "one-line description" }\`. Description starts with a verb, only add detail that disambiguates alternatives.
+- **Location:** top of \`index.js\`, immediately after the module JSDoc. Exported constant so registry scripts can read it.
+- **Naming:** function names follow the six-verb rule (read/write/delete/search/transform/normalize). Banned synonyms: get/fetch/load/list/find/create/update.
+
+If the weapon wraps multiple resources that share a shape, parameterize one function (e.g. \`search({ module, query })\`) rather than adding per-entity variants.
+
 ## Discipline
 Follow the "Skill book + weapon discipline" section in CLAUDE.md — especially the six-verb action naming rule and the line-of-responsibility split between weapons and skill books.
 

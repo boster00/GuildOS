@@ -5,6 +5,14 @@
  * - Letters live in the `pigeon_letters` table (status, payload, quest_id).
  * - Delivered results become rows in the `items` table (upsert on quest_id + item_key).
  */
+
+export const toc = {
+  buildPigeonLetterPayload: "Build a single-step pigeon letter payload (legacy shape).",
+  buildPigeonLetterFromPartials: "Build a multi-step pigeon letter from an array of action partials.",
+  replacePigeonLetters: "Replace pending pigeon letters for a quest with one new multi-step letter.",
+  writePigeonLetter: "Convenience: replace pigeon letters with a single letter.",
+  deliverPigeonResult: "Upsert delivered items into the items table and mark the pigeon letter completed.",
+};
 import { randomUUID } from "node:crypto";
 import { writeItem, recordQuestComment } from "@/libs/quest/index.js";
 import { publicTables } from "@/libs/council/publicTables";

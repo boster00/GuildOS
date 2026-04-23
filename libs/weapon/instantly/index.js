@@ -1,3 +1,10 @@
+
+export const toc = {
+  searchCampaigns: "Search Instantly cold-email campaigns.",
+  readCampaign: "Read a single Instantly campaign by id.",
+  readAnalytics: "Read Instantly campaign analytics.",
+  readLeads: "Read leads in an Instantly campaign.",
+};
 import { database } from "@/libs/council/database";
 
 const BASE = "https://api.instantly.ai/api/v1";

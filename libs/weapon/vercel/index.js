@@ -4,6 +4,19 @@
  *
  * Auth: VERCEL_API_KEY from profiles.env_vars or process.env.
  */
+
+export const toc = {
+  searchProjects: "Search Vercel projects for the team.",
+  readProject: "Read a single Vercel project by id.",
+  searchDeployments: "Search Vercel deployments for a project.",
+  readDeployment: "Read a single Vercel deployment by id.",
+  searchDomains: "Search Vercel domains.",
+  searchEnvVars: "Search Vercel environment variables for a project.",
+  writeEnvVar: "Create or update a Vercel environment variable.",
+  redeploy: "Trigger a Vercel redeploy of a project.",
+  readUser: "Read the authenticated Vercel user profile.",
+  searchTeams: "Search Vercel teams the user belongs to.",
+};
 import { database } from "@/libs/council/database";
 
 const API_BASE = "https://api.vercel.com";

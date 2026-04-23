@@ -1,3 +1,9 @@
+
+export const toc = {
+  readDomainOverview: "Read the SEMRush overview for a domain.",
+  searchKeywords: "Search SEMRush keyword data for a domain or seed.",
+  readBacklinks: "Read SEMRush backlinks for a domain.",
+};
 import { database } from "@/libs/council/database";
 
 const BASE = "https://api.semrush.com";

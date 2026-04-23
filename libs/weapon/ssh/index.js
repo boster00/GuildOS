@@ -4,6 +4,12 @@
  * Uses system SSH (no npm deps). Requires passwordless SSH keys to be set up.
  * Known hosts are configured in profiles.env_vars as SSH_HOSTS JSON.
  */
+
+export const toc = {
+  executeCommand: "Execute a shell command on a remote host via SSH.",
+  searchHosts: "Search configured SSH hosts.",
+  readRemoteFile: "Read a file from a remote host over SSH.",
+};
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { database } from "@/libs/council/database";
