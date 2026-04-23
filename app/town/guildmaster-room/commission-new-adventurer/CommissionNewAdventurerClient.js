@@ -9,7 +9,7 @@ import {
   getDefaultDraft,
   isRecruitReady,
   mergeDraftPatch,
-} from "@/libs/proving_grounds/ui.js";
+} from "@/libs/adventurer_runtime/ui.js";
 
 function FieldCheckLabel({ fieldId, column, required, checks }) {
   const ok = Boolean(checks[fieldId]);

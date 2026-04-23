@@ -1,7 +1,7 @@
 import { requireUser } from "@/libs/council/auth/server";
 import { database } from "@/libs/council/database";
-import { recruitAdventurer, updateAdventurer, decommissionAdventurer } from "@/libs/proving_grounds/server.js";
-import { isRecruitReady } from "@/libs/proving_grounds/ui.js";
+import { recruitAdventurer, updateAdventurer, decommissionAdventurer } from "@/libs/adventurer_runtime/server.js";
+import { isRecruitReady } from "@/libs/adventurer_runtime/ui.js";
 import { updateAdventurerSession, selectAdventurerForOwner } from "@/libs/council/database/serverAdventurer.js";
 import { writeFollowup, readConversation, readAgent } from "@/libs/weapon/cursor/index.js";
 import { readFileSync } from "fs";

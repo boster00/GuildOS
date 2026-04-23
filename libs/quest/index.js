@@ -14,8 +14,8 @@ import {
   insertSubQuest,
   selectQuestCommentsForQuest,
 } from "@/libs/council/database/serverQuest.js";
-import { listAdventurers } from "@/libs/proving_grounds/server.js";
-import { getGlobalAssigneeMeta } from "@/libs/proving_grounds/ui.js";
+import { listAdventurers } from "@/libs/adventurer_runtime/server.js";
+import { getGlobalAssigneeMeta } from "@/libs/adventurer_runtime/ui.js";
 
 export { inventoryRawToMap, inventoryToDisplayRows } from "./inventoryMap.js";
 
@@ -550,7 +550,7 @@ export async function deleteItem(questId, itemKey, { client: injected } = {}) {
  * Quest-side entry: resolve assignee → {@link Adventurer#advance}. Use from cron, HTTP, or tools instead of pulling batches inside adventurer.
  */
 export async function advance(quest, opts) {
-  const { advanceQuest } = await import("@/libs/proving_grounds/server.js");
+  const { advanceQuest } = await import("@/libs/adventurer_runtime/server.js");
   return advanceQuest(quest, opts ?? {});
 }
 

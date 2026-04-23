@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/libs/council/auth/server";
-import { getAdventurerForOwner, adventurerRowToDraft } from "@/libs/proving_grounds";
+import { getAdventurerForOwner, adventurerRowToDraft } from "@/libs/adventurer_runtime";
 import AdventurerEditClient from "./AdventurerEditClient.js";
 
 export async function generateMetadata({ params }) {

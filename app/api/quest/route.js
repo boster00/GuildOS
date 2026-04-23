@@ -75,7 +75,7 @@ export async function POST(request) {
     const db = await database.init("server");
     const questId = (actionBody && typeof actionBody.questId === "string" ? actionBody.questId : "").trim();
     if (!questId) return Response.json({ ok: false, error: "questId is required" }, { status: 400 });
-    const { advanceQuest } = await import("@/libs/proving_grounds/server.js");
+    const { advanceQuest } = await import("@/libs/adventurer_runtime/server.js");
     const result = await advanceQuest({ questId, ownerId: user.id, client: db });
     return Response.json(result);
   }

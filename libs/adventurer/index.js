@@ -1,6 +1,6 @@
 /**
  * Adventurer runtime — execution scope (`advance.js`) + innate actions.
- * Roster, UI registry, and server helpers live under `@/libs/proving_grounds`.
+ * Roster, UI registry, and server helpers live under `@/libs/adventurer_runtime`.
  *
  * [innate-actions deprecation] Both `doNextAction` and `boast` are obsolete — agents now
  * decide and perform actions natively from skill books / weapons. They remain here for
@@ -36,7 +36,7 @@ export async function doNextAction(quest, ctx) {
     };
   }
 
-  const { advanceQuest } = await import("@/libs/proving_grounds/server.js");
+  const { advanceQuest } = await import("@/libs/adventurer_runtime/server.js");
   return advanceQuest(quest, ctx);
 }
 

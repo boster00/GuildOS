@@ -4,7 +4,7 @@
  */
 import { runWithAdventurerExecutionContext } from "@/libs/adventurer/advance.js";
 import { selectAdventurerForOwner } from "@/libs/council/database/serverAdventurer.js";
-import { getDefaultDraft, mergeDraftPatch, normalizeAdventurerRow } from "@/libs/proving_grounds/ui.js";
+import { getDefaultDraft, mergeDraftPatch, normalizeAdventurerRow } from "@/libs/adventurer_runtime/ui.js";
 import { getQuestForOwner } from "@/libs/quest";
 import { getSkillBook, listSkillBooksForLibrary, filterValidSkillBookNames } from "@/libs/skill_book";
 

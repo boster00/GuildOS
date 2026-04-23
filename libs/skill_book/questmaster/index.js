@@ -492,7 +492,7 @@ export async function selectAdventurer(userId, { quest, client }) {
     return { data: null, error: new Error("selectAdventurer: request text is too short.") };
   }
 
-  const { listAdventurers } = await import("@/libs/proving_grounds/server.js");
+  const { listAdventurers } = await import("@/libs/adventurer_runtime/server.js");
   const { data: roster, error: rosterErr } = await listAdventurers(userId, { client });
   if (rosterErr) {
     return { data: null, error: rosterErr };
