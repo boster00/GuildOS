@@ -1,5 +1,8 @@
 # GuildOS — Claude Code Guide
 
+## Work on main. No ad-hoc branches.
+All ad-hoc changes — refactors, fixes, weapon/skill-book edits, CLAUDE.md updates — commit directly to `main`. Do not create feature branches or worktrees for this work. Branches fragment state and hide changes from other agents. If you're on a non-main branch, switch back before committing.
+
 ## Priority hierarchy
 When instructions conflict, follow this order:
 1. **Project-specific system_prompt** (highest — actively managed, most specific)
