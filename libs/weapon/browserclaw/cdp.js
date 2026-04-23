@@ -1,15 +1,16 @@
 /**
- * Browserclaw CDP weapon — DEPRECATED for local Claude use.
+ * Browserclaw CDP weapon — headless scraper infrastructure.
  *
- * Local Claude (Guildmaster / PA / Claude Code CLI) should use Claude-in-Chrome
- * MCP tools (`mcp__Claude_in_Chrome__*`) for ALL browser work. See
- * docs/browser-automation-guideline.md and libs/skill_book/browsercontrol.
+ * Use cases (NOT for agent-driven browsing):
+ *  - Server-side headless scrapers that run deterministically: `libs/weapon/linkedin`,
+ *    `libs/weapon/pubcompare`. These are weapons in the strict sense — no agent in
+ *    the loop, scripted selectors, batch execution.
+ *  - Not for local Claude's interactive browsing (use Claude-in-Chrome MCP instead).
+ *  - Not reachable from cloud Cursor agents (port 9222 is local-only).
  *
- * Cloud Cursor agents drive their own VM's Playwright natively and do not use
- * this weapon either (port 9222 is not reachable from the cloud).
- *
- * Retained only for legacy pigeon-post pipeline scripts that haven't been
- * ported. Do not introduce new callers.
+ * Architecture: Chrome persistent profile at `~/.guildos-cdp-profile` on port 9222.
+ * `ensureCdpChrome()` spawns Chrome if not already running; `executeSteps(steps)` drives it.
+ * Auth cookies from `playwright/.auth/user.json` are injected on fresh launch.
  */
 
 import { chromium } from "playwright-core";
