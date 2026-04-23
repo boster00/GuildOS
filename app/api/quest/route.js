@@ -85,7 +85,7 @@ export async function POST(request) {
     const db = await database.init("server");
     const { data: quests } = await db
       .from("quests")
-      .select("id, title, description, inventory, assigned_to, assignee_id")
+      .select("id, title, description, assigned_to, assignee_id")
       .eq("owner_id", user.id)
       .eq("stage", "escalated");
 
@@ -305,10 +305,13 @@ export async function PATCH(request) {
   } else if (body.due_date !== undefined) {
     updates.dueDate = body.due_date === null || body.due_date === "" ? null : body.due_date;
   }
-  if (body.inventory !== undefined) {
-    updates.inventory = body.inventory;
-  } else if (body.items !== undefined) {
-    updates.items = body.items;
+  // Inventory/items PATCH is no longer supported — inventory moved to the `items` table.
+  // Callers should PATCH via ?action=addItem (single) or call writeItem directly via libs/quest.
+  if (body.inventory !== undefined || body.items !== undefined) {
+    return Response.json(
+      { error: "Inventory/items PATCH removed. Use ?action=addItem (one at a time) or libs/quest writeItem." },
+      { status: 400 },
+    );
   }
   if (body.nextSteps !== undefined) {
     updates.nextSteps = body.nextSteps;

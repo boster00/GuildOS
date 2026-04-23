@@ -3,75 +3,42 @@
  */
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
-// [items workflow migration] pigeon_letters currently piggybacks on quests.inventory JSONB via a reserved key.
-// After migration, pigeon letters should live in their own table or be ported to quest_items with a `kind=pigeon_letter` column — decide when the migration starts.
-import { inventoryRawToMap, PIGEON_LETTERS_KEY } from "@/libs/quest/inventoryMap.js";
 import { pigeonLetterHasPendingWork } from "./letterSteps.js";
 
-/** Same as `pigeon_letters` map key; kept for callers that imported this name. */
-export const PIGEON_POST_ITEM_KEY = PIGEON_LETTERS_KEY;
+/** Legacy constant — kept for callers that imported this name; now only used as a display key. */
+export const PIGEON_POST_ITEM_KEY = "pigeon_letters";
 
 export { normalizePigeonLetterSteps, pigeonLetterHasPendingWork } from "./letterSteps.js";
 
 /**
  * Pending pigeon letters across all quests for this owner (any stage).
- * Sources: (1) legacy `quests.inventory` pigeon_letters entries, (2) `pigeon_letters` table rows with status='pending'.
+ * Source: `pigeon_letters` table rows with status='pending'.
  * @param {string} userId
  * @returns {Promise<Array<{ questId: string, questTitle: string, questStage: string, letters: object[] }>>}
  */
 export async function getPendingPigeonLetters(userId) {
   const db = await database.init("service");
 
-  // --- Source 1: legacy inventory-embedded letters ---
-  const { data: quests, error } = await db
+  // Load quest titles/stages for context
+  const { data: quests } = await db
     .from(publicTables.quests)
-    .select("id, title, stage, inventory")
+    .select("id, title, stage")
     .eq("owner_id", userId);
+
+  const questLookup = new Map();
+  for (const q of quests || []) questLookup.set(q.id, q);
 
   /** @type {Map<string, { questId: string, questTitle: string, questStage: string, letters: object[] }>} */
   const byQuest = new Map();
 
-  if (!error && quests) {
-    for (const quest of quests) {
-      const map = inventoryRawToMap(quest.inventory);
-      const keysDelivered = new Set(Object.keys(map).filter((k) => k !== PIGEON_LETTERS_KEY));
-      const pigeonEntry = map[PIGEON_LETTERS_KEY];
-      const rawLetters = Array.isArray(pigeonEntry)
-        ? pigeonEntry
-        : Array.isArray(pigeonEntry?.letters)
-          ? pigeonEntry.letters
-          : Array.isArray(pigeonEntry?.payload?.letters)
-            ? pigeonEntry.payload.letters
-            : [];
-      for (const letter of rawLetters) {
-        if (!letter || typeof letter !== "object") continue;
-        if (!pigeonLetterHasPendingWork(letter, keysDelivered)) continue;
-        const entry = byQuest.get(quest.id) ?? {
-          questId: quest.id,
-          questTitle: quest.title ?? "",
-          questStage: quest.stage != null ? String(quest.stage) : "",
-          letters: [],
-        };
-        entry.letters.push({ ...letter, questId: quest.id });
-        byQuest.set(quest.id, entry);
-      }
-    }
-  }
-
-  // --- Source 2: pigeon_letters table (pending rows) ---
+  // Pending pigeon letters from the dedicated table
   const { data: rows, error: plErr } = await db
-    .from("pigeon_letters")
+    .from(publicTables.pigeonLetters)
     .select("id, quest_id, payload, channel, metadata")
     .eq("owner_id", userId)
     .eq("status", "pending");
 
   if (!plErr && rows) {
-    // Build a quest-id → title/stage lookup from already-loaded quests
-    const questLookup = new Map();
-    if (quests) {
-      for (const q of quests) questLookup.set(q.id, q);
-    }
-
     for (const row of rows) {
       const qid = row.quest_id;
       const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
@@ -81,7 +48,10 @@ export async function getPendingPigeonLetters(userId) {
         questId: qid,
         channel: row.channel,
       };
-
+      // Filter out letters whose steps already have delivered items (using item key).
+      // After the items-table migration, we no longer cross-reference JSONB inventory here;
+      // the letter's own `status` column is the source of truth.
+      if (!pigeonLetterHasPendingWork(letter, new Set())) continue;
       const entry = byQuest.get(qid) ?? {
         questId: qid,
         questTitle: questLookup.get(qid)?.title ?? "",

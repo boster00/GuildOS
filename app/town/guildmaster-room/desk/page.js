@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { MerchantGuildExplain } from "@/components/MerchantGuildExplain";
 import { database } from "@/libs/council/database";
-import { inventoryRawToMap } from "@/libs/quest/inventoryMap.js";
+import { inventoryRawToMap } from "@/libs/quest";
 import DeskReviewClient from "./DeskReviewClient";
 
 export const metadata = {

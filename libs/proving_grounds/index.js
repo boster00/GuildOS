@@ -5,7 +5,7 @@
 import { runWithAdventurerExecutionContext } from "@/libs/adventurer/advance.js";
 import { selectAdventurerForOwner } from "@/libs/council/database/serverAdventurer.js";
 import { getDefaultDraft, mergeDraftPatch, normalizeAdventurerRow } from "@/libs/proving_grounds/ui.js";
-import { inventoryRawToMap, PIGEON_LETTERS_KEY, getQuestForOwner } from "@/libs/quest";
+import { getQuestForOwner } from "@/libs/quest";
 import { getSkillBook, listSkillBooksForLibrary, filterValidSkillBookNames } from "@/libs/skill_book";
 
 export function listSkillBooksForProvingGrounds() {
@@ -88,41 +88,20 @@ function mergeProvingGroundsIntoAdventurerProfile(row, overlays = {}) {
 }
 
 /**
- * Map DB quest row to the shape used by skill actions (`inventory` as `{ key, value }[]`).
+ * Map DB quest row to the shape used by skill actions. After the items-table migration,
+ * inventory is loaded from the items table separately (via loadQuest in libs/quest) and
+ * passed in as `row.items`. This function wraps it into the { key, value, item_key, payload } shape.
  * @param {Record<string, unknown>} row
  */
 function normalizeQuestRowForAdventurer(row) {
   if (!row || typeof row !== "object") return row;
-  const inv = [];
-  const map = inventoryRawToMap(row.inventory != null ? row.inventory : row.items);
-  for (const [k, val] of Object.entries(map)) {
-    if (k === PIGEON_LETTERS_KEY && Array.isArray(val)) {
-      for (const letter of val) {
-        inv.push({
-          key: PIGEON_LETTERS_KEY,
-          value: letter,
-          item_key: PIGEON_LETTERS_KEY,
-          payload: letter,
-        });
-      }
-    } else if (k === PIGEON_LETTERS_KEY && val && typeof val === "object" && Array.isArray(val.letters)) {
-      for (const letter of val.letters) {
-        inv.push({
-          key: PIGEON_LETTERS_KEY,
-          value: letter,
-          item_key: PIGEON_LETTERS_KEY,
-          payload: letter,
-        });
-      }
-    } else {
-      inv.push({
-        key: k,
-        value: val,
-        item_key: k,
-        payload: val,
-      });
-    }
-  }
+  const itemsArr = Array.isArray(row.items) ? row.items : [];
+  const inv = itemsArr.map((it) => ({
+    key: it.item_key,
+    value: { url: it.url, description: it.description, source: it.source },
+    item_key: it.item_key,
+    payload: { url: it.url, description: it.description, source: it.source },
+  }));
   return { ...row, inventory: inv };
 }
 

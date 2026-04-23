@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { database } from "@/libs/council/database";
-import { inventoryRawToMap } from "@/libs/quest/inventoryMap.js";
+import { inventoryRawToMap } from "@/libs/quest";
 import DeskReviewClient from "./desk/DeskReviewClient";
 
 export const metadata = {

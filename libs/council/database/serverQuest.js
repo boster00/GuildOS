@@ -49,7 +49,7 @@ export async function updateQuestRow(questId, updates, { client: injected } = {}
     .update(updates)
     .eq("id", questId)
     .select(
-      "id, title, description, deliverables, due_date, stage, assignee_id, assigned_to, inventory, execution_plan, next_steps",
+      "id, title, description, deliverables, due_date, stage, assignee_id, assigned_to, execution_plan, next_steps",
     )
     .single();
 }

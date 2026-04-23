@@ -157,9 +157,7 @@ export async function advanceQuest(quest, opts) {
   // ── execute: invoke Claude CLI via the claudecli weapon ──
   if (stage === "execute") {
     const { invoke: invokeClaudeCLI } = await import("@/libs/weapon/claudecli/index.js");
-    // [items workflow migration] the per-item appendInventoryItem loop below should become a single
-    // writeQuestItems(questId, [{item_key, url?, description?, ...}]) call that upserts into quest_items.
-    const { appendInventoryItem } = await import("@/libs/quest/index.js");
+    const { writeItem } = await import("@/libs/quest/index.js");
 
     const questTitle = String(quest.title ?? "").trim();
 
@@ -195,10 +193,12 @@ export async function advanceQuest(quest, opts) {
       }
     }
 
-    // Save items to inventory
+    // Save items to the items table
     if (Object.keys(resultItems).length > 0) {
       for (const [k, v] of Object.entries(resultItems)) {
-        await appendInventoryItem(questId, { item_key: k, payload: v, source: advRow.name }, { client });
+        const url = typeof v === "object" && v && typeof v.url === "string" ? v.url : null;
+        const description = typeof v === "string" ? v : (typeof v === "object" && v && typeof v.description === "string" ? v.description : JSON.stringify(v));
+        await writeItem({ questId, item_key: k, url, description, source: advRow.name }, { client });
       }
       await recordQuestComment(questId, {
         source: advRow.name,
@@ -227,85 +227,6 @@ export async function advanceQuest(quest, opts) {
   }
 
   return { ok: true, advanced: false, stage, note: `No advance logic for stage "${stage}" with adventurer "${advRow.name}"` };
-}
-
-// ---------------------------------------------------------------------------
-// runQuestToCompletion — loops advanceQuest until completed or maxSteps
-// ---------------------------------------------------------------------------
-
-/**
- * Advance a quest to completion (or until maxSteps is reached).
- * Returns logs for each step and the final HTML report if one was written to inventory.
- *
- * @param {string} questId
- * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient, maxSteps?: number }} opts
- * @returns {Promise<{ ok: boolean, finalStage: string, logs: Array<Record<string, unknown>>, html: string }>}
- */
-export async function runQuestToCompletion(questId, { client, maxSteps = 40 }) {
-  const { getQuest } = await import("@/libs/quest/index.js");
-  const { inventoryRawToMap } = await import("@/libs/quest/inventoryMap.js");
-  /** @type {Array<Record<string, unknown>>} */
-  const logs = [];
-  let ok = true;
-  let html = "";
-
-  // Queue of quest IDs to advance (parent first, then children as they appear)
-  const queue = [questId];
-  let totalSteps = 0;
-
-  while (queue.length > 0 && totalSteps < maxSteps) {
-    const currentQuestId = queue[0];
-
-    const { data: quest, error: loadErr } = await getQuest(currentQuestId, { client });
-    if (loadErr || !quest) {
-      logs.push({ step: totalSteps, questId: currentQuestId, error: loadErr?.message || "Quest not found" });
-      ok = false;
-      queue.shift();
-      continue;
-    }
-
-    const stage = String(quest.stage ?? "");
-    if (stage === "completed") {
-      queue.shift();
-      continue;
-    }
-
-    const result = await advanceQuest(quest, { client });
-    logs.push({ step: totalSteps, questId: currentQuestId, questTitle: String(quest.title ?? "").slice(0, 60), ...result });
-    totalSteps++;
-
-    if (!result.ok) {
-      ok = false;
-      break;
-    }
-
-    // If this advance spawned a child quest, add it to the front of the queue
-    // so we resolve dependencies before continuing the parent
-    const childId = result.detail?.childQuestId;
-    if (childId && typeof childId === "string") {
-      queue.unshift(childId);
-    }
-  }
-
-  // Scan all completed quests for the HTML report (deepest child likely has it)
-  for (const qid of [questId, ...queue]) {
-    const { data: q } = await getQuest(qid, { client });
-    if (!q) continue;
-    const inv = inventoryRawToMap(q.inventory);
-    if (typeof inv.report_html === "string" && inv.report_html) {
-      html = inv.report_html;
-      break;
-    }
-    if (typeof inv.html === "string" && inv.html) {
-      html = inv.html;
-      break;
-    }
-  }
-
-  const { data: rootQuest } = await getQuest(questId, { client });
-  const finalStage = String(rootQuest?.stage ?? "");
-
-  return { ok, finalStage, logs, html };
 }
 
 // ---------------------------------------------------------------------------

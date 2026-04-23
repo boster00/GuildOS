@@ -147,19 +147,7 @@ export async function POST(request) {
       return Response.json({ error: "Quest not found" }, { status: 404 });
     }
 
-    console.info(`${LOG} POST deliver: quest loaded`, {
-      questId,
-      owner_id: quest.owner_id,
-      stage: quest.stage,
-      inventoryShape:
-        quest.inventory == null
-          ? "null"
-          : Array.isArray(quest.inventory)
-            ? `array(len=${quest.inventory.length})`
-            : typeof quest.inventory === "object"
-              ? `map(keys=${Object.keys(quest.inventory).join(",")})`
-              : typeof quest.inventory,
-    });
+    console.info(`${LOG} POST deliver: quest loaded`, { questId, owner_id: quest.owner_id, stage: quest.stage });
 
     if (userId && quest.owner_id !== userId) {
       console.warn(`${LOG} POST deliver: rejected — 403 owner mismatch`, {

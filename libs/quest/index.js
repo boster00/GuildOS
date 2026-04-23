@@ -17,7 +17,7 @@ import {
 import { listAdventurers } from "@/libs/proving_grounds/server.js";
 import { getGlobalAssigneeMeta } from "@/libs/proving_grounds/ui.js";
 
-export { inventoryRawToMap, inventoryToDisplayRows, PIGEON_LETTERS_KEY } from "./inventoryMap.js";
+export { inventoryRawToMap, inventoryToDisplayRows } from "./inventoryMap.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -166,7 +166,7 @@ export async function readRecentCommentThread(questId, { client: injected } = {}
 
 export async function updateQuest(
   questId,
-  { title, description, deliverables, dueDate, stage, assigneeId, inventory, items, nextSteps },
+  { title, description, deliverables, dueDate, stage, assigneeId, nextSteps },
   { client: injected } = {},
 ) {
   const updates = {};
@@ -181,8 +181,6 @@ export async function updateQuest(
     updates.stage = stage;
   }
   if (assigneeId !== undefined) updates.assignee_id = assigneeId;
-  if (inventory !== undefined) updates.inventory = inventory;
-  else if (items !== undefined) updates.inventory = items;
   if (nextSteps !== undefined) updates.next_steps = nextSteps;
 
   if (Object.keys(updates).length === 0) {
@@ -373,19 +371,12 @@ export async function advanceToNextStep(questId, { client }) {
   const [next, ...rest] = steps;
   const nextObj = typeof next === "string" ? { title: next } : (next && typeof next === "object" ? next : {});
 
-  // Merge inventory: current quest items take priority
-  let mergedInventory = quest.inventory;
-  if (nextObj.inventory && typeof nextObj.inventory === "object") {
-    mergedInventory = { ...nextObj.inventory, ...(quest.inventory || {}) };
-  }
-
   const { error: upErr } = await updateQuest(questId, {
     title: nextObj.title || quest.title,
     description: nextObj.description || quest.description,
     nextSteps: rest,
     stage: nextObj.stage || "assign",
     assigneeId: null,
-    inventory: mergedInventory,
   }, { client });
 
   if (upErr) return { error: upErr };
@@ -423,7 +414,7 @@ export async function triggerPreparationCascade(quest, { client }) {
     { title: "Prepare weapon", type: "prepare_weapon", stage: "plan", description: `Forge a weapon/connector for: ${domain}` },
     { title: "Prepare skill book", type: "prepare_skillbook", stage: "plan", description: `Create skill book actions for: ${domain}` },
     { title: "Prepare adventurer", type: "prepare_adventurer", stage: "plan", description: `Recruit and configure an adventurer for: ${domain}` },
-    { title: quest.title, description: quest.description, stage: "assign", inventory: quest.inventory },
+    { title: quest.title, description: quest.description, stage: "assign" },
   ];
 
   // Overwrite next_steps with prep cascade + any existing next_steps
