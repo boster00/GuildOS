@@ -44,11 +44,25 @@ function normalizePigeonValue(v) {
 }
 
 /**
- * @param {unknown} raw — DB jsonb: array (legacy) or map
+ * Accept any of: new items[] array (post items workflow migration), legacy JSONB map, legacy array of rows.
+ * Returns the canonical { item_key: value } map shape the UI uses.
+ * @param {unknown} raw
  * @returns {Record<string, unknown>}
  */
 export function inventoryRawToMap(raw) {
   if (raw == null || raw === "") return {};
+  // New items[] shape: rows from public.items with direct fields
+  if (Array.isArray(raw) && raw.length > 0 && raw[0] && typeof raw[0] === "object" && "item_key" in raw[0] && ("url" in raw[0] || "description" in raw[0])) {
+    /** @type {Record<string, unknown>} */
+    const map = {};
+    for (const row of raw) {
+      const r = /** @type {Record<string, unknown>} */ (row);
+      const k = r.item_key != null ? String(r.item_key) : "";
+      if (!k) continue;
+      map[k] = { url: r.url ?? null, description: r.description ?? null, source: r.source ?? null, comments: Array.isArray(r.comments) ? r.comments : [] };
+    }
+    return map;
+  }
   if (typeof raw === "object" && !Array.isArray(raw)) {
     /** @type {Record<string, unknown>} */
     const out = {};

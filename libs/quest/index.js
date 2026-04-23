@@ -114,12 +114,28 @@ export async function recordQuestItemHandoff({ partyId, questId, itemKey, itemPa
   return { data: itemRow };
 }
 
-// [items workflow migration] replace with UPSERT into `quest_items` keyed on (quest_id, item_key).
-// Callers that currently chain appendInventoryItem + recordQuestComment should instead use a
-// single `writeQuestItem({ questId, item_key, url, description, comment? })` helper that wraps
-// both in one transaction and returns the fully-hydrated item row.
+/**
+ * Legacy shim — redirects to writeItem (upserts into public.items).
+ * Extracts url/description from the payload shape.
+ * @deprecated Use writeItem directly with { questId, item_key, url, description, source }.
+ */
 export async function appendInventoryItem(questId, item, { client: injected } = {}) {
-  const { data, error } = await appendQuestItem(questId, item, { client: injected });
+  const key = item?.item_key != null ? String(item.item_key) : "";
+  if (!key) return { error: new Error("appendInventoryItem: item_key is required") };
+  const payload = item?.payload;
+  let url = null;
+  let description = null;
+  if (typeof payload === "string") {
+    description = payload;
+  } else if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    url = typeof payload.url === "string" ? payload.url : null;
+    description = typeof payload.description === "string" ? payload.description : null;
+    if (!url && !description) description = JSON.stringify(payload);
+  } else if (payload != null) {
+    description = String(payload);
+  }
+  const source = typeof item?.source === "string" ? item.source : null;
+  const { data, error } = await writeItem({ questId, item_key: key, url, description, source }, { client: injected });
   if (error) return { error };
   return { data };
 }
@@ -518,16 +534,98 @@ export async function resolveAssignee(assignedTo, client) {
  * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
  * @returns {Promise<{ data: (Record<string, unknown> & { assignee: object }) | null, error: Error | null }>}
  */
-// [items workflow migration] this loader currently returns quest + assignee only. After migration,
-// it should also hydrate quest.items (each with nested comments[]) so callers get the full quest
-// shape in one call instead of orchestrating follow-up queries.
 export async function loadQuest(questId, ownerId, { client }) {
   const { data: quest, error } = await selectQuestForOwner(questId, ownerId, { client });
   if (error || !quest) {
     return { data: null, error: error || new Error("Quest not found.") };
   }
   quest.assignee = await resolveAssignee(quest.assigned_to, client);
+  quest.items = await searchItems(questId, { client });
   return { data: quest, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Items — replaces the old quests.inventory JSONB
+// ---------------------------------------------------------------------------
+
+/**
+ * Upsert an item into quest_items. Same (quest_id, item_key) replaces in place.
+ * @param {{ questId: string, item_key: string, url?: string|null, description?: string|null, source?: string|null }} input
+ * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
+ * @returns {Promise<{ data: object|null, error: Error|null }>}
+ */
+export async function writeItem({ questId, item_key, url = null, description = null, source = null }, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  const { data, error } = await client
+    .from(publicTables.items)
+    .upsert({ quest_id: questId, item_key, url, description, source }, { onConflict: "quest_id,item_key" })
+    .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
+    .single();
+  return { data, error };
+}
+
+/**
+ * Insert a comment on an item (e.g. Cat annotating a screenshot).
+ * @param {string} itemId
+ * @param {{ role: string, text: string }} input
+ * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
+ */
+export async function writeItemComment(itemId, { role, text }, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  const { data, error } = await client
+    .from(publicTables.itemComments)
+    .insert({ item_id: itemId, role, text })
+    .select("id, item_id, role, text, created_at")
+    .single();
+  return { data, error };
+}
+
+/**
+ * List items for a quest, each with its comments[] hydrated.
+ * @param {string} questId
+ * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
+ * @returns {Promise<object[]>}
+ */
+export async function searchItems(questId, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  const { data: items, error } = await client
+    .from(publicTables.items)
+    .select("id, item_key, url, description, source, created_at, updated_at")
+    .eq("quest_id", questId)
+    .order("created_at", { ascending: true });
+  if (error || !items?.length) return [];
+
+  const ids = items.map((i) => i.id);
+  const { data: comments } = await client
+    .from(publicTables.itemComments)
+    .select("id, item_id, role, text, created_at")
+    .in("item_id", ids)
+    .order("created_at", { ascending: true });
+
+  const byItem = new Map();
+  for (const c of comments || []) {
+    if (!byItem.has(c.item_id)) byItem.set(c.item_id, []);
+    byItem.get(c.item_id).push(c);
+  }
+  return items.map((i) => ({ ...i, comments: byItem.get(i.id) || [] }));
+}
+
+/**
+ * Delete an item (comments cascade).
+ * @param {string} questId
+ * @param {string} itemKey
+ */
+export async function deleteItem(questId, itemKey, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  return client.from(publicTables.items).delete().eq("quest_id", questId).eq("item_key", itemKey);
 }
 
 // ---------------------------------------------------------------------------

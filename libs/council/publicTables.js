@@ -8,10 +8,10 @@ export const publicTables = {
   /** Async per-quest messages (external channels / workers). */
   pigeonLetters: "pigeon_letters",
   questComments: "quest_comments",
-  /** Party rows (legacy). */
-  parties: "parties",
-  /** Legacy `items` table (party line-items). Not the same as `quests.inventory` jsonb. */
+  /** Per-quest deliverables (screenshots/artifacts). Replaces `quests.inventory` JSONB. UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on. */
   items: "items",
+  /** Review comments on specific items. */
+  itemComments: "item_comments",
   adventurers: "adventurers",
   potions: "potions",
   profiles: "profiles",
