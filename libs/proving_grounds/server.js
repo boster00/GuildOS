@@ -86,8 +86,8 @@ function parseJsonFromModelText(text) {
  *
  * Dispatch rules:
  *  - closing/completed: handled by server.js (advanceToNextStep, no assignee needed)
- *  - NPC assignee (Cat/Pig/Blacksmith/Runesmith): delegate to libs/npcs/<slug>/doNextAction
  *  - Adventurer assignee (DB row): server.js runs plan/execute/review logic
+ *    (NPC code paths were retired; all assignees are now DB adventurers)
  *
  * @param {object} quest — full quest row
  * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts

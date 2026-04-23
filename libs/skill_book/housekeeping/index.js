@@ -6,7 +6,7 @@
 export const skillBook = {
   id: "housekeeping",
   title: "Housekeeping — Core Agent Operations",
-  description: "Manage quest lifecycle: init, createQuest, escalate, comment, submit for review.",
+  description: "Manage quest lifecycle: init, writeQuest, escalate, comment, submit for review.",
   steps: [],
   toc: {
     initAgent: {
