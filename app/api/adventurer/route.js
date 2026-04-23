@@ -62,7 +62,7 @@ export async function POST(request) {
         `\n## Global Instructions\n${globalInstructions}`,
         adv.system_prompt ? `\n## Your System Prompt\n${adv.system_prompt}` : "",
         skillBookSummaries ? `\n## Your Skill Books\n${skillBookSummaries}` : "",
-        `\nYou are now initialized and ready to work. Use getActiveQuests (housekeeping skill book) to check for assigned quests.`,
+        `\nYou are now initialized and ready to work. Use searchQuests (housekeeping skill book) to check for assigned quests.`,
       ].join("\n");
 
       await writeFollowup({ agentId: sessionId, message: initMessage });

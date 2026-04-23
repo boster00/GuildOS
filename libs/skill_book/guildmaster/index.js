@@ -21,7 +21,7 @@ export const skillBook = {
       howTo: `
 1. Create the quest in DB with full WBS description, deliverables, and priority.
 2. Set \`assignee_id\` and \`assigned_to\` to the chosen adventurer.
-3. Send the adventurer a short message: "You have a new quest assigned. Use getActiveQuests to check."
+3. Send the adventurer a short message: "You have a new quest assigned. Use searchQuests to check."
 4. NEVER send raw task instructions in chat — the quest description IS the task spec.
 
 Do NOT:

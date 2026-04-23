@@ -79,7 +79,7 @@ async function getProjectId(userId) {
  * @param {string} [userId]
  * @returns {Promise<Array<{ datasetId: string, location: string }>>}
  */
-export async function listDatasets(userId) {
+export async function searchDatasets(userId) {
   const uid = await resolveUserId(userId);
   const token = await getAccessToken(uid);
   const projectId = await getProjectId(uid);
@@ -90,7 +90,7 @@ export async function listDatasets(userId) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`listDatasets failed (${res.status}): ${text}`);
+    throw new Error(`searchDatasets failed (${res.status}): ${text}`);
   }
   const body = await res.json();
   return (body.datasets || []).map((d) => ({
@@ -107,7 +107,7 @@ export async function listDatasets(userId) {
  * @param {string} [userId]
  * @returns {Promise<{ rows: Array<Record<string, unknown>> }>}
  */
-export async function getRecentEvents(datasetId, tableId, limit = 10, userId) {
+export async function readRecentEvents(datasetId, tableId, limit = 10, userId) {
   if (!datasetId || !tableId) throw new Error("datasetId and tableId are required.");
   const uid = await resolveUserId(userId);
   const token = await getAccessToken(uid);

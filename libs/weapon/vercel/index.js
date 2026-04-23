@@ -47,13 +47,13 @@ async function vercelFetch(path, opts = {}, userId) {
 // Projects
 // ---------------------------------------------------------------------------
 
-export async function listProjects({ teamId, limit = 20 } = {}, userId) {
+export async function searchProjects({ teamId, limit = 20 } = {}, userId) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (teamId) params.set("teamId", teamId);
   return vercelFetch(`/v9/projects?${params}`, {}, userId);
 }
 
-export async function getProject({ projectId, teamId } = {}, userId) {
+export async function readProject({ projectId, teamId } = {}, userId) {
   if (!projectId) throw new Error("projectId required");
   const params = new URLSearchParams();
   if (teamId) params.set("teamId", teamId);
@@ -64,7 +64,7 @@ export async function getProject({ projectId, teamId } = {}, userId) {
 // Deployments
 // ---------------------------------------------------------------------------
 
-export async function listDeployments(
+export async function searchDeployments(
   { projectId, teamId, limit = 20, state } = {},
   userId,
 ) {
@@ -75,7 +75,7 @@ export async function listDeployments(
   return vercelFetch(`/v6/deployments?${params}`, {}, userId);
 }
 
-export async function getDeployment({ deploymentId, teamId } = {}, userId) {
+export async function readDeployment({ deploymentId, teamId } = {}, userId) {
   if (!deploymentId) throw new Error("deploymentId required");
   const params = new URLSearchParams();
   if (teamId) params.set("teamId", teamId);
@@ -86,7 +86,7 @@ export async function getDeployment({ deploymentId, teamId } = {}, userId) {
 // Domains
 // ---------------------------------------------------------------------------
 
-export async function listDomains({ teamId, limit = 20 } = {}, userId) {
+export async function searchDomains({ teamId, limit = 20 } = {}, userId) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (teamId) params.set("teamId", teamId);
   return vercelFetch(`/v5/domains?${params}`, {}, userId);
@@ -96,7 +96,7 @@ export async function listDomains({ teamId, limit = 20 } = {}, userId) {
 // Environment variables
 // ---------------------------------------------------------------------------
 
-export async function listEnvVars({ projectId, teamId } = {}, userId) {
+export async function searchEnvVars({ projectId, teamId } = {}, userId) {
   if (!projectId) throw new Error("projectId required");
   const params = new URLSearchParams();
   if (teamId) params.set("teamId", teamId);
@@ -107,7 +107,7 @@ export async function listEnvVars({ projectId, teamId } = {}, userId) {
   );
 }
 
-export async function createEnvVar(
+export async function writeEnvVar(
   { projectId, teamId, key, value, target = ["production", "preview", "development"], type = "encrypted" } = {},
   userId,
 ) {
@@ -142,11 +142,11 @@ export async function redeploy({ deploymentId, teamId, target } = {}, userId) {
 // User / Team info
 // ---------------------------------------------------------------------------
 
-export async function getUser(userId) {
+export async function readUser(userId) {
   return vercelFetch("/v2/user", {}, userId);
 }
 
-export async function listTeams({ limit = 20 } = {}, userId) {
+export async function searchTeams({ limit = 20 } = {}, userId) {
   const params = new URLSearchParams({ limit: String(limit) });
   return vercelFetch(`/v2/teams?${params}`, {}, userId);
 }

@@ -18,14 +18,14 @@ import {
 import {
   definition as questmasterDef,
   planRequestToQuest,
-  findAdventurerForQUest,
+  searchAdventurerForQuest,
   interpretIdea,
   selectAdventurer as runSelectAdventurer,
   assign as runAssign,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
 import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
-import { skillBook as bigquerySkillBook, getRecentEvents as bigqueryGetRecentEvents } from "./bigquery/index.js";
+import { skillBook as bigquerySkillBook, readRecentEvents as bigqueryReadRecentEvents } from "./bigquery/index.js";
 import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
 import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
 import { skillBook as gmailSkillBook, searchInbox as gmailSearchInbox, readMessage as gmailReadMessage, triageInbox as gmailTriageInbox, writeStars as gmailWriteStars } from "./gmail/index.js";
@@ -375,13 +375,13 @@ const questmasterAdventurerActions = {
     });
     return result;
   },
-  findAdventurerForQUest: async (userId, input) => {
+  searchAdventurerForQuest: async (userId, input) => {
     const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
     const client = getAdventurerExecutionContext()?.client;
     if (!client) {
-      return Promise.reject(new Error("findAdventurerForQUest requires client in adventurer execution context."));
+      return Promise.reject(new Error("searchAdventurerForQuest requires client in adventurer execution context."));
     }
-    return findAdventurerForQUest(userId, { .../** @type {Record<string, unknown>} */ (input || {}), client });
+    return searchAdventurerForQuest(userId, { .../** @type {Record<string, unknown>} */ (input || {}), client });
   },
   interpretIdea: async (userId, input) => {
     const { getAdventurerExecutionContext } = await import("@/libs/adventurer/advance.js");
@@ -448,7 +448,7 @@ const ADVENTURER_REGISTRY = {
 
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: browsercontrolAdventurerActions },
   bigquery: { definition: bigquerySkillBook, adventurerActions: {
-    getRecentEvents: (_userId, input) => bigqueryGetRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readRecentEvents: (_userId, input) => bigqueryReadRecentEvents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   asana: { definition: asanaSkillBook, adventurerActions: {
     readProjectTasks: (_userId, input) => asanaReadProjectTasks(_userId, /** @type {Record<string, unknown>} */ (input || {})),

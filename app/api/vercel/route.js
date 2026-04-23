@@ -13,25 +13,25 @@ export async function GET(req) {
     if (action === "checkCredentials") {
       return json(await vercel.checkCredentials());
     }
-    if (action === "listProjects") {
-      return json(await vercel.listProjects({ limit: searchParams.get("limit") || 20 }));
+    if (action === "searchProjects") {
+      return json(await vercel.searchProjects({ limit: searchParams.get("limit") || 20 }));
     }
-    if (action === "listDeployments") {
+    if (action === "searchDeployments") {
       return json(
-        await vercel.listDeployments({
+        await vercel.searchDeployments({
           projectId: searchParams.get("projectId"),
           limit: searchParams.get("limit") || 20,
         }),
       );
     }
-    if (action === "listDomains") {
-      return json(await vercel.listDomains());
+    if (action === "searchDomains") {
+      return json(await vercel.searchDomains());
     }
-    if (action === "getUser") {
-      return json(await vercel.getUser());
+    if (action === "readUser") {
+      return json(await vercel.readUser());
     }
-    if (action === "listTeams") {
-      return json(await vercel.listTeams());
+    if (action === "searchTeams") {
+      return json(await vercel.searchTeams());
     }
     return json({ error: "Unknown action" }, 400);
   } catch (e) {
@@ -45,17 +45,17 @@ export async function POST(req) {
   const body = await req.json().catch(() => ({}));
 
   try {
-    if (action === "getProject") {
-      return json(await vercel.getProject(body));
+    if (action === "readProject") {
+      return json(await vercel.readProject(body));
     }
-    if (action === "getDeployment") {
-      return json(await vercel.getDeployment(body));
+    if (action === "readDeployment") {
+      return json(await vercel.readDeployment(body));
     }
-    if (action === "listEnvVars") {
-      return json(await vercel.listEnvVars(body));
+    if (action === "searchEnvVars") {
+      return json(await vercel.searchEnvVars(body));
     }
-    if (action === "createEnvVar") {
-      return json(await vercel.createEnvVar(body));
+    if (action === "writeEnvVar") {
+      return json(await vercel.writeEnvVar(body));
     }
     if (action === "redeploy") {
       return json(await vercel.redeploy(body));

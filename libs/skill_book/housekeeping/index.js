@@ -46,7 +46,7 @@ export const skillBook = {
         "7. **Never perform a non-trivial action natively if an instruction exists.** If in doubt, grep the skill books for the action name before freestyling.",
         "",
         "**Step 4: Check for work**",
-        "Use getActiveQuests to find quests assigned to you.",
+        "Use searchQuests to find quests assigned to you.",
         "Work on the highest priority quest first (high > medium > low).",
         "",
         "**When to re-init:** When told to refresh context, switching projects, or after environment errors.",
@@ -193,7 +193,7 @@ await writeFollowup({
 If Cat can't help, escalate to the Guildmaster via the escalate action.
 `,
     },
-    getActiveQuests: {
+    searchQuests: {
       description: "Get all quests assigned to you that are not complete.",
       howTo: `
 Query the quests table for your assigned quests that are not in complete stage. Order by priority (high > medium > low).

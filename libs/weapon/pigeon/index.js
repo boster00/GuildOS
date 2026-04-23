@@ -92,7 +92,7 @@ export async function replacePigeonLetters(questId, partials, { client: injected
  * Replace pigeon letters with a single letter (same as `replacePigeonLetters(questId, [letter])`).
  * @deprecated Prefer {@link replacePigeonLetters} with a full `browserActions` array.
  */
-export async function createPigeonLetter(questId, letter) {
+export async function writePigeonLetter(questId, letter) {
   return replacePigeonLetters(questId, [letter]);
 }
 

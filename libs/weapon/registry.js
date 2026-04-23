@@ -240,7 +240,7 @@ export function getWeaponById(id) {
 /**
  * Activation summary for list cards (one entry per weapon that reports status).
  */
-export async function getWeaponActivationSummaries(userId) {
+export async function readActivationSummaries(userId) {
   const summaries = {};
   const checks = {
     zoho: () => getZohoWeaponStatus(userId),

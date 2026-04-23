@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
-import { getWeaponActivationSummaries, WEAPONS } from "@/libs/weapon/registry";
+import { readActivationSummaries, WEAPONS } from "@/libs/weapon/registry";
 
 function statusBadge(summaries, weaponId) {
   if (weaponId !== "zoho") return null;
@@ -16,7 +16,7 @@ function statusBadge(summaries, weaponId) {
 
 export default async function ForgePage() {
   const user = await getCurrentUser();
-  const summaries = user ? await getWeaponActivationSummaries(user.id) : {};
+  const summaries = user ? await readActivationSummaries(user.id) : {};
 
   return (
     <main className="guild-bg-forge min-h-dvh p-4 md:p-8">

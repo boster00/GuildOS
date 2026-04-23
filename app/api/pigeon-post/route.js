@@ -4,7 +4,7 @@
  * POST deliver: session or `X-Pigeon-Key` (see handler for owner checks).
  */
 import { requireUser } from "@/libs/council/auth/server";
-import { getPendingPigeonLetters, createPigeonLetter, searchReviewItems, writeReviewVerdict } from "@/libs/pigeon_post";
+import { getPendingPigeonLetters, writePigeonLetter, searchReviewItems, writeReviewVerdict } from "@/libs/pigeon_post";
 import { deliverPigeonResult } from "@/libs/weapon/pigeon";
 import { getQuest } from "@/libs/quest";
 
@@ -232,7 +232,7 @@ export async function POST(request) {
     } catch {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { data, error } = await createPigeonLetter(user.id, { questId, channel, payload });
+    const { data, error } = await writePigeonLetter(user.id, { questId, channel, payload });
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ ok: true, letter: data });
   }

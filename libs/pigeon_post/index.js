@@ -190,7 +190,7 @@ export async function writeReviewVerdict(letterId, userId, { verdict, reason }) 
   return { data: { letterId, verdict } };
 }
 
-export async function createPigeonLetter(userId, { questId, channel, payload }) {
+export async function writePigeonLetter(userId, { questId, channel, payload }) {
   const db = await database.init("service");
   const { data, error } = await db
     .from("pigeon_letters")

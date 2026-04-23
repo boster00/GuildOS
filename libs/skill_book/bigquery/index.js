@@ -1,7 +1,7 @@
 /**
  * BigQuery skill book — query recent events from a BigQuery table.
  */
-import { getRecentEvents as bqGetRecentEvents } from "@/libs/weapon/bigquery";
+import { readRecentEvents as bqGetRecentEvents } from "@/libs/weapon/bigquery";
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
 
 export const skillBook = {
@@ -10,7 +10,7 @@ export const skillBook = {
   description: "Query Google BigQuery tables for recent event data.",
   steps: [],
   toc: {
-    getRecentEvents: {
+    readRecentEvents: {
       description: "Return the most recent rows from a BigQuery table, ordered by partition time.",
       input: {
         datasetId: "string, e.g. your_dataset",
@@ -29,7 +29,7 @@ export const skillBook = {
  * @param {unknown} [b] payload when a is userId
  * @returns {Promise<{ ok: boolean, msg: string, items: Record<string, unknown> }>}
  */
-export async function getRecentEvents(a, b) {
+export async function readRecentEvents(a, b) {
   const input =
     b !== undefined && typeof b === "object" && b !== null && !Array.isArray(b)
       ? b

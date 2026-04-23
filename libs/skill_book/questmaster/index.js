@@ -79,7 +79,7 @@ export const definition = {
         stage: "string, one of: idea, plan",
       },
     },
-    findAdventurerForQuest: {
+    searchAdventurerForQuest: {
       description: "Given a quest and a roster of adventurers, pick the best-fit adventurer by capability.",
       input: {
         quest: "object with title, description, deliverables",
@@ -372,7 +372,7 @@ Respond with ONLY one JSON object (no prose) using exactly these keys:
  *   client: import("@/libs/council/database/types.js").DatabaseClient
  * }} opts
  */
-export async function findAdventurerForQUest(userId, { quest, adventurers, client }) {
+export async function searchAdventurerForQuest(userId, { quest, adventurers, client }) {
   const roster = Array.isArray(adventurers) ? adventurers : [];
   if (roster.length === 0) {
     return { data: null, error: new Error("No adventurers on roster.") };
@@ -801,7 +801,7 @@ export async function assign(userId, { questId, guildos, client }) {
 const questmaster = {
   definition,
   planRequestToQuest,
-  findAdventurerForQUest,
+  searchAdventurerForQuest,
   selectAdventurer,
   interpretIdea,
   assign,
