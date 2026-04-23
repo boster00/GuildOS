@@ -6,7 +6,7 @@
 export const skillBook = {
   id: "housekeeping",
   title: "Housekeeping — Core Agent Operations",
-  description: "Shared actions for all adventurers: quest management, comments, escalation, planning.",
+  description: "Manage quest lifecycle: init, createQuest, escalate, comment, submit for review.",
   steps: [],
   toc: {
     initAgent: {
@@ -135,7 +135,7 @@ Only comment for significant events: major milestone completion, escalation, res
 - Present to user for iteration before creating the quest
 `,
     },
-    createQuest: {
+    writeQuest: {
       description: "Create a quest in execute stage after user approves the plan.",
       howTo: `
 **Flow:**
@@ -167,7 +167,7 @@ Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' st
 `,
     },
     clarifyQuest: {
-      description: "When user gives instructions that are unclear about which quest they mean, ask which one.",
+      description: "Clarify which quest the user means when their instructions are ambiguous.",
       howTo: `
 1. Look up your currently assigned quests.
 2. Present the relevant ones and ask: "Which quest is this for, or should I create a new one?"
@@ -194,7 +194,7 @@ If Cat can't help, escalate to the Guildmaster via the escalate action.
 `,
     },
     searchQuests: {
-      description: "Get all quests assigned to you that are not complete.",
+      description: "Search your assigned quests (default: not complete).",
       howTo: `
 Query the quests table for your assigned quests that are not in complete stage. Order by priority (high > medium > low).
 `,

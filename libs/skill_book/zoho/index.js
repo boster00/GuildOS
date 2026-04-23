@@ -32,7 +32,7 @@ export const skillBook = {
       output: { records: "array of objects" },
     },
     readMailAccounts: {
-      description: "List Zoho Mail accounts for the authenticated user. Returns accountId needed for readMailMessages.",
+      description: "Read Zoho Mail accounts for the authenticated user. Returns accountId needed for readMailMessages.",
       input: {},
       output: { accounts: "array of { accountId, emailAddress, displayName }" },
     },

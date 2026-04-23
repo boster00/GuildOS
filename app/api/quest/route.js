@@ -6,7 +6,7 @@
 import { requireUser } from "@/libs/council/auth/server";
 import {
   assignQuest,
-  createQuest,
+  writeQuest,
   getQuest,
   writeItem,
   updateQuest,
@@ -205,7 +205,7 @@ export async function POST(request) {
     return Response.json({ error: "text is required" }, { status: 400 });
   }
 
-  const { data, error } = await createQuest({
+  const { data, error } = await writeQuest({
     userId: user.id,
     title: "New Request",
     description: text.trim(),

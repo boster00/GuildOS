@@ -64,42 +64,6 @@ export const skillBook = {
         agentId: "string — agent ID for followup checks",
       },
     },
-    cloudEnvironment: {
-      description: "Reference: what a Cursor cloud agent session has available and cannot do.",
-      howTo: `
-**Runtime (from April 2026 agent interview):**
-- Linux desktop with X11, DISPLAY=:1, 1920x1200 VNC — headed browsers WORK and are visible to the user via Cursor's desktop stream
-- System Chrome at \`/usr/local/bin/google-chrome\` — prefer over bundled Playwright Chromium for headed browsing
-- Node 22, Python 3.12, pnpm 10, ffmpeg, git, curl pre-installed
-- No mouse/keyboard GUI API — use Playwright for all UI interaction
-- Shared auth state: \`storageState\` from playwright/.auth/user.json enables Gmail, Zoho, Smartlead, Instantly, LinkedIn, Figma
-- Filesystem persists within a session's lifetime but not guaranteed across sessions
-
-**Blind spots:**
-- Cannot see the user's screen — only sees images attached to the conversation or files in the repo
-- Often completes code changes but forgets to \`git push\` — always include explicit push instructions
-
-**Limitations:**
-- OAuth — cannot complete interactive login; print the URL for the user to authorize
-- Secrets — repo secret scanner may block commits containing API keys; use base64 or env vars
-- Long-running commands can timeout; use background processes
-
-**When in doubt about capabilities:** ask the agent directly via a followup message.
-`,
-    },
-    apiSpecs: {
-      description: "Reference: Cursor Cloud Agents API endpoints, auth, and model choice.",
-      howTo: `
-- **Agent ID format:** \`bc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX\`
-- **Endpoints:**
-  - \`POST /v0/agents/{id}/followup\` — send work
-  - \`GET /v0/agents/{id}\` — status
-  - \`GET /v0/agents/{id}/conversation\` — chat history
-- **Auth:** Basic auth with \`CURSOR_API_KEY\` (base64 of \`key:\`)
-- **Model:** always use \`composer-2.0\` (cheapest in-house). Switch to a newer cheap in-house model if one releases. Never use claude/gpt for cloud agent tasks.
-- **Capabilities (confirmed):** \`npm run dev\` in background, Playwright headless (viewport screenshots more reliable than full-page), PPT generation, UI testing, Supabase DB (service role bypasses RLS), Supabase Storage upload, HTTP to localhost:3002 when dev server runs.
-`,
-    },
     prepareEnvironment: {
       description: "Generate the env setup script for a fresh Cursor cloud agent session and send it as the first followup.",
       howTo: `
@@ -113,7 +77,7 @@ const { setupScript } = await readEnvSetupInstructions({ userId });
 `,
     },
     writeMinimalSystemPrompt: {
-      description: "Rules for authoring an adventurer's system_prompt.",
+      description: "Write a minimal adventurer system_prompt — only rules that change behavior from the default.",
       howTo: `
 System prompts must be minimal:
 - Only include instructions that change behavior from the default. If Claude would do it anyway, don't say it.

@@ -41,7 +41,7 @@ export const QUEST_PATCH_RELATIVE_URL = "/api/quest";
 // Runtime helpers (from legacy runtime.js — same signatures, same DB calls)
 // ---------------------------------------------------------------------------
 
-export async function createQuest({
+export async function writeQuest({
   userId,
   title,
   description,
@@ -173,14 +173,6 @@ export async function updateQuest(
     return { error };
   }
   return { data };
-}
-
-export async function ensurePartyForQuest(questId, userId, { client: injected } = {}) {
-  const { data: existing } = await selectPartyIdByQuestId(questId, { client: injected });
-  if (existing?.id) return { data: { partyId: existing.id } };
-  const { data: ins, error } = await insertParty({ ownerId: userId, questId }, { client: injected });
-  if (error) return { error };
-  return { data: { partyId: ins.id } };
 }
 
 export async function getQuest(questId, { client: injected } = {}) {

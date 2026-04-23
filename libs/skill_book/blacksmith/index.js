@@ -8,7 +8,7 @@
 export const skillBook = {
   id: "blacksmith",
   title: "Blacksmith",
-  description: "Forges new weapons and skill books, and records proving-grounds setup steps for the user.",
+  description: "Forge new weapons and skill books; record proving-grounds setup steps.",
 
   toc: {
     plan: "Read the quest description and decide whether a new weapon is needed. If yes, produce a blueprint JSON; if no, return skip.",

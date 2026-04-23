@@ -80,7 +80,7 @@ export const definition = {
       },
     },
     searchAdventurerForQuest: {
-      description: "Given a quest and a roster of adventurers, pick the best-fit adventurer by capability.",
+      description: "Pick the best-fit adventurer for a quest by capability match.",
       input: {
         quest: "object with title, description, deliverables",
         adventurers: "array of { id, name, capabilities }",
@@ -91,7 +91,7 @@ export const definition = {
       },
     },
     selectAdventurer: {
-      description: "Roster match for a new request: load adventurer capabilities + boast, AI chooses one or returns no-match.",
+      description: "Match a new request to a roster adventurer (returns the id or no-match).",
       input: {
         quest: "object with id, title, description",
       },
@@ -148,15 +148,15 @@ Never present raw agent output directly to the user without review.
 `,
     },
     reportChaperonWork: {
-      description: "After chaperoning a cloud agent, create/update a review-stage quest on the Guildmaster's Desk.",
+      description: "Report chaperon work by creating a review-stage quest on the Guildmaster.s Desk.",
       howTo: `
 Every completed chaperon engagement must produce a review task visible on \`/town/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
 
 \`\`\`javascript
-import { createQuest, writeItem, recordQuestComment } from "@/libs/quest";
+import { writeQuest, writeItem, recordQuestComment } from "@/libs/quest";
 
 // 1. Create the review quest
-const { data: quest } = await createQuest({
+const { data: quest } = await writeQuest({
   userId,
   title: "Review: <what was done>",
   description: "<summary of work and success criteria>",
@@ -191,7 +191,7 @@ When you receive feedback on a quest (comment ping or direct message): act on it
 `,
     },
     assistAdventurer: {
-      description: "When an adventurer reaches out for help, consider all skill books — not just the ones in the adventurer's assigned collection.",
+      description: "Assist an adventurer asking for help; scan the full skill-book registry, not just their loaded set.",
       howTo: `
 An adventurer's \`skill_books\` array is the common-use load, not a cap on capability. When helping, think comprehensively across the full registry at \`libs/skill_book/index.js\`.
 

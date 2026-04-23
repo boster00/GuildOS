@@ -5,7 +5,7 @@
 export const skillBook = {
   id: "bosterbio",
   title: "BosterBio.com2026 — Website Migration",
-  description: "Tactical instructions for BosterBio website: product migration, storefront, launch prep, CMS content.",
+  description: "Execute BosterBio website tasks: product migration, storefront, launch prep, CMS content.",
   steps: [],
   toc: {
     migrateProducts: {
@@ -80,7 +80,7 @@ See \`docs/product-attributes-migration-plan.md\` for full schema details.
 `,
     },
     launchPrep: {
-      description: "SEO, DNS cutover, monitoring, and launch checklist.",
+      description: "Handle SEO, DNS cutover, monitoring, and launch checklist.",
       howTo: `
 **SEO:**
 - Discard ALL Magento URL rewrites. Start clean with new routing.
@@ -106,8 +106,8 @@ See \`docs/product-attributes-migration-plan.md\` for full schema details.
 - [ ] Monitor 404s, indexing, performance for 2 weeks post-launch
 `,
     },
-    sshAccess: {
-      description: "How to access bosterbio.com production server when SSH is IP-blocked.",
+    connectSsh: {
+      description: "Connect to bosterbio.com production server via SSH, falling back through Carbon hop or Jetrails whitelist when IP-blocked.",
       howTo: `
 **Primary:** \`ssh -p 2223 boster_ooP9u@69.27.32.101\`
 
