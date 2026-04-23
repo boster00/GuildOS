@@ -61,25 +61,21 @@ Periodically scan the "Insights buffer" section at the bottom of CLAUDE.md. For 
   triageEmailStep1: `
 **Goal:** from the filtered inbox view (unread, not already marked important, no Asana notifications), identify emails the user SHOULD look at and STAR them.
 
+All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/weapon/gmail\` — that weapon is an MCP pointer with no runtime exports.
+
 **Filter query:** \`-label:important in:unread in:inbox -asana\`
 **Browser reference (for manual review):** https://mail.google.com/mail/u/0/#search/-label%3Aimportant+in%3Aunread+in%3Ainbox+-asana
 
 **Steps:**
-1. Call the gmail weapon:
-   \`\`\`javascript
-   import { searchMessages } from "@/libs/weapon/gmail";
-   const messages = await searchMessages({ query: "-label:important in:unread in:inbox -asana", limit: 100 }, userId);
-   \`\`\`
+1. Search the inbox via MCP:
+   \`mcp__gmail__search_emails { query: "-label:important in:unread in:inbox -asana", maxResults: 100 }\`
 
-2. For each message, apply the scoring rules from \`gmail.triageInbox\` howTo (skip rules, score signals).
+2. For each message, apply the scoring rules from the \`gmail\` skill book (skip rules, score signals).
    - Skip shared mailboxes, automated reports, marketing, utility notices.
    - Score signals: wire transfers / invoices / POs (+10), Calendly events (+9), customer replies to quotes (+9), SalesIQ / live chat (+8), etc.
 
 3. Star the top ~2% by score (or a handful — this is pass 1, be selective, only "definitely worth a look"):
-   \`\`\`javascript
-   import { starMessages } from "@/libs/weapon/gmail";
-   await starMessages({ messageIds: topScoringIds }, userId);
-   \`\`\`
+   \`mcp__gmail__batch_modify_emails { messageIds: [...topScoringIds], addLabelIds: ["STARRED"] }\`
 
 4. Post a summary comment in the GuildOS quest (if running under a quest) or the PA thread: how many scanned, how many starred, 1-line reason per star.
 
@@ -87,32 +83,33 @@ Periodically scan the "Insights buffer" section at the bottom of CLAUDE.md. For 
 `.trim(),
 
   triageEmailStep2: `
-**Goal:** from the REMAINING unread emails in the inbox (everything pass 1 didn't star), identify emails the user could SKIP and mark them (label \`triage/skip\` or archive).
+**Goal:** from the REMAINING unread emails in the inbox (everything pass 1 didn't star), identify emails the user could SKIP and mark them (label \`triage/skip\`).
+
+All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/weapon/gmail\`.
 
 **Filter query:** \`in:unread in:inbox -label:starred\` (excludes what pass 1 already starred)
 
 **Steps:**
-1. Call the gmail weapon:
-   \`\`\`javascript
-   import { searchMessages } from "@/libs/weapon/gmail";
-   const messages = await searchMessages({ query: "in:unread in:inbox -label:starred", limit: 200 }, userId);
-   \`\`\`
+1. Search via MCP:
+   \`mcp__gmail__search_emails { query: "in:unread in:inbox -label:starred", maxResults: 200 }\`
 
-2. For each message, decide SKIP / KEEP using the skip-signal rules from \`gmail.triageInbox\`:
+2. For each message, decide SKIP / KEEP using the skip-signal rules from the \`gmail\` skill book:
    - SKIP signals: shared mailbox sender (orders@/account@/support@/etc.), automated report (DMARC, Search Console, Bing Webmaster), utility (PG&E, energy), marketing / newsletter / webinar / conference (check for "unsubscribe" in body), "New Order #" notifications, no-reply@asana.com, kybc@kyinno.com.
    - KEEP = default (don't touch). Only explicitly flag SKIP.
 
-3. Apply a skip label (or archive) to SKIP messages:
-   \`\`\`javascript
-   import { writeMessageLabels } from "@/libs/weapon/gmail";
-   await writeMessageLabels({ messageIds: skipIds, addLabels: ["triage/skip"] }, userId);
-   \`\`\`
+3. Resolve the \`triage/skip\` label ID (create it if it doesn't exist):
+   \`mcp__gmail__get_or_create_label { name: "triage/skip" }\` → captures \`labelId\`.
 
-4. Post a summary: how many scanned, how many flagged to skip, rough category breakdown.
+4. Apply it to SKIP messages in one batch:
+   \`mcp__gmail__batch_modify_emails { messageIds: [...skipIds], addLabelIds: [labelId] }\`
+
+5. Post a summary: how many scanned, how many flagged to skip, rough category breakdown.
 
 **Success criterion:** the remaining unread inbox shows only emails worth glancing at — the obvious clutter has been labeled out.
 
 **Do NOT delete or archive permanently in this pass.** Labeling gives the user a chance to sanity-check before pruning.
+
+**Note on scopes:** \`get_or_create_label\` requires broader scopes than the current refresh token has (\`gmail.readonly\` + \`gmail.modify\` only). If the call fails with a permission error, fall back to an existing label (e.g. STARRED on an "already triaged" variant) and surface the scope gap to the user — re-consent is a manual step.
 `.trim(),
 };
 
