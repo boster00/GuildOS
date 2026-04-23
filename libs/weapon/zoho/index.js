@@ -1,7 +1,8 @@
 /**
  * Zoho weapon — single module covering Zoho Books, Zoho CRM, and Zoho Mail (shared OAuth).
- * Public API: getAccessToken, searchBooks (Books), searchCrm (CRM), readMailAccounts, readMailMessages.
+ * Public API: searchBooks (Books), searchCrm (CRM), readMailAccounts, readMailMessages, readWeaponStatus, readOrganizationId (OAuth setup only).
  *
+ * Token acquisition (readAccessToken) is internal plumbing — agents never decide when to refresh a token.
  * Auth: User identity resolves via adventurer execution context first, then Next.js requireUser.
  * This lets the weapon work in both execution context (cron/scripts) and HTTP handlers.
  */
@@ -272,7 +273,7 @@ export async function exchangeZohoCode({ code, region, clientId, clientSecret, r
  * @param {string} accessToken
  * @param {string} [region]
  */
-export async function fetchZohoOrganizationId(accessToken, region = "com") {
+export async function readOrganizationId(accessToken, region = "com") {
   const baseUrl = ZOHO_API_BASE[region] || ZOHO_API_BASE.com;
   const response = await fetch(`${baseUrl}/books/v3/organizations`, {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
@@ -288,7 +289,7 @@ export async function fetchZohoOrganizationId(accessToken, region = "com") {
  * @param {string} [userId] — optional; resolves from execution context or requireUser if omitted
  * @returns {Promise<string>} Bearer access token for Zoho API.
  */
-export async function getAccessToken(userId) {
+async function readAccessToken(userId) {
   const uid = await resolveUserId(userId);
   const s = await ensureSecretsForCurrentUser(uid);
   return s.access_token;
@@ -476,7 +477,7 @@ async function readZohoSecretsRow(userId) {
  * Sanitized status for forge / diagnostics (no secrets exposed).
  * @param {string} userId
  */
-export async function getZohoWeaponStatus(userId) {
+export async function readWeaponStatus(userId) {
   const { data, error } = await readZohoSecretsRow(userId);
   if (error) {
     return {

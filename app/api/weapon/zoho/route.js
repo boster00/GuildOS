@@ -15,11 +15,11 @@ import { getSiteUrl } from "@/libs/council/auth/urls";
 import {
   buildZohoOAuthAuthorizeUrl,
   exchangeZohoCode,
-  fetchZohoOrganizationId,
+  readOrganizationId,
   upsertZohoConnection,
   deleteZohoConnection,
   getZohoOAuthCallbackUrl,
-  getZohoWeaponStatus,
+  readWeaponStatus,
   searchBooks,
   searchCrm,
   readMailAccounts,
@@ -66,7 +66,7 @@ export async function GET(request) {
 
     const token = exchanged.token;
     const expiresAt = new Date(Date.now() + (token.expires_in || 3600) * 1000).toISOString();
-    const organizationId = await fetchZohoOrganizationId(token.access_token, region);
+    const organizationId = await readOrganizationId(token.access_token, region);
 
     const { error } = await upsertZohoConnection({
       user_id: user.id, region,
@@ -83,7 +83,7 @@ export async function GET(request) {
   // ── status ──
   if (action === "status") {
     const user = await requireUser();
-    const status = await getZohoWeaponStatus(user.id);
+    const status = await readWeaponStatus(user.id);
     return Response.json(status);
   }
 

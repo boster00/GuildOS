@@ -1,4 +1,4 @@
-import { getZohoWeaponStatus } from "@/libs/weapon/zoho";
+import { readWeaponStatus } from "@/libs/weapon/zoho";
 import { checkCredentials as checkGmailCredentials } from "@/libs/weapon/gmail";
 import { checkCredentials as checkCursorCredentials } from "@/libs/weapon/cursor";
 import { checkCredentials as checkFigmaCredentials } from "@/libs/weapon/figma";
@@ -243,7 +243,7 @@ export function getWeaponById(id) {
 export async function readActivationSummaries(userId) {
   const summaries = {};
   const checks = {
-    zoho: () => getZohoWeaponStatus(userId),
+    zoho: () => readWeaponStatus(userId),
     gmail: () => checkGmailCredentials(userId),
     cursor: () => checkCursorCredentials(userId),
     figma: () => checkFigmaCredentials(userId),
