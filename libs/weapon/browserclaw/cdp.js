@@ -1,22 +1,15 @@
 /**
- * Browserclaw CDP weapon — connects to a persistent Chrome instance on port 9222.
+ * Browserclaw CDP weapon — DEPRECATED for local Claude use.
  *
- * Chrome runs independently with a dedicated profile and the Browserclaw extension.
- * Playwright connects to it via CDP rather than launching its own browser.
+ * Local Claude (Guildmaster / PA / Claude Code CLI) should use Claude-in-Chrome
+ * MCP tools (`mcp__Claude_in_Chrome__*`) for ALL browser work. See
+ * docs/browser-automation-guideline.md and libs/skill_book/browsercontrol.
  *
- * Usage:
- *   import { ensureCdpChrome, executeSteps, isCdpRunning } from "@/libs/weapon/browserclaw/cdp";
- *   await ensureCdpChrome();   // no-op if already running
- *   const result = await executeSteps([
- *     { action: "navigate", url: "https://example.com", item: "nav" },
- *     { action: "screenshot", item: "proof" },
- *   ]);
+ * Cloud Cursor agents drive their own VM's Playwright natively and do not use
+ * this weapon either (port 9222 is not reachable from the cloud).
  *
- * Auth:
- *   Run scripts/auth-capture.mjs to log in with the CDP profile.
- *   On launch, ensureCdpChrome automatically injects cookies from
- *   playwright/.auth/user.json so the session is authenticated even if the
- *   persistent profile cookies have expired.
+ * Retained only for legacy pigeon-post pipeline scripts that haven't been
+ * ported. Do not introduce new callers.
  */
 
 import { chromium } from "playwright-core";

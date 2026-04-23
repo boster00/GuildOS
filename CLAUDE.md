@@ -181,3 +181,5 @@ Format: `- [YYYY-MM-DD] <insight>`
 
 <!-- add new insights below this line -->
 
+- [2026-04-23] Browser control split: **Local Claude uses Claude-in-Chrome (CIC) MCP tools only** — `mcp__Claude_in_Chrome__*`. One tab group per objective; always start with `tabs_context_mcp({createIfEmpty: true})`. **Cloud Cursor agents drive their VM's native Playwright / headed Chrome** — do not instruct them to use CIC or reach `localhost:9222`. The legacy Browserclaw CDP weapon (`libs/weapon/browserclaw/cdp.js`) is deprecated for new local work; kept only for a few legacy pipeline scripts. `scripts/auth-capture.mjs` still stands — it's the one place Playwright launches Chrome directly, solely to export `playwright/.auth/user.json` for cloud agents' `storageState`. Details: `docs/browser-automation-guideline.md` and `libs/skill_book/browsercontrol`.
+

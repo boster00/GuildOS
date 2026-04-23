@@ -1,53 +1,30 @@
 /**
  * Browser control skill book.
  *
- * ── PREFERRED METHOD ────────────────────────────────────────────────────────
- * Use Claude in Chrome MCP (mcp__Claude_in_Chrome__*) for ALL browser tasks.
- * Always open new tabs via tabs_create_mcp — never reuse or navigate existing tabs.
- * Reserve Browserclaw CDP only for automated pipelines where MCP is unavailable.
+ * ── LOCAL CLAUDE: use Claude-in-Chrome (CIC), always ────────────────────────
+ * When Claude runs locally (Guildmaster / PA / Claude Code CLI) and needs to
+ * browse, use the Claude-in-Chrome MCP extension tools (`mcp__Claude_in_Chrome__*`).
+ * CIC is the ONLY local browser control path. It opens a dedicated tab group per
+ * objective, drives the user's real Chrome, and follows an observe→act→observe loop.
  *
- * CORE RULE (applies to ALL browser tasks — research, testing, booking, anything):
- * Never execute steps blindly. After every action, take a screenshot and read it
- * before deciding the next step. Browser control is observe → act → observe, not a batch script.
+ *   - Start with `tabs_context_mcp` (createIfEmpty: true) to get/seed the tab group.
+ *   - Open a NEW tab per objective with `tabs_create_mcp` — never reuse a tab
+ *     from a previous objective.
+ *   - After every action, screenshot and `read_page`/`find` before the next step.
+ *     No batch scripts.
  *
- * ── TWO SEPARATE TOOLS — never confuse them ────────────────────────────────
+ * ── CLOUD CURSOR AGENTS: use the VM's native UI ─────────────────────────────
+ * Cursor cloud agents run on a Linux VM with its own headed Chrome and
+ * Playwright tooling. They drive the browser natively — do NOT dispatch CIC
+ * commands from cloud agents, and do NOT instruct them to reach a local CDP
+ * endpoint (port 9222 is not reachable from the cloud). Let them use their
+ * built-in controls.
  *
- * 1. Claude in Chrome MCP (mcp__Claude_in_Chrome__*) ← USE THIS
- *    → Controls the USER'S MAIN Chrome via extension. Interactive, visible.
- *    → Use for: research, dashboards, anything needing observe→act loop.
- *    → "Not connected" = extension not running in user's Chrome. Cannot fix programmatically.
- *
- * 2. Browserclaw CDP weapon (libs/weapon/browserclaw/cdp.js → executeSteps)
- *    → Controls a DEDICATED HEADLESS Chrome on port 9222, separate process/profile.
- *    → Use for: repeatable automation, screenshots, scraping, known selectors (pipelines only).
- *    → Can relaunch programmatically via ensureCdpChrome().
- *
- * These are completely independent. A "Claude in Chrome not connected" error does NOT
- * mean CDP is down. Verify with isCdpRunning() and test via executeSteps directly.
- *
- * ── CDP Init Protocol (Guildmaster local only) ──────────────────────────────
- *
- * 1. Call ensureCdpChrome() — no-op if already running; launches + injects user.json cookies if not.
- *    Verify: curl http://localhost:9222/json/version should return Chrome version JSON.
- *
- * 2. Test navigation: executeSteps([{ action:"navigate", url:"https://google.com", item:"test" }])
- *
- * 3. If cookies expired (sites show login after nav): node scripts/auth-capture.mjs
- *
- * 4. FOR CLOUD AGENTS: cannot reach localhost:9222. Must use Claude in Chrome MCP exclusively.
- *
- * See docs/browser-automation-guideline.md for full relaunch procedure.
- *
- * ── Usage (local Guildmaster only) ─────────────────────────────────────────
- *
- *   import { ensureCdpChrome, executeSteps } from '@/libs/weapon/browserclaw/cdp';
- *   await ensureCdpChrome();   // no-op if already running
- *   const result = await executeSteps([
- *     { action: 'navigate', url: 'https://example.com', item: 'nav' },
- *     { action: 'screenshot', item: 'proof' },
- *   ]);
- *
- * ────────────────────────────────────────────────────────────────────────────
+ * ── Legacy CDP path (deprecated for local Claude) ───────────────────────────
+ * The Browserclaw CDP weapon at `libs/weapon/browserclaw/cdp.js` is kept for
+ * a couple of legacy pipeline scripts. Do not use it for new work. The
+ * pigeon-post browser automation (`dispatchBrowserActionsThroughPigeonPost`)
+ * depends on the Browserclaw Chrome extension and is currently dormant.
  */
 import { skillActionOk, skillActionErr } from "@/libs/skill_book/actionResult.js";
 import { replacePigeonLetters } from "@/libs/weapon/pigeon";
@@ -96,18 +73,16 @@ export const skillBook = {
       },
     },
     captureAuth: {
-      description: "Local Guildmaster only: capture auth cookies into the shared CDP profile and export a storageState JSON for cloud agents.",
+      description: "Export a storageState JSON that cloud agents can import as Playwright auth context.",
       howTo: `
-Captures cookies into \`~/.guildos-cdp-profile\` (the same dir \`ensureCdpChrome()\` uses, so Chrome starts already logged in after capture) and exports a \`storageState\` JSON at \`playwright/.auth/user.json\` for cloud agents.
+Cloud Cursor agents on Linux VMs drive the browser natively via Playwright but start with a clean session. This script opens a local Chrome, waits for you to log in to whichever service(s) you want the cloud agents to inherit, and writes cookies + localStorage to \`playwright/.auth/user.json\`. Cloud agents then pass that file as Playwright's \`storageState\` to start authenticated.
 
 \`\`\`bash
-node scripts/auth-capture.mjs             # log in manually, exports JSON + profile
-node scripts/auth-capture.mjs --profile-only  # profile only, no JSON export
+node scripts/auth-capture.mjs             # log in manually, exports JSON
 node scripts/auth-load.mjs                # verify JSON export
-node scripts/auth-load.mjs --persistent   # verify profile directly
 \`\`\`
 
-The capture scripts use \`launchPersistentContext\` with \`executablePath\` pointing to system Chrome (not bundled Chromium). This is the only place where Playwright launches Chrome directly. All other browser automation uses \`connectOverCDP\` via \`libs/weapon/browserclaw/cdp.js\`.
+This is the only place in GuildOS where Playwright launches Chrome directly (\`launchPersistentContext\` with system Chrome). Local Claude uses Claude-in-Chrome MCP tools for browsing — NOT the captured profile.
 `,
     },
   },
