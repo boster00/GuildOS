@@ -25,6 +25,7 @@ import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as bla
 import { skillBook as bigquerySkillBook, readRecentEvents as bigqueryReadRecentEvents } from "./bigquery/index.js";
 import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
 import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
+import { skillBook as gmailSkillBook } from "./gmail/index.js";
 import { skillBook as housekeepingSkillBook } from "./housekeeping/index.js";
 import { questmasterRegistry } from "./questmaster/registry.js";
 import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
@@ -299,6 +300,7 @@ export const SKILL_BOOKS = {
   claudeCLI: claudeCLISkillBook,
   asana: asanaSkillBook,
   cursor: cursorSkillBook,
+  gmail: gmailSkillBook,
   cjgeo: cjgeoSkillBook,
   nexus: nexusSkillBook,
   bosterbio: bosterbioSkillBook,
@@ -445,6 +447,7 @@ const ADVENTURER_REGISTRY = {
     readConversation: (_userId, input) => cursorReadConversation(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     dispatchPptGeneration: (_userId, input) => cursorDispatchPptGeneration(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
+  gmail: { definition: gmailSkillBook, adventurerActions: {} },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {
       const { execSync } = await import("child_process");

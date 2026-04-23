@@ -1,7 +1,7 @@
 # GuildOS — Claude Code Guide
 
 ## Work on main. No ad-hoc branches.
-All ad-hoc changes — refactors, fixes, weapon/skill-book edits, CLAUDE.md updates — commit directly to `main`. Do not create feature branches or worktrees for this work. Branches fragment state and hide changes from other agents. If you're on a non-main branch, switch back before committing.
+All ad-hoc changes — refactors, fixes, weapon/skill-book edits, CLAUDE.md updates — commit directly to `main`. Do not create feature branches or worktrees for this work. Branches fragment state and hide changes from other agents. If you're on a non-main branch, switch back before committing. Unless user specifically ask for a branch, in which case do what the user asks for. 
 
 ## Priority hierarchy
 When instructions conflict, follow this order:
@@ -126,6 +126,8 @@ Potions: temporary tokens that require refresh. New tokens refresh old expired t
 | `libs/weapon/` | External protocol connectors. One weapon per service. |
 | `libs/pigeon_post/` | Async job queue (dormant — reserved for future external async jobs) |
 | `libs/proving_grounds/` | Adventurer roster + quest advance machinery |
+
+**Gmail note:** The `gmail` weapon is an MCP pointer — agents call `mcp__gmail__search_emails`, `read_email`, `batch_modify_emails`, etc. directly via the globally-mounted `@gongrzhe/server-gmail-autoauth-mcp` server. Credentials: `GMAIL_MCP_CLIENT_ID` + `GMAIL_MCP_CLIENT_SECRET` + `GOOGLE_GMAIL_REFRESH_TOKEN` in formulary. Current scopes: `gmail.readonly` + `gmail.modify`. Do not import from `@/libs/weapon/gmail` — the weapon has no runtime exports.
 
 ## File & API structure
 
