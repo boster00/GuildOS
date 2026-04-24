@@ -20,6 +20,7 @@ import { checkCredentials as checkOpensendCredentials } from "@/libs/weapon/open
 import { checkCredentials as checkHighlevelCredentials } from "@/libs/weapon/highlevel";
 import { checkCredentials as checkLinkedinCredentials } from "@/libs/weapon/linkedin";
 import { checkCredentials as checkPubcompareCredentials } from "@/libs/weapon/pubcompare";
+import { checkCredentials as checkCloudflareCredentials } from "@/libs/weapon/cloudflare";
 
 
 /**
@@ -217,6 +218,7 @@ export const WEAPONS = [
   { id: "highlevel", title: "HighLevel", tagline: "CRM contacts and pipeline opportunities via HighLevel REST API.", summary: "HighLevel CRM weapon.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses HIGHLEVEL_API_KEY (Bearer) to call HighLevel REST API v1."], requiresActivation: false },
   { id: "linkedin", title: "LinkedIn", tagline: "Search profiles and read profile info via browser automation.", summary: "LinkedIn profile scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP (port 9222). Must be logged in via CDP profile."], requiresActivation: false },
   { id: "pubcompare", title: "PubCompare", tagline: "Search publication comparison data via browser automation.", summary: "PubCompare.ai scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP. Public site — no auth needed."], requiresActivation: false },
+  { id: "cloudflare", title: "Cloudflare", tagline: "Read zone + DNS + firewall + cache analytics; interpret legacy action semantics.", summary: "Read/search/normalize connector for Cloudflare zones. Wraps auth + GraphQL scalar nuances + 1-day firewall-event window cap.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses CLOUDFLARE_API_TOKEN to call the Cloudflare REST API v4 + GraphQL analytics. Resources: zone, zones, dns, firewallRules, accessRules, pageRules, rateLimits, zoneSettings, rulesets, ruleset, botManagement, tokenCapabilities. Analytics: requestsDaily, cacheByHost, cacheByPath, cacheByContentType, firewallEvents, bypassedPaths. normalize kinds: legacyFirewallAction, httpResponse."], requiresActivation: false },
   {
     id: "bosterbio_lifecycle",
     title: "BosterBio Lifecycle",
@@ -263,6 +265,7 @@ export async function readActivationSummaries(userId) {
     highlevel: () => checkHighlevelCredentials(),
     linkedin: () => checkLinkedinCredentials(),
     pubcompare: () => checkPubcompareCredentials(),
+    cloudflare: () => checkCloudflareCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {

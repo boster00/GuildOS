@@ -34,6 +34,7 @@ import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 import { skillBook as dailiesSkillBook } from "./dailies/index.js";
 import { skillBook as figmaSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./figma/index.js";
 import { skillBook as supabaseUiSkillBook, readTable as supabaseUiReadTable, readLogs as supabaseUiReadLogs, readAPISettings as supabaseUiReadAPISettings, readStorageBuckets as supabaseUiReadStorageBuckets } from "./supabase_ui/index.js";
+import { skillBook as cloudflareSkillBook, audit as cloudflareAudit, classifyCloudflareResponse as cloudflareClassify, interpretLegacyAction as cloudflareInterpretLegacy } from "./cloudflare/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -310,6 +311,7 @@ export const SKILL_BOOKS = {
   figma: figmaSkillBook,
   supabase_ui: supabaseUiSkillBook,
   housekeeping: housekeepingSkillBook,
+  cloudflare: cloudflareSkillBook,
   questmaster_registry: questmasterRegistry,
 };
 
@@ -459,6 +461,11 @@ const ADVENTURER_REGISTRY = {
     readLogs: (_userId, input) => supabaseUiReadLogs(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     readAPISettings: (_userId, input) => supabaseUiReadAPISettings(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     readStorageBuckets: (_userId, input) => supabaseUiReadStorageBuckets(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  cloudflare: { definition: cloudflareSkillBook, adventurerActions: {
+    audit: (_userId, input) => cloudflareAudit(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    classifyCloudflareResponse: (_userId, input) => cloudflareClassify(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    interpretLegacyAction: (_userId, input) => cloudflareInterpretLegacy(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {
