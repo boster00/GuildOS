@@ -32,6 +32,8 @@ import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
 import { skillBook as nexusSkillBook } from "./nexus/index.js";
 import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 import { skillBook as dailiesSkillBook } from "./dailies/index.js";
+import { skillBook as figmaSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./figma/index.js";
+import { skillBook as supabaseUiSkillBook, readTable as supabaseUiReadTable, readLogs as supabaseUiReadLogs, readAPISettings as supabaseUiReadAPISettings, readStorageBuckets as supabaseUiReadStorageBuckets } from "./supabase_ui/index.js";
 
 // --- claudeCLI (inline definition — no separate file needed) ---
 const claudeCLISkillBook = {
@@ -305,6 +307,8 @@ export const SKILL_BOOKS = {
   nexus: nexusSkillBook,
   bosterbio: bosterbioSkillBook,
   dailies: dailiesSkillBook,
+  figma: figmaSkillBook,
+  supabase_ui: supabaseUiSkillBook,
   housekeeping: housekeepingSkillBook,
   questmaster_registry: questmasterRegistry,
 };
@@ -448,6 +452,18 @@ const ADVENTURER_REGISTRY = {
     dispatchPptGeneration: (_userId, input) => cursorDispatchPptGeneration(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   gmail: { definition: gmailSkillBook, adventurerActions: {} },
+  figma: { definition: figmaSkillBook, adventurerActions: {
+    readPages: (_userId, input) => figmaReadPages(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readPage: (_userId, input) => figmaReadPage(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    exportFrames: (_userId, input) => figmaExportFrames(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readComponents: (_userId, input) => figmaReadComponents(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
+  supabase_ui: { definition: supabaseUiSkillBook, adventurerActions: {
+    readTable: (_userId, input) => supabaseUiReadTable(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readLogs: (_userId, input) => supabaseUiReadLogs(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readAPISettings: (_userId, input) => supabaseUiReadAPISettings(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+    readStorageBuckets: (_userId, input) => supabaseUiReadStorageBuckets(_userId, /** @type {Record<string, unknown>} */ (input || {})),
+  } },
   claudeCLI: { definition: claudeCLISkillBook, adventurerActions: {
     executeTask: async (_userId, input) => {
       const { execSync } = await import("child_process");

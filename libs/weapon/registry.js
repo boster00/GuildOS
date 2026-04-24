@@ -3,6 +3,7 @@ import { checkCredentials as checkCursorCredentials } from "@/libs/weapon/cursor
 import { checkCredentials as checkFigmaCredentials } from "@/libs/weapon/figma";
 import { checkCredentials as checkAsanaCredentials } from "@/libs/weapon/asana";
 import { checkCredentials as checkStorageCredentials } from "@/libs/weapon/supabase_storage";
+import { checkCredentials as checkSupabaseUiCredentials } from "@/libs/weapon/supabase_ui";
 import { checkCredentials as checkAuthStateCredentials } from "@/libs/weapon/auth_state";
 import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
@@ -146,6 +147,18 @@ export const WEAPONS = [
     requiresActivation: false,
   },
   {
+    id: "supabase_ui",
+    title: "Supabase UI",
+    tagline: "Control the Supabase web dashboard via Browserclaw CDP.",
+    summary:
+      "Automates app.supabase.com for UI-only operations (log browsing, settings inspection, storage bucket listing). For programmatic DB access, use the database facade instead.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses CDP browser control via ~/.guildos-cdp-profile (no API key). Falls back to PostgREST for readTable. Run scripts/auth-capture.mjs to capture the Supabase session.",
+    ],
+    requiresActivation: false,
+  },
+  {
     id: "auth_state",
     title: "Auth State",
     tagline: "Browser auth state JSON — save, load, check expiry for cloud agents.",
@@ -233,6 +246,7 @@ export async function readActivationSummaries(userId) {
     figma: () => checkFigmaCredentials(userId),
     asana: () => checkAsanaCredentials(userId),
     supabase_storage: () => checkStorageCredentials(),
+    supabase_ui: () => checkSupabaseUiCredentials(),
     auth_state: () => checkAuthStateCredentials(),
     ssh: () => checkSshCredentials(userId),
     browserclaw: () => checkCdpCredentials(),
