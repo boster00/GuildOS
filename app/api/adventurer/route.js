@@ -4,8 +4,6 @@ import { recruitAdventurer, updateAdventurer, decommissionAdventurer } from "@/l
 import { isRecruitReady } from "@/libs/adventurer_runtime/ui.js";
 import { updateAdventurerSession, selectAdventurerForOwner } from "@/libs/council/database/serverAdventurer.js";
 import { writeFollowup, readConversation, readAgent } from "@/libs/weapon/cursor/index.js";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { SKILL_BOOKS } from "@/libs/skill_book/index.js";
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,9 +42,11 @@ export async function POST(request) {
     }, { client: db });
     if (error) return Response.json({ error: error.message }, { status: 400 });
 
-    // Auto-initiate: send global instructions + system_prompt + skill books
+    // Auto-initiate: tell the agent its identity and point at housekeeping.initAgent.
+    // The initAgent action handles cloning ~/guildos, env check, reading CLAUDE.md,
+    // loading skill-book tocs, and pulling assigned quests. Keeping this message
+    // thin avoids duplicating instructions and avoids shipping stale inline copies.
     try {
-      const globalInstructions = readFileSync(join(process.cwd(), "docs/global-instructions.md"), "utf8");
       const skillBookSummaries = (adv.skill_books || [])
         .map((id) => {
           const sb = SKILL_BOOKS[id];
@@ -59,10 +59,10 @@ export async function POST(request) {
 
       const initMessage = [
         `You are ${adv.name}. Your adventurer ID is ${adventurerId}.`,
-        `\n## Global Instructions\n${globalInstructions}`,
         adv.system_prompt ? `\n## Your System Prompt\n${adv.system_prompt}` : "",
-        skillBookSummaries ? `\n## Your Skill Books\n${skillBookSummaries}` : "",
-        `\nYou are now initialized and ready to work. Use searchQuests (housekeeping skill book) to check for assigned quests.`,
+        skillBookSummaries ? `\n## Your Assigned Skill Books (tocs)\n${skillBookSummaries}` : "",
+        `\n## Bootstrap`,
+        `Run \`housekeeping.initAgent\` now to set up the GuildOS checkout, env, and load full tocs. After that, use \`housekeeping.searchQuests\` to find assigned work.`,
       ].join("\n");
 
       await writeFollowup({ agentId: sessionId, message: initMessage });

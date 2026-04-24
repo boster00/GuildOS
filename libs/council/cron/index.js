@@ -128,7 +128,7 @@ async function nudgeConfused(db) {
       const ts = new Date().toISOString();
       await writeFollowup({
         agentId: adv.session_id,
-        message: `${NUDGE_PREFIX} [${ts}] You have ${advQuests.length} active quest(s):\n${questList}\n\nFirst: pull ~/guildos and re-read docs/global-instructions.md. Then work on the highest priority quest. When done, follow the submitForPurrview action from your housekeeping skill book exactly. Do not wait for permission. If blocked, escalate.`,
+        message: `${NUDGE_PREFIX} [${ts}] You have ${advQuests.length} active quest(s):\n${questList}\n\nWork on the highest-priority quest. Load its description, run your standard flow, and run housekeeping.verifyDeliverable before housekeeping.submitForPurrview. Do not wait for permission.\n\nIf you can't read the quest (missing ~/guildos checkout, missing SUPABASE_SECRETE_KEY, no DB access): run housekeeping.initAgent first to recover the environment, then retry. If initAgent itself cannot complete, escalate the quest with specifics — do not improvise deliverables.`,
       });
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
