@@ -25,6 +25,11 @@ async function loadReviewQuests(userId) {
 
   const questIds = quests.map((q) => q.id);
 
+  // Ownership already enforced by owner_id filter on quests above; use service
+  // role for items fetch to sidestep item-RLS evaluation quirks on the
+  // user-scoped server client.
+  const svc = await database.init("service");
+
   // Fetch comments and items in parallel
   const [{ data: allComments }, { data: allItems }] = await Promise.all([
     db.from("quest_comments")
@@ -32,7 +37,7 @@ async function loadReviewQuests(userId) {
       .in("quest_id", questIds)
       .order("created_at", { ascending: false })
       .limit(500),
-    db.from("items")
+    svc.from("items")
       .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
       .in("quest_id", questIds)
       .order("created_at", { ascending: true }),

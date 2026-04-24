@@ -23,6 +23,13 @@ function stepDisplayMeta(step) {
   return { title: "Next step", subtitle: null };
 }
 
+const IMG_EXT_RE = /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?.*)?$/i;
+const SUPABASE_STORAGE_RE = /storage\/v1\/object\/public\//i;
+
+function looksLikeImageUrl(url) {
+  return typeof url === "string" && (IMG_EXT_RE.test(url) || SUPABASE_STORAGE_RE.test(url));
+}
+
 export function ItemsListDisplay({ items }) {
   const list = Array.isArray(items) ? items : [];
   if (list.length === 0) return null;
@@ -30,20 +37,56 @@ export function ItemsListDisplay({ items }) {
   return (
     <div className="mt-4">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-base-content/55">Items ({list.length})</h2>
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 space-y-3">
         {list.map((item, i) => {
           const key = item?.item_key || `item-${i}`;
-          const source = item?.source ? ` — ${item.source}` : "";
+          const payload = item?.payload;
+          const url = payload && typeof payload === "object" ? payload.url : null;
+          const description = payload && typeof payload === "object" ? payload.description : null;
+          const source = item?.source || (payload && typeof payload === "object" ? payload.source : null);
+          const isImage = looksLikeImageUrl(url);
+
           return (
-            <details key={`${key}-${i}`} className="rounded-lg border border-base-300 bg-base-200/30">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-base-content/80">
-                <span className="font-mono text-xs">{key}</span>
-                <span className="ml-2 text-xs text-base-content/50">{source}</span>
-              </summary>
-              <pre className="max-h-48 overflow-auto border-t border-base-300 p-3 font-mono text-[10px] text-base-content/75">
-                {item?.payload != null ? JSON.stringify(item.payload, null, 2) : "(empty)"}
-              </pre>
-            </details>
+            <div key={`${key}-${i}`} className="rounded-lg border border-base-300 bg-base-200/30 p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-xs text-base-content/80">{key}</span>
+                {source ? <span className="text-xs text-base-content/50">{source}</span> : null}
+              </div>
+              {isImage ? (
+                <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                  <img
+                    src={url}
+                    alt={description || key}
+                    className="max-h-[500px] w-auto max-w-full rounded border border-base-300 bg-black/5 object-contain"
+                    loading="lazy"
+                  />
+                </a>
+              ) : url ? (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block break-all text-xs text-primary hover:underline"
+                >
+                  {url}
+                </a>
+              ) : null}
+              {description ? (
+                <p className="mt-2 whitespace-pre-wrap text-sm text-base-content/80">{description}</p>
+              ) : null}
+              {!url && !description ? (
+                <pre className="mt-2 max-h-48 overflow-auto rounded border border-base-300 bg-base-100/50 p-2 font-mono text-[10px] text-base-content/75">
+                  {payload != null ? JSON.stringify(payload, null, 2) : "(empty)"}
+                </pre>
+              ) : (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[10px] text-base-content/40">raw</summary>
+                  <pre className="mt-1 max-h-48 overflow-auto rounded border border-base-300 bg-base-100/50 p-2 font-mono text-[10px] text-base-content/75">
+                    {payload != null ? JSON.stringify(payload, null, 2) : "(empty)"}
+                  </pre>
+                </details>
+              )}
+            </div>
           );
         })}
       </div>

@@ -151,8 +151,11 @@ export default async function QuestDetailPage({ params }) {
     notFound();
   }
 
-  // Hydrate items from the new table (replaces quests.inventory JSONB)
-  const { data: items } = await db
+  // Hydrate items from the new table (replaces quests.inventory JSONB).
+  // Ownership was just verified via getQuestForOwner, so use service role to
+  // sidestep item-RLS evaluation quirks on the user-scoped server client.
+  const svc = await database.init("service");
+  const { data: items } = await svc
     .from("items")
     .select("id, item_key, url, description, source, created_at, updated_at")
     .eq("quest_id", quest.id)

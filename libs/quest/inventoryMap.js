@@ -23,11 +23,16 @@ export function inventoryRawToMap(items) {
 }
 
 /**
- * Items as rows for quest detail UI.
- * @param {unknown[]} items
+ * Items as rows for quest detail UI. Accepts either the raw items[] array
+ * (as returned by the items table) or an already-mapped { item_key: payload } object.
+ * @param {unknown[] | Record<string, unknown>} input
  * @returns {Array<{ item_key: string, payload: unknown, source?: string }>}
  */
-export function inventoryToDisplayRows(items) {
-  const map = inventoryRawToMap(items);
+export function inventoryToDisplayRows(input) {
+  const map = Array.isArray(input)
+    ? inventoryRawToMap(input)
+    : input && typeof input === "object"
+      ? input
+      : {};
   return Object.entries(map).map(([item_key, payload]) => ({ item_key, payload, source: payload?.source }));
 }
