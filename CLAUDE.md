@@ -122,7 +122,7 @@ Potions: temporary tokens that require refresh. New tokens refresh old expired t
 | `libs/council/` | Platform infra: auth, database, AI, billing, cron, settings |
 | `libs/quest/` | Quest CRUD, stage transitions, inventory, `advance()` |
 | `libs/adventurer/` | AI agent execution runtime. Agents decide their own actions natively (no `boast`/`doNextAction` dispatcher) |
-| `libs/skill_book/` | Text-prompt action registry (no JS logic) |
+| `libs/skill_book/` | Action registry. Text prompts (`skillBook.toc` + `howTo`) drive agent behavior; per-rule-5/11 the skill book may also export quest-level orchestration JS that calls weapons and returns deliverable results. Weapons hide always-on plumbing (auth refresh, pagination, retries) — not the skill book. |
 | `libs/weapon/` | External protocol connectors. One weapon per service. |
 | `libs/pigeon_post/` | Async job queue (dormant — reserved for future external async jobs) |
 | `libs/proving_grounds/` | Adventurer roster + quest advance machinery |
