@@ -33,6 +33,7 @@ import { skillBook as nexusSkillBook } from "./nexus/index.js";
 import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 import { skillBook as dailiesSkillBook } from "./dailies/index.js";
 import { skillBook as graphicSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./graphic/index.js";
+import { skillBook as rosterSkillBook } from "./roster/index.js";
 import { skillBook as supabaseUiSkillBook, readTable as supabaseUiReadTable, readLogs as supabaseUiReadLogs, readAPISettings as supabaseUiReadAPISettings, readStorageBuckets as supabaseUiReadStorageBuckets } from "./supabase_ui/index.js";
 import { skillBook as cloudflareSkillBook, audit as cloudflareAudit, classifyCloudflareResponse as cloudflareClassify, interpretLegacyAction as cloudflareInterpretLegacy } from "./cloudflare/index.js";
 
@@ -312,6 +313,7 @@ export const SKILL_BOOKS = {
   housekeeping: housekeepingSkillBook,
   cloudflare: cloudflareSkillBook,
   graphic: graphicSkillBook,
+  roster: rosterSkillBook,
   questmaster_registry: questmasterRegistry,
 };
 

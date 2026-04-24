@@ -1,0 +1,41 @@
+You are adventurer CJGEO Dev (id 90e7b3c7-ee0c-4347-b445-a6ff9e7e900b). Bootstrap per your profile's system_prompt from the GuildOS `adventurers` table (read `.cursorrules` in CJGEO repo + the `cjgeo` and `housekeeping` skill book tocs from GuildOS).
+
+## Task — Phase 1 evidence quest (bookkeeping, not code)
+
+Context: the prior session (same adventurer, now FINISHED) shipped all 5 Phase 1 milestones (M1-M5) of the CJGEO full-auto content engine for Asana task 1214241273651994. That work is already committed to cjgeo/main across 5 commits. We now need the evidence formally captured in GuildOS.
+
+Do this:
+
+1. **Regenerate 5 evidence screenshots** in your VM for the 5 milestones. Previous filenames were phase1-m1.png … phase1-m5.png. You know what each milestone delivered — capture equivalent evidence:
+   - M1 — Migration `20260424000000_phase1_m1_generation_jobs_topic_queue.sql`: screenshot showing generation_jobs + topic_queue tables exist with RLS + indexes, and content_magic_articles has metrics + downstream_status JSONB columns. (psql \d+ or Supabase table editor.)
+   - M2 — `libs/full-agentic/execute.js` Phase 4 `computeMetrics()`: screenshot showing metrics written on a real article (readability/seoStructure/clarityScore/structuralImprovements populated).
+   - M3 — `app/api/jobs/route.js` + `[id]/route.js`: screenshot showing the 9-case test matrix passing (create/read, 60s dedupe, after() kickoff).
+   - M4 — `libs/generation-jobs/queueProcessor.js` + cron integration: screenshot showing queue transitions (e.g. 5 jobs dispatched + 2 queued; atomic claim + credit gate visible).
+   - M5 — `/content-magic/bulk` page: live screenshot of the UI handling bulk enqueue.
+   If any one can't be regenerated because the underlying state has drifted (e.g. queue drained), capture the best-available proof and note the gap in the item description — do not fabricate.
+
+2. **Create a GuildOS quest** (use housekeeping.createQuest or its underlying API):
+   - title: `CJGEO full auto mode dev`
+   - assignee_id: `90e7b3c7-ee0c-4347-b445-a6ff9e7e900b` (yourself)
+   - stage: **`review`** (NOT purrview — user is taking this straight to the GM desk)
+   - description: WBS with 5 main points, one per milestone. Each bullet names the deliverable (the screenshot) and what it proves.
+   - reporting_target_asana_gid: `1214241273651994` (if your schema supports it; otherwise mention the Asana gid in the description)
+
+3. **Upload screenshots** to Supabase Storage bucket `GuildOS_Bucket` at path `cursor_cloud/<questId>/phase1-mN.png` via your `supabase_storage` weapon (writeFile + readPublicUrl). Verify each public URL returns 200 before writing the inventory item.
+
+4. **Write 5 inventory items** via the quest_items facade (keys `screenshot_m1` … `screenshot_m5`), each `{ item_key, url, description, source: "CJGEO Dev" }`. Description is one sentence tied to what the screenshot proves. UNIQUE(quest_id, item_key) — replace-don't-pile-on.
+
+5. **Verify after writing.** SELECT from `quest_items` to confirm all 5 rows exist with their URLs; hit each URL with a HEAD/GET to confirm 200. Treat the SELECT + HTTP result as truth, not any intermediate status. (Don't repeat the known bad pattern on quest `464c2105-0464-4990-bdcc-f41939756d60` where a comment claimed 5 screenshots but storage had 0 files.)
+
+6. **Asana cleanup** on task 1214241273651994:
+   - Delete the 5 verbose text comments previously posted for M1-M5.
+   - For each milestone, attach the screenshot to the task (asana weapon — `createAttachmentForTask` or upload path) and include a one-sentence caption (NOT the verbose block). If image attachment proves awkward, fall back to one short comment per milestone with the public Supabase URL + one-sentence caption.
+
+7. **Do not `submitForPurrview`** — stage stays at `review`. Post one concise quest comment describing what you did, what you verified, and any gaps.
+
+Hard rules:
+- Do not touch CJGEO repo code for this task — this is GuildOS bookkeeping + Asana cleanup only.
+- Do not retry fabricating a screenshot from memory — regenerate from live state or flag the gap.
+- Never trust HTTP status or agent report text as proof of a DB write; SELECT it back.
+
+Report back in one final comment when the quest is in `review` with all 5 items present and Asana is cleaned.

@@ -1,0 +1,15 @@
+Brief was truncated. Rest:
+
+2. Create GuildOS quest — title `CJGEO full auto mode dev`, assignee yourself, stage `review` (NOT purrview — straight to GM desk), WBS description with 5 bullets (one per M1-M5), note Asana gid 1214241273651994 as reporting target.
+
+3. Upload screenshots to `GuildOS_Bucket` at `cursor_cloud/<questId>/phase1-mN.png` via supabase_storage. Verify public URL returns 200 before writing item.
+
+4. Write 5 quest_items (SEPARATE TABLE — quest_items, not legacy quest.inventory JSON): keys `screenshot_m1`..`screenshot_m5`, shape `{ item_key, url, description, source: "CJGEO Dev" }`. UNIQUE(quest_id, item_key) — replace on retry.
+
+5. Verify: SELECT from quest_items to confirm 5 rows; HEAD/GET each URL = 200. Don't trust status codes or self-report. Known bad example: quest `464c2105-0464-4990-bdcc-f41939756d60` claimed 5 screenshots, had 0 files.
+
+6. Asana task 1214241273651994: delete the 5 verbose M1-M5 text comments, replace with 5 image attachments (asana.createAttachmentForTask) + one-sentence captions. If image attach awkward, post short per-milestone comment with Supabase URL + caption.
+
+7. Stage stays `review` — do NOT submitForPurrview. Post one concise quest comment summarizing what you did, verified, and any gaps.
+
+Rules: no CJGEO code changes (GuildOS bookkeeping + Asana only); regenerate screenshots from live state or flag the gap, don't fabricate; SELECT-verify every DB write.
