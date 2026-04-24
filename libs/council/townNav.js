@@ -4,7 +4,8 @@ export const TOWN_NAV_LINKS = [
   { href: "/tavern", label: "Tavern" },
   { href: "/quest-board", label: "Quest board" },
   { href: "/guildmaster-room", label: "GM Room" },
-{ href: "/town-square", label: "Town square" },
+  { href: "/proving-grounds", label: "Proving grounds" },
+  { href: "/town-square", label: "Town square" },
   { href: "/council-hall", label: "Council hall" },
   { href: "/world-map", label: "World map" },
 ];
