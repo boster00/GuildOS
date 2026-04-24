@@ -21,6 +21,7 @@ import { checkCredentials as checkHighlevelCredentials } from "@/libs/weapon/hig
 import { checkCredentials as checkLinkedinCredentials } from "@/libs/weapon/linkedin";
 import { checkCredentials as checkPubcompareCredentials } from "@/libs/weapon/pubcompare";
 import { checkCredentials as checkCloudflareCredentials } from "@/libs/weapon/cloudflare";
+import { checkCredentials as checkTelnyxCredentials } from "@/libs/weapon/telnyx";
 
 
 /**
@@ -219,6 +220,7 @@ export const WEAPONS = [
   { id: "linkedin", title: "LinkedIn", tagline: "Search profiles and read profile info via browser automation.", summary: "LinkedIn profile scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP (port 9222). Must be logged in via CDP profile."], requiresActivation: false },
   { id: "pubcompare", title: "PubCompare", tagline: "Search publication comparison data via browser automation.", summary: "PubCompare.ai scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP. Public site — no auth needed."], requiresActivation: false },
   { id: "cloudflare", title: "Cloudflare", tagline: "Read zone + DNS + firewall + cache analytics; interpret legacy action semantics.", summary: "Read/search/normalize connector for Cloudflare zones. Wraps auth + GraphQL scalar nuances + 1-day firewall-event window cap.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses CLOUDFLARE_API_TOKEN to call the Cloudflare REST API v4 + GraphQL analytics. Resources: zone, zones, dns, firewallRules, accessRules, pageRules, rateLimits, zoneSettings, rulesets, ruleset, botManagement, tokenCapabilities. Analytics: requestsDaily, cacheByHost, cacheByPath, cacheByContentType, firewallEvents, bypassedPaths. normalize kinds: legacyFirewallAction, httpResponse."], requiresActivation: false },
+  { id: "telnyx", title: "Telnyx", tagline: "Programmable voice + SMS PBX — search, buy, and operate phone numbers.", summary: "REST connector for Telnyx Voice/Messaging APIs. Search DIDs, purchase numbers, send SMS, place calls, manage AI assistants.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses TELNYX_API_KEY (Bearer) to call api.telnyx.com/v2. Optional MCP layer via team-telnyx/telnyx-mcp-server (uvx) registered globally in ~/.claude.json — additive, not required."], requiresActivation: false },
   {
     id: "bosterbio.comLiveSite",
     title: "bosterbio.com Live Site",
@@ -266,6 +268,7 @@ export async function readActivationSummaries(userId) {
     linkedin: () => checkLinkedinCredentials(),
     pubcompare: () => checkPubcompareCredentials(),
     cloudflare: () => checkCloudflareCredentials(),
+    telnyx: () => checkTelnyxCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {
