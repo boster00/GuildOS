@@ -13,7 +13,7 @@ export default function GuildmasterSubpagesList() {
       <ul className="space-y-3">
         <li>
           <Link
-            href="/town/guildmaster-room/commission-new-adventurer"
+            href="/guildmaster-room/commission-new-adventurer"
             className="block rounded-2xl border border-primary/30 bg-primary/10 p-4 transition hover:border-primary/50 hover:bg-primary/15"
           >
             <h2 className="text-lg font-semibold">Commission a new adventurer</h2>
@@ -35,7 +35,7 @@ export default function GuildmasterSubpagesList() {
         </li>
         <li>
           <Link
-            href="/town/guildmaster-room/desk"
+            href="/guildmaster-room/desk"
             className="block rounded-2xl border border-base-300 bg-base-200/60 p-4 transition hover:border-primary/40 hover:bg-base-200"
           >
             <h2 className="text-lg font-semibold">The desk</h2>

@@ -8,13 +8,12 @@
 export const skillBook = {
   id: "blacksmith",
   title: "Blacksmith",
-  description: "Forge new weapons and skill books; record proving-grounds setup steps.",
+  description: "Forge new weapons and skill books.",
 
   toc: {
     plan: "Read the quest description and decide whether a new weapon is needed. If yes, produce a blueprint JSON; if no, return skip.",
     review: "Inspect the blueprint in quest inventory. Escalate to the user if credentials or setup are missing; otherwise mark ready to forge.",
     forgeWeapon: "Use the claudecli weapon to write the weapon file (and any associated skill book action) per the blueprint, then verify it via a browser smoke test.",
-    updateProvingGrounds: "Save the blueprint's setup_steps to profiles.council_settings.proving_grounds_setup for the current user.",
   },
 
   plan: `
@@ -66,7 +65,7 @@ When escalating, post a quest comment of this form:
   Weapon: <weapon_name>
   External system: <external_system>
 
-  Please add the following in the Formulary (/town/council-hall/formulary):
+  Please add the following in the Formulary (/council-hall/formulary):
     • Key name: <credentials_needed key>
     • Description: <credentials_needed>
 
@@ -145,27 +144,13 @@ Your ENTIRE output must be a single valid HTML document. No markdown. No prose o
 Save the returned HTML to quest inventory under key "forge_report".
 
 Then verify the forge by invoking claudecli.invoke() a second time with Chrome Extension MCP tools enabled:
-- Navigate to {SITE_URL}/town/proving-grounds/weapons/<weaponName>/
-- If 404, navigate to {SITE_URL}/town/town-square/forge and confirm the weapon appears
+- Navigate to {SITE_URL}/town-square/forge and confirm the weapon appears
 - Take a screenshot, check for obvious errors
 - Return JSON: { "verified": boolean, "reason": "<one sentence>", "screenshotId": "<id or null>" }
 
 Save verification result to quest inventory under key "forge_verification".
 `.trim(),
 
-  updateProvingGrounds: `
-Read setup_steps from input or from quest inventory key "setup_steps" (array of strings).
-Resolve the owner_id from guildos.profile.owner_id (or guildos.profile.id).
-
-Using the database facade:
-  import { database } from "@/libs/council/database";
-  const db = await database.init("service");
-  const { data } = await db.from("profiles").select("council_settings").eq("id", ownerId).single();
-  const merged = { ...(data?.council_settings || {}), proving_grounds_setup: setup_steps };
-  await db.from("profiles").update({ council_settings: merged }).eq("id", ownerId);
-
-Return { saved: true, step_count: setup_steps.length }.
-`.trim(),
 };
 
 export default skillBook;

@@ -14,7 +14,7 @@ export default function OpeningPage() {
           className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-base-300"
         />
         <div className="mt-8">
-          <Link href="/town" className="btn btn-primary btn-lg">
+          <Link href="/" className="btn btn-primary btn-lg">
             Enter Town Map
           </Link>
         </div>

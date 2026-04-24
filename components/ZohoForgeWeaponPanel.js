@@ -129,7 +129,7 @@ export function ZohoForgeWeaponPanel({ weaponSummary, isForged, zohoStatus }) {
           </div>
           <p className="mt-3 text-base font-medium text-success/95">
             Zoho Books is connected. Skill books can use this weapon; OAuth tokens live in the{" "}
-            <Link href="/town/town-square/apothecary" className="link font-semibold text-success underline">
+            <Link href="/town-square/apothecary" className="link font-semibold text-success underline">
               Apothecary
             </Link>
             .
@@ -176,7 +176,7 @@ export function ZohoForgeWeaponPanel({ weaponSummary, isForged, zohoStatus }) {
               <p className="mt-1 text-info/90">
                 <code className="text-xs">{KEY_ID}</code> and <code className="text-xs">{KEY_SECRET}</code> are set. To
                 remove or change them, you must edit them in{" "}
-                <Link href="/town/council-hall/formulary" className="link font-semibold underline">
+                <Link href="/council-hall/formulary" className="link font-semibold underline">
                   Council Hall → Formulary
                 </Link>
                 .

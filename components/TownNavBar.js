@@ -2,7 +2,7 @@ import Link from "next/link";
 import { TOWN_NAV_LINKS } from "@/libs/council/townNav";
 
 /**
- * Sticky top bar for all /town/* routes (see app/town/layout.js).
+ * Sticky top bar for all /* routes (see app/layout.js).
  */
 export default function TownNavBar() {
   return (

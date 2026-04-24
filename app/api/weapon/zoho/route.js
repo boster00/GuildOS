@@ -27,7 +27,7 @@ import {
   zohoErrorToJsonPayload,
 } from "@/libs/weapon/zoho";
 
-const FORGE_URL = () => `${getSiteUrl().replace(/\/$/, "")}/town/town-square/forge/zoho`;
+const FORGE_URL = () => `${getSiteUrl().replace(/\/$/, "")}/town-square/forge/zoho`;
 
 export async function GET(request) {
   const action = new URL(request.url).searchParams.get("action");

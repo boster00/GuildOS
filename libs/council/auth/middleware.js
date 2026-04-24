@@ -31,5 +31,5 @@ export async function updateSession(request) {
 }
 
 export function isProtectedPath(pathname) {
-  return pathname.startsWith("/town") || pathname.startsWith("/opening");
+  return pathname.startsWith("/") || pathname.startsWith("/opening");
 }

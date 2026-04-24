@@ -264,7 +264,7 @@ function buildVerificationPrompt(quest, inventoryMap) {
   if (!invSummary) return null;
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "http://localhost:3002").replace(/\/$/, "");
-  const questUrl = `${siteUrl}/town/quest-board/${questId}`;
+  const questUrl = `${siteUrl}/quest-board/${questId}`;
 
   return [
     `Verify the results of this completed quest by inspecting its detail page.`,

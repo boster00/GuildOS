@@ -22,7 +22,7 @@ export async function middleware(request) {
 
   if (pathname.startsWith("/signin") && user) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/opening";
+    redirectUrl.pathname = "/tavern";
     return NextResponse.redirect(redirectUrl);
   }
 

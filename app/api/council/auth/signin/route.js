@@ -13,7 +13,7 @@ export async function POST(request) {
   const { error } = await db.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${getSiteUrl()}/api/council/auth/callback?next=/opening`,
+      emailRedirectTo: `${getSiteUrl()}/api/council/auth/callback?next=/tavern`,
     },
   });
 

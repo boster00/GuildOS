@@ -150,7 +150,7 @@ Never present raw agent output directly to the user without review.
     reportChaperonWork: {
       description: "Report chaperon work by creating a review-stage quest on the Guildmaster.s Desk.",
       howTo: `
-Every completed chaperon engagement must produce a review task visible on \`/town/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
+Every completed chaperon engagement must produce a review task visible on \`/guildmaster-room/desk\`. If no GuildOS quest exists for the work, create one in \`review\` stage — the desk auto-shows all review-stage quests.
 
 \`\`\`javascript
 import { writeQuest, writeItem, recordQuestComment } from "@/libs/quest";

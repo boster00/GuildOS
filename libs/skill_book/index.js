@@ -1,6 +1,6 @@
 /**
  * Skill book hub — per-book modules live under `libs/skill_book/<name>/`.
- * `getSkillBook` builds the runtime view for proving-grounds / adventurer execution.
+ * `getSkillBook` builds the runtime view for adventurer execution.
  *
  * **Catalog source of truth:** `SKILL_BOOKS`, `ADVENTURER_REGISTRY`, and helpers below
  * (`listSkillBookIdsForRosterUI`, `filterValidSkillBookNames`, etc.). Do not duplicate

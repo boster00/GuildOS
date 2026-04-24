@@ -6,8 +6,8 @@ export async function GET(request) {
   const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
-  const next = requestUrl.searchParams.get("next") || "/opening";
-  const safeNext = next.startsWith("/") ? next : "/opening";
+  const next = requestUrl.searchParams.get("next") || "/tavern";
+  const safeNext = next.startsWith("/") ? next : "/tavern";
   const redirectBase = getSiteUrl();
   const db = await database.init("server");
 
