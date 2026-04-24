@@ -22,8 +22,12 @@ export const skillBook = {
 **Images:** Separate \`product_images\` table: product_id (FK), image_url, alt_text, ltx_description, position, type (hero/gallery/datasheet/swatch). Multiple products can reference same image.
 
 **Data sources (ranked by preference):**
-1. **Full product export CSV** — \`https://www.bosterbio.com/pub/export-internal.csv\` contains the complete product export straight from Magento. For any smoke test, fetch the first N+1 rows (first row is the header). Example for 100 products: \`curl -s https://www.bosterbio.com/pub/export-internal.csv | head -n 101\`. This is the fastest path and avoids SSH/DB round-trips.
-2. **Direct SQL on Magento DB** — SSH to the bosterbio.com production server (see \`connectSsh\` action) and query MySQL (\`bosterbio_m2\` database) directly. Use when you need data not in the CSV export (e.g. raw EAV rows, image blobs, custom tables).
+1. **Full product export CSV on the Magento server** — \`$MAGE_ROOT/pub/export.csv\` (full path: \`/home/jetrails/bosterbio.com/html/pub/export.csv\`). Auto-regenerated; ~260 MB, ~258k rows (more rows than products because option/variant rows are flattened). Header includes sku, status, name, url_key, product_category, gene_name, price, size_1..10, badges, clonality, clone_number, concentration, conjugate, description, short_description, uniprot_id, host, immunogen, form, purification, storage, cross_reactivity, isotype, sensitivity, kit_components, sample_type, applications, reactivity, predicted_reactivity, images, image_labels, custom_options, created_at, updated_at, category_ids, etc. **This file is NOT publicly served** — access via SSH only (see \`connectSsh\`). Smoke-test pattern:
+   \`\`\`bash
+   ssh -p 2223 boster_ooP9u@69.27.32.101 "head -c 5000000 /home/jetrails/bosterbio.com/html/pub/export.csv" > sample.csv
+   \`\`\`
+   Use byte-bounded head (\`-c\`) rather than line-bounded (\`-n\`), because description/HTML cells contain embedded newlines inside quoted strings — line count != product count. Parse the first ~5MB with a streaming CSV parser client-side (e.g. csv-parse) and stop after N product rows.
+2. **Direct SQL on Magento DB** — SSH to the bosterbio.com production server (see \`connectSsh\`) and query MySQL (\`bosterbio_m2\` database). Use when you need data not in the CSV export (raw EAV rows, image blobs, custom tables).
 3. **bosterbio.comLiveSite weapon (BAPI)** — only exposes gene actions today (readGenes, readGene, writeEnrichment). No product action yet; extend the BAPI PHP if you need live API-based product reads instead of a CSV snapshot.
 
 **Migration flow:**
