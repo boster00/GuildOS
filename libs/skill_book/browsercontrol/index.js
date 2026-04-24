@@ -25,7 +25,7 @@ export const skillBook = {
   id: "browsercontrol",
   title: "Browser control",
   description:
-    "Guidance for browser work: local Claude uses Claude-in-Chrome MCP; cloud agents use their VM's native Playwright. One action: captureAuth (local Guildmaster only, for exporting a storageState JSON that cloud agents import).",
+    "Guidance for browser work: local Claude uses Claude-in-Chrome MCP; cloud agents use their VM's native Playwright. Actions: captureAuth (export storageState for cloud), accessChromeExtensionPage (open chrome:// URLs via CIC).",
   steps: [],
   toc: {
     captureAuth: {
@@ -39,6 +39,23 @@ node scripts/auth-load.mjs                # verify JSON export
 \`\`\`
 
 This is the only place in GuildOS where Playwright launches Chrome directly (\`launchPersistentContext\` with system Chrome). Local Claude uses Claude-in-Chrome MCP tools for browsing — NOT the captured profile.
+`,
+    },
+    accessChromeExtensionPage: {
+      description: "Navigate CIC to chrome://extensions/ (reload an extension, toggle dev mode, etc.).",
+      howTo: `
+Use the Claude-in-Chrome MCP \`navigate\` tool with URL \`chrome://extensions/\`.
+
+**Critical:** the URL MUST include the trailing slash. \`chrome://extensions\` (no slash) silently fails to load via CIC — the tab navigates, no visible error, but the page never renders. Always use \`chrome://extensions/\`.
+
+Same rule applies to other chrome:// URLs that end in a path segment: \`chrome://settings/\`, \`chrome://flags/\`, \`chrome://inspect/\`. Add the trailing slash when in doubt.
+
+Common follow-ups once on chrome://extensions/:
+- Reload an unpacked extension: \`find\` the extension's reload button (circular-arrow icon under its card) and click it.
+- Toggle developer mode: top-right switch.
+- After reloading, navigate to the target site (or tell the user to refresh their tab) so the new content script loads.
+
+If the user has disabled the extension or uninstalled it, chrome://extensions/ is where you verify — but you cannot programmatically re-enable/re-install; ask the user.
 `,
     },
   },
