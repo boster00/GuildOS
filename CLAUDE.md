@@ -7,7 +7,7 @@ All ad-hoc changes — refactors, fixes, weapon/skill-book edits, CLAUDE.md upda
 Avoid asking questions that you can do without the user's input. The bypass permission is usually turned on and the goal for this system is to enable maximum leverage by allowing mutiple threads to run parallel. The goal to strike for is to ask user for questions and help only if there is no obvious answer/choice, or if there is a block that only the user can resolve. We shall lock down the rule here that before you present the list of questions to the user, ask yourself at least one time: do I really need user's input on this? Can I do this myself with the tools I have? Especially consider the CIC, most things the user can do you can do it through CIC as a fallback.
 
 ## sit rep standard
-When user says "sit rep", output in table format all action items with (if applicable) status (usually the progression stages are defined by the user defined strategy), delta, and recommendations/questions/your message about the item (column name= note). 
+When user says "sit rep", output in table format all action items in this thread only, with (if applicable) status (usually the progression stages are defined by the user defined strategy), delta, and recommendations/questions/your message about the item (column name= note). 
 
 ## Priority hierarchy
 When instructions conflict, follow this order:
