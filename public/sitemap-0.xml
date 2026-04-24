@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
-<url><loc>http://localhost:3002/signin</loc><lastmod>2026-04-24T17:08:42.121Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>http://localhost:3002/weapons</loc><lastmod>2026-04-24T17:08:42.122Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>http://localhost:3002/opening</loc><lastmod>2026-04-24T17:08:42.122Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>http://localhost:3002/world-map</loc><lastmod>2026-04-24T17:08:42.122Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>http://localhost:3002/town-square</loc><lastmod>2026-04-24T17:08:42.122Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
-<url><loc>http://localhost:3002/town-square/library</loc><lastmod>2026-04-24T17:08:42.122Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3002/signin</loc><lastmod>2026-04-24T17:12:42.610Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3002/weapons</loc><lastmod>2026-04-24T17:12:42.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3002/opening</loc><lastmod>2026-04-24T17:12:42.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3002/world-map</loc><lastmod>2026-04-24T17:12:42.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3002/town-square</loc><lastmod>2026-04-24T17:12:42.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>http://localhost:3002/town-square/library</loc><lastmod>2026-04-24T17:12:42.611Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
 </urlset>
