@@ -298,7 +298,7 @@ export default function QuestDetailFieldEditClient({
                 if (e.target === e.currentTarget) setViewScreenshotsOpen(false);
               }}
             >
-              <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl">
+              <div className="flex h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl">
                 <div className="mb-2 flex items-center justify-between">
                   <h2 className="text-sm font-semibold">Screenshots ({screenshots.length})</h2>
                   <button

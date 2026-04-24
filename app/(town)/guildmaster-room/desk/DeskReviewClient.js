@@ -66,7 +66,7 @@ export function ImageCarousel({ images }) {
         <img
           src={img.url}
           alt={img.description}
-          className="block w-full h-full object-contain"
+          className="block w-full h-auto"
           loading="lazy"
         />
         {/* Prev / Next buttons */}
