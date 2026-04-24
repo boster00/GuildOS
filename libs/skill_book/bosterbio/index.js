@@ -21,8 +21,13 @@ export const skillBook = {
 
 **Images:** Separate \`product_images\` table: product_id (FK), image_url, alt_text, ltx_description, position, type (hero/gallery/datasheet/swatch). Multiple products can reference same image.
 
+**Data sources (ranked by preference):**
+1. **Full product export CSV** — \`https://www.bosterbio.com/pub/export-internal.csv\` contains the complete product export straight from Magento. For any smoke test, fetch the first N+1 rows (first row is the header). Example for 100 products: \`curl -s https://www.bosterbio.com/pub/export-internal.csv | head -n 101\`. This is the fastest path and avoids SSH/DB round-trips.
+2. **Direct SQL on Magento DB** — SSH to the bosterbio.com production server (see \`connectSsh\` action) and query MySQL (\`bosterbio_m2\` database) directly. Use when you need data not in the CSV export (e.g. raw EAV rows, image blobs, custom tables).
+3. **bosterbio.comLiveSite weapon (BAPI)** — only exposes gene actions today (readGenes, readGene, writeEnrichment). No product action yet; extend the BAPI PHP if you need live API-based product reads instead of a CSV snapshot.
+
 **Migration flow:**
-1. Extract Magento EAV (SSH to Magento server, query MySQL)
+1. Extract products from the CSV export (or Magento EAV if CSV is missing fields)
 2. Map dedicated fields (Type A)
 3. Merge gene data into target_info JSON
 4. Map flexible attrs to attr_1...N
