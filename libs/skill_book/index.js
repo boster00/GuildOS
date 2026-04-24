@@ -21,7 +21,7 @@ import {
   assign as runAssign,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
-import { skillBook as blacksmithSkillBook, plan as blacksmithPlan, review as blacksmithReview, forgeWeapon, updateProvingGrounds } from "./blacksmith/index.js";
+import { skillBook as blacksmithSkillBook } from "./blacksmith/index.js";
 import { skillBook as bigquerySkillBook, readRecentEvents as bigqueryReadRecentEvents } from "./bigquery/index.js";
 import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks, readTaskComments as asanaReadTaskComments } from "./asana/index.js";
 import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
@@ -421,12 +421,8 @@ const questmasterAdventurerActions = {
   },
 };
 
-const blacksmithAdventurerActions = {
-  plan: (_userId, input) => blacksmithPlan(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  review: (_userId, input) => blacksmithReview(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  forgeWeapon: (_userId, input) => forgeWeapon(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-  updateProvingGrounds: (_userId, input) => updateProvingGrounds(_userId, /** @type {Record<string, unknown>} */ (input || {})),
-};
+// Blacksmith is a pure text-prompt skill book — no callable JS actions.
+const blacksmithAdventurerActions = {};
 
 const ADVENTURER_REGISTRY = {
   default: { definition: defaultDef, adventurerActions: {
