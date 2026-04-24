@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 const COLUMNS = [
   {
@@ -14,7 +14,7 @@ const COLUMNS = [
     fantasyName: "Paw-lanning",
     flavorSubtitle: "Plan",
     businessTip:
-      "Plan: quests the questmaster (cat) is still shaping—titles, deliverables, assignments.",
+      "Plan: quests the questmaster (cat) is still shapingâ€”titles, deliverables, assignments.",
     stages: ["plan"],
   },
   {
@@ -22,7 +22,7 @@ const COLUMNS = [
     fantasyName: "Quest Board",
     flavorSubtitle: "Assign & venture forth",
     businessTip:
-      "Quests ready for adventurers to pick up and run. Active execution is grouped here as well (no separate “execute” column yet—you may add a prayer room later for heroes in the field).",
+      "Quests ready for adventurers to pick up and run. Active execution is grouped here as well (no separate â€œexecuteâ€ column yetâ€”you may add a prayer room later for heroes in the field).",
     stages: ["assign", "execute"],
   },
   {
@@ -46,7 +46,7 @@ const COLUMNS = [
     fantasyName: "Bard's lounge",
     flavorSubtitle: "Songs of victory",
     businessTip:
-      "Completed archive: finished quests—the tavern tales of work done. Past victories rest here for reference.",
+      "Completed archive: finished questsâ€”the tavern tales of work done. Past victories rest here for reference.",
     stages: ["completed"],
   },
 ];
@@ -77,7 +77,7 @@ function QuestCard({ quest }) {
 
   return (
     <Link
-      href={`/town/inn/quest-board/${quest.id}`}
+      href={`/town/quest-board/${quest.id}`}
       className="relative block rounded-lg border border-base-300 bg-base-100/95 p-3 shadow-sm transition hover:border-primary/40 hover:bg-base-100"
       data-quest-id={quest.id}
     >
@@ -93,7 +93,7 @@ function QuestCard({ quest }) {
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] uppercase tracking-wide text-base-content/50">
           {quest.assigned_to ? <span>Assignee: {quest.assigned_to}</span> : null}
-          <span className="font-mono normal-case tracking-normal">id · {String(quest.id).slice(0, 8)}…</span>
+          <span className="font-mono normal-case tracking-normal">id Â· {String(quest.id).slice(0, 8)}â€¦</span>
         </div>
       </div>
     </Link>
@@ -145,14 +145,14 @@ export function InnKanbanFooter() {
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-base-300 pt-4 text-sm">
       <p className="text-base-content/65">
         Submit a new idea from the request desk. Open the full{" "}
-        <Link href="/town/inn/quest-board" className="link link-primary font-medium">
+        <Link href="/town/quest-board" className="link link-primary font-medium">
           quest board
         </Link>{" "}
         for every quest by id. Stages follow your quest rows (including{" "}
         <code className="rounded bg-base-200 px-1 text-xs">completed</code> for the Bard&apos;s lounge).
       </p>
       <div className="flex flex-wrap gap-2">
-        <Link href="/town/inn/quest-board" className="btn btn-ghost btn-sm">
+        <Link href="/town/quest-board" className="btn btn-ghost btn-sm">
           Quest board
         </Link>
         <Link href="/town/inn/request-desk" className="btn btn-primary btn-sm">

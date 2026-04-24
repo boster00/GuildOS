@@ -137,7 +137,7 @@ export default async function QuestDetailPage({ params }) {
       <main className="guild-bg-quest-board min-h-dvh p-4 md:p-8">
         <section className="mx-auto max-w-3xl rounded-3xl border border-base-300 bg-base-100/88 p-6 shadow-xl backdrop-blur">
           <p className="text-base-content/80">Sign in to view this quest.</p>
-          <Link href={`/signin?next=/town/inn/quest-board/${questId}`} className="btn btn-primary mt-4">
+          <Link href={`/signin?next=/town/quest-board/${questId}`} className="btn btn-primary mt-4">
             Sign in
           </Link>
         </section>
@@ -183,7 +183,7 @@ export default async function QuestDetailPage({ params }) {
             The Inn
           </Link>
           <span className="mx-2">/</span>
-          <Link href="/town/inn/quest-board" className="link link-hover">
+          <Link href="/town/quest-board" className="link link-hover">
             Quest board
           </Link>
           <span className="mx-2">/</span>

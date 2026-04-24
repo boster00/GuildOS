@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { getQuestsForOwner } from "@/libs/quest";
 import { InnKanban, InnKanbanFooter } from "./InnKanban";
@@ -7,7 +7,7 @@ const INN_PLACES = [
   {
     id: "main-hall",
     title: "Main hall",
-    text: "Kanban on this page—drag of fate by stage. For a full list, use the quest board.",
+    text: "Kanban on this pageâ€”drag of fate by stage. For a full list, use the quest board.",
     href: null,
     anchor: "#inn-quest-board",
   },
@@ -15,12 +15,12 @@ const INN_PLACES = [
     id: "quest-board",
     title: "Quest board",
     text: "Dedicated ledger: open any quest by id, stages, assignees, and detail.",
-    href: "/town/inn/quest-board",
+    href: "/town/quest-board",
   },
   {
     id: "upstairs",
     title: "Upstairs",
-    text: "Adventurers' rooms—the roster lives above the noise of the hall.",
+    text: "Adventurers' roomsâ€”the roster lives above the noise of the hall.",
     href: "/town/inn/upstairs",
   },
   {
@@ -117,7 +117,7 @@ export default async function InnPage() {
             </div>
           ) : (
             <>
-              <h2 className="mb-3 text-lg font-semibold">Main hall — quest board</h2>
+              <h2 className="mb-3 text-lg font-semibold">Main hall â€” quest board</h2>
               <InnKanban quests={quests} />
               <InnKanbanFooter />
             </>

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { getQuestsForOwner } from "@/libs/quest";
 
@@ -46,7 +46,7 @@ export default async function QuestBoardPage() {
         {!user ? (
           <div className="mt-8 rounded-2xl border border-base-300 bg-base-200/50 p-8 text-center">
             <p className="text-base-content/80">Sign in to see your quests.</p>
-            <Link href="/signin?next=/town/inn/quest-board" className="btn btn-primary mt-4">
+            <Link href="/signin?next=/town/quest-board" className="btn btn-primary mt-4">
               Sign in
             </Link>
           </div>
@@ -67,7 +67,7 @@ export default async function QuestBoardPage() {
             {quests.map((q) => (
               <li key={q.id}>
                 <Link
-                  href={`/town/inn/quest-board/${q.id}`}
+                  href={`/town/quest-board/${q.id}`}
                   className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 transition hover:bg-base-200"
                 >
                   <div className="min-w-0 flex-1">

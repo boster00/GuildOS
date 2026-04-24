@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -61,7 +61,7 @@ function ImageCarousel({ images }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Main image — fills available height */}
+      {/* Main image â€” fills available height */}
       <div className="relative flex-1 overflow-auto rounded-xl border border-base-300 bg-black/5" style={{ minHeight: 0 }}>
         <img
           src={img.url}
@@ -108,7 +108,7 @@ function ImageCarousel({ images }) {
           </div>
         )}
       </div>
-      {/* Thumbnails — scrollable row */}
+      {/* Thumbnails â€” scrollable row */}
       {images.length > 1 && (
         <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {images.map((im, i) => (
@@ -187,10 +187,10 @@ function ReviewCard({ quest, comments, onUpdate }) {
 
   return (
     <div className="w-full rounded-2xl border border-amber-900/15 bg-gradient-to-br from-base-200/80 to-base-200/40 shadow-sm dark:border-amber-100/10">
-      {/* Header — full width */}
+      {/* Header â€” full width */}
       <div className="flex items-start justify-between gap-3 border-b border-base-300/50 px-5 py-3">
         <div className="min-w-0 flex-1">
-          <a href={`/town/inn/quest-board/${quest.id}`} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold leading-snug hover:underline">{quest.title || "Untitled"}</a>
+          <a href={`/town/quest-board/${quest.id}`} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold leading-snug hover:underline">{quest.title || "Untitled"}</a>
           {quest.assigned_to && (
             <p className="mt-0.5 text-xs text-base-content/50">Adventurer: {quest.assigned_to}</p>
           )}
@@ -273,7 +273,7 @@ function ReviewCard({ quest, comments, onUpdate }) {
           </div>
         </div>
 
-        {/* Right panel: image carousel — max 500px height, images max 1200px width, scrollable */}
+        {/* Right panel: image carousel â€” max 500px height, images max 1200px width, scrollable */}
         <div className="w-full flex-1 p-5" style={{ maxHeight: 600 }}>
           <ImageCarousel images={images} />
         </div>
@@ -336,7 +336,7 @@ function EscalatedSection({ quests, onUpdate }) {
           <div key={q.id} className="rounded-2xl border border-warning/30 bg-warning/5 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <a href={`/town/inn/quest-board/${q.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{q.title || "Untitled"}</a>
+                <a href={`/town/quest-board/${q.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{q.title || "Untitled"}</a>
                 {q.assigned_to && (
                   <p className="text-xs text-base-content/50">Adventurer: {q.assigned_to}</p>
                 )}

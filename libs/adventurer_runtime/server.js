@@ -1,5 +1,5 @@
-/**
- * Server-only proving-grounds surface — roster CRUD, storage, runtime class,
+﻿/**
+ * Server-only proving-grounds surface â€” roster CRUD, storage, runtime class,
  * and the quest advancement stage machine.
  */
 import {
@@ -89,7 +89,7 @@ function parseJsonFromModelText(text) {
  *  - Adventurer assignee (DB row): server.js runs plan/execute/review logic
  *    (NPC code paths were retired; all assignees are now DB adventurers)
  *
- * @param {object} quest — full quest row
+ * @param {object} quest â€” full quest row
  * @param {{ client: import("@/libs/council/database/types.js").DatabaseClient }} opts
  * @returns {Promise<{ ok: boolean, advanced: boolean, stage: string, action?: string, detail?: unknown, note?: string, error?: string }>}
  */
@@ -105,7 +105,7 @@ export async function advanceQuest(quest, opts) {
 
   const { updateQuest, recordQuestComment, updateQuestExecutionPlan } = await import("@/libs/quest/index.js");
 
-  // ── closing: advance to next step or complete (no assignee needed) ──
+  // â”€â”€ closing: advance to next step or complete (no assignee needed) â”€â”€
   if (stage === "closing") {
     const { advanceToNextStep } = await import("@/libs/quest/index.js");
     const stepResult = await advanceToNextStep(questId, { client });
@@ -120,17 +120,17 @@ export async function advanceQuest(quest, opts) {
     return { ok: true, advanced: true, stage: "assign", action: "closing:nextStep", detail: stepResult.data };
   }
 
-  // ── escalated: wait for Guildmaster triage (no auto-advance) ──
+  // â”€â”€ escalated: wait for Guildmaster triage (no auto-advance) â”€â”€
   if (stage === "escalated") {
-    return { ok: true, advanced: false, stage: "escalated", note: "Quest is escalated — awaiting Guildmaster triage." };
+    return { ok: true, advanced: false, stage: "escalated", note: "Quest is escalated â€” awaiting Guildmaster triage." };
   }
 
-  // ── completed: terminal ──
+  // â”€â”€ completed: terminal â”€â”€
   if (stage === "completed") {
     return { ok: true, advanced: false, stage: "completed", note: "Quest is already completed." };
   }
 
-  // ── Resolve assignee ──
+  // â”€â”€ Resolve assignee â”€â”€
   const { resolveAssignee } = await import("@/libs/quest/index.js");
   const assignedTo = String(quest.assigned_to ?? "").trim();
 
@@ -140,21 +140,21 @@ export async function advanceQuest(quest, opts) {
 
   const assignee = await resolveAssignee(assignedTo, client);
 
-  // ── Adventurer path: assign → execute (direct), review ──
+  // â”€â”€ Adventurer path: assign â†’ execute (direct), review â”€â”€
   if (assignee.type !== "adventurer") {
     return { ok: false, advanced: false, stage, error: `Cannot resolve assignee "${assignedTo}" as an adventurer.` };
   }
 
   const advRow = assignee.profile;
 
-  // ── plan: skip to execute (planning is done inline by the executing LLM) ──
+  // â”€â”€ plan: skip to execute (planning is done inline by the executing LLM) â”€â”€
   if (stage === "plan") {
     await updateQuest(questId, { stage: "execute" }, { client });
-    await recordQuestComment(questId, { source: advRow.name, action: "plan", summary: "Skipping plan — adventurer executes directly." }, { client });
+    await recordQuestComment(questId, { source: advRow.name, action: "plan", summary: "Skipping plan â€” adventurer executes directly." }, { client });
     return { ok: true, advanced: true, stage: "execute", action: "plan:skipToExecute" };
   }
 
-  // ── execute: invoke Claude CLI via the claudecli weapon ──
+  // â”€â”€ execute: invoke Claude CLI via the claudecli weapon â”€â”€
   if (stage === "execute") {
     const { invoke: invokeClaudeCLI } = await import("@/libs/weapon/claudecli/index.js");
     const { writeItem } = await import("@/libs/quest/index.js");
@@ -186,7 +186,7 @@ export async function advanceQuest(quest, opts) {
         resultItems = parsed.items;
         resultSummary = parsed.summary || `Executed by ${advRow.name}`;
       } else {
-        // No structured JSON — treat entire output as the result
+        // No structured JSON â€” treat entire output as the result
         const itemKey = questTitle.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "result";
         resultItems = { [itemKey]: cliResult };
         resultSummary = `Claude produced ${cliResult.length} chars (saved as "${itemKey}")`;
@@ -210,7 +210,7 @@ export async function advanceQuest(quest, opts) {
       return { ok: true, advanced: true, stage: "review", action: "execute:directComplete", detail: { items: Object.keys(resultItems) } };
     }
 
-    // No items produced — failure
+    // No items produced â€” failure
     await recordQuestComment(questId, {
       source: advRow.name,
       action: "execute",
@@ -220,7 +220,7 @@ export async function advanceQuest(quest, opts) {
     return { ok: false, advanced: false, stage, action: "execute:failed", error: lastError || "No deliverables produced" };
   }
 
-  // ── review: auto-advance to closing (Cat/Pig self-review is an NPC path above) ──
+  // â”€â”€ review: auto-advance to closing (Cat/Pig self-review is an NPC path above) â”€â”€
   if (stage === "review") {
     await updateQuest(questId, { stage: "closing" }, { client });
     return { ok: true, advanced: true, stage: "closing", action: "review:autoClose" };
@@ -237,8 +237,8 @@ export async function advanceQuest(quest, opts) {
  * Build a verification prompt for `claude -p` based on quest results.
  * Returns null if the quest has nothing worth verifying via browser.
  *
- * @param {Record<string, unknown>} quest — quest row
- * @param {Record<string, unknown>} inventoryMap — flattened inventory
+ * @param {Record<string, unknown>} quest â€” quest row
+ * @param {Record<string, unknown>} inventoryMap â€” flattened inventory
  * @returns {string | null}
  */
 function buildVerificationPrompt(quest, inventoryMap) {
@@ -264,7 +264,7 @@ function buildVerificationPrompt(quest, inventoryMap) {
   if (!invSummary) return null;
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "http://localhost:3002").replace(/\/$/, "");
-  const questUrl = `${siteUrl}/town/inn/quest-board/${questId}`;
+  const questUrl = `${siteUrl}/town/quest-board/${questId}`;
 
   return [
     `Verify the results of this completed quest by inspecting its detail page.`,
