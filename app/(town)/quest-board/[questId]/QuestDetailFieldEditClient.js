@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { inventoryRawToMap, inventoryToDisplayRows } from "@/libs/quest/inventoryMap.js";
 import { ItemsListDisplay } from "./questDetailDisplays.js";
+import { ImageCarousel, extractImages } from "../../guildmaster-room/desk/DeskReviewClient";
 
 const QUEST_PATCH_RELATIVE_URL = "/api/quest";
 
@@ -77,6 +79,7 @@ export default function QuestDetailFieldEditClient({
   const [editAssignee, setEditAssignee] = useState(false);
   const [editDue, setEditDue] = useState(false);
   const [editInv, setEditInv] = useState(false);
+  const [viewScreenshotsOpen, setViewScreenshotsOpen] = useState(false);
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDesc, setDraftDesc] = useState("");
@@ -225,6 +228,7 @@ export default function QuestDetailFieldEditClient({
   }, [draftInv, patchQuest]);
 
   const itemRows = inventoryToDisplayRows(invMap);
+  const screenshots = useMemo(() => extractImages(invMap), [invMap]);
   const saving = busy === "save";
 
   return (
@@ -270,8 +274,50 @@ export default function QuestDetailFieldEditClient({
           )}
           <p className="mt-1 font-mono text-xs text-base-content/50">{questId}</p>
         </div>
-        {stageControls ? <div className="flex flex-wrap gap-2">{stageControls}</div> : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {stageControls}
+          {screenshots.length > 0 ? (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => setViewScreenshotsOpen(true)}
+            >
+              View screenshots ({screenshots.length})
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {viewScreenshotsOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setViewScreenshotsOpen(false);
+              }}
+            >
+              <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Screenshots ({screenshots.length})</h2>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-circle"
+                    onClick={() => setViewScreenshotsOpen(false)}
+                    aria-label="Close screenshots"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1">
+                  <ImageCarousel images={screenshots} />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       <div className="mt-6">
         <div className="flex items-start justify-between gap-2">

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
  * Extract image URLs from inventory items.
  * Detects: { url: "...png" }, Supabase storage URLs, etc.
  */
-function extractImages(inventory) {
+export function extractImages(inventory) {
   if (!inventory || typeof inventory !== "object") return [];
   const images = [];
   const imgExtensions = /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?.*)?$/i;
@@ -47,7 +47,7 @@ function extractImages(inventory) {
   return images;
 }
 
-function ImageCarousel({ images }) {
+export function ImageCarousel({ images }) {
   const [current, setCurrent] = useState(0);
   if (images.length === 0) {
     return (
