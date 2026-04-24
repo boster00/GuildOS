@@ -45,7 +45,7 @@ Questmaster: a special agent responsible for helping adventure resolve issues an
 Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. Users will provide fine-tuning adjustments for how to do things, and such insights and strategic fine tuning should be cumulated and cemented in skill books. 
 
 **Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
-- **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, submitForPurrview, comment, seekHelp, etc.).
+- **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp, etc.). `verifyDeliverable` is a required precondition of `submitForPurrview`.
 - **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
 
 Follow the "index first, content on demand" rule above: load toc only at boot; read a specific action's `howTo` only when you're about to execute it.
@@ -171,6 +171,21 @@ Operational how-tos live in skill books: `housekeeping` (createQuest, clarifyQue
 **Never trust agent reports as fact.** When an agent claims it did something (moved a quest stage, wrote to DB, uploaded a file), verify by checking the actual data source — SELECT from the database, check the file exists, confirm the URL returns 200. Agent conversation text is a claim, not proof.
 
 Operational how-tos live in the `guildmaster` skill book.
+
+**Cursor cloud env vars live at https://cursor.com/dashboard/cloud-agents → *My Secrets*.** Each secret is scoped per-repo (or "All Repositories"). Satellite-repo agents (bosterbio.com2026, bosternexus, cjgeo, hairos, magento) need `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SECRETE_KEY` on their env to read/write GuildOS DB. Add on-demand when an agent escalates on missing creds — do NOT blanket-provision. "All Repositories" scope conflicts with existing per-repo entries; scope new secrets to the specific repo(s) missing them.
+
+---
+
+## Smoke-test discipline
+
+Pre-execution blockers (missing credentials, no quest access, missing repo checkout) are **expected failure modes**, not bugs. An agent that can't read its quest should escalate cleanly with specifics, not improvise a deliverable. Treat a clean escalation as a pass signal for the discipline layer, even if no deliverable was produced.
+
+When a smoke-test quest is stranded on a pre-execution block:
+1. Fix the environmental gap (provision creds, clone repo, restart VM).
+2. Do NOT retry the same session after unblocking — cursor sessions in `FINISHED` state don't inherit new env. Spawn a fresh session for the same adventurer before re-dispatching.
+3. Evaluate the NEW run against the rubric. The first run's outcome is a pre-execution data point, not a deliverable-quality data point.
+
+The 10-point deliverable rubric lives in `housekeeping.verifyDeliverable`. Both agents (self-QA) and reviewers (Cat) apply the same checklist — submitting a known-bad artifact wastes a review cycle.
 
 ---
 
