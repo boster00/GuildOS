@@ -7,7 +7,7 @@ import { checkCredentials as checkSupabaseUiCredentials } from "@/libs/weapon/su
 import { checkCredentials as checkAuthStateCredentials } from "@/libs/weapon/auth_state";
 import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
-import { ping as pingBosterBio } from "@/libs/weapon/bosterbio_lifecycle";
+import { ping as pingBosterBio } from "@/libs/weapon/bosterbio.comLiveSite";
 import { checkCredentials as checkImapCredentials } from "@/libs/weapon/imap";
 import { checkCredentials as checkBioinvsyncCredentials } from "@/libs/weapon/bioinvsync";
 import { checkCredentials as checkStripeCredentials } from "@/libs/weapon/stripe";
@@ -220,9 +220,9 @@ export const WEAPONS = [
   { id: "pubcompare", title: "PubCompare", tagline: "Search publication comparison data via browser automation.", summary: "PubCompare.ai scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP. Public site — no auth needed."], requiresActivation: false },
   { id: "cloudflare", title: "Cloudflare", tagline: "Read zone + DNS + firewall + cache analytics; interpret legacy action semantics.", summary: "Read/search/normalize connector for Cloudflare zones. Wraps auth + GraphQL scalar nuances + 1-day firewall-event window cap.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses CLOUDFLARE_API_TOKEN to call the Cloudflare REST API v4 + GraphQL analytics. Resources: zone, zones, dns, firewallRules, accessRules, pageRules, rateLimits, zoneSettings, rulesets, ruleset, botManagement, tokenCapabilities. Analytics: requestsDaily, cacheByHost, cacheByPath, cacheByContentType, firewallEvents, bypassedPaths. normalize kinds: legacyFirewallAction, httpResponse."], requiresActivation: false },
   {
-    id: "bosterbio_lifecycle",
-    title: "BosterBio Lifecycle",
-    tagline: "Read genes and write enrichment via bapi.php on bosterbio.com.",
+    id: "bosterbio.comLiveSite",
+    title: "bosterbio.com Live Site",
+    tagline: "Read genes and write enrichment via bapi.php on the live bosterbio.com site.",
     summary:
       "Fetches gene records needing enrichment from the bosterbio_m2 database and writes AI-generated HTML back via the BAPI REST endpoint.",
     icon: "/images/guildos/chibis/bolt.svg",
@@ -252,7 +252,7 @@ export async function readActivationSummaries(userId) {
     auth_state: () => checkAuthStateCredentials(),
     ssh: () => checkSshCredentials(userId),
     browserclaw: () => checkCdpCredentials(),
-    bosterbio_lifecycle: () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
+    "bosterbio.comLiveSite": () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
     imap: () => checkImapCredentials({}, userId),
     bioinvsync: () => checkBioinvsyncCredentials(),
     stripe: () => checkStripeCredentials(),

@@ -1,5 +1,5 @@
 /**
- * BosterBio Lifecycle Weapon — reads genes and writes enrichment via bapi.php
+ * bosterbio.com Live Site Weapon — live-site BAPI connector.
  *
  * Endpoint: https://www.bosterbio.com/?_bapi=1&action=<action>&api_key=<key>
  * Auth: BOSTERBIO_BAPI_KEY env var (or profile env_vars)
@@ -12,9 +12,9 @@
 
 
 export const toc = {
-  readGenes: "Read gene records from the BosterBio lifecycle DB.",
-  readGene: "Read a single gene record by id.",
-  writeEnrichment: "Write an enrichment record to the BosterBio lifecycle DB.",
+  readGenes: "Read gene records from the live bosterbio.com site.",
+  readGene: "Read a single gene record by id from the live bosterbio.com site.",
+  writeEnrichment: "Write an enrichment record to the live bosterbio.com site.",
 };
 import { database } from "@/libs/council/database";
 
