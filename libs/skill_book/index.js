@@ -32,8 +32,7 @@ import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
 import { skillBook as nexusSkillBook } from "./nexus/index.js";
 import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 import { skillBook as dailiesSkillBook } from "./dailies/index.js";
-import { skillBook as graphicSkillBook } from "./graphic/index.js";
-import { skillBook as figmaSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./figma/index.js";
+import { skillBook as graphicSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./graphic/index.js";
 import { skillBook as supabaseUiSkillBook, readTable as supabaseUiReadTable, readLogs as supabaseUiReadLogs, readAPISettings as supabaseUiReadAPISettings, readStorageBuckets as supabaseUiReadStorageBuckets } from "./supabase_ui/index.js";
 import { skillBook as cloudflareSkillBook, audit as cloudflareAudit, classifyCloudflareResponse as cloudflareClassify, interpretLegacyAction as cloudflareInterpretLegacy } from "./cloudflare/index.js";
 
@@ -309,7 +308,6 @@ export const SKILL_BOOKS = {
   nexus: nexusSkillBook,
   bosterbio: bosterbioSkillBook,
   dailies: dailiesSkillBook,
-  figma: figmaSkillBook,
   supabase_ui: supabaseUiSkillBook,
   housekeeping: housekeepingSkillBook,
   cloudflare: cloudflareSkillBook,
@@ -452,7 +450,7 @@ const ADVENTURER_REGISTRY = {
     dispatchPptGeneration: (_userId, input) => cursorDispatchPptGeneration(_userId, /** @type {Record<string, unknown>} */ (input || {})),
   } },
   gmail: { definition: gmailSkillBook, adventurerActions: {} },
-  figma: { definition: figmaSkillBook, adventurerActions: {
+  graphic: { definition: graphicSkillBook, adventurerActions: {
     readPages: (_userId, input) => figmaReadPages(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     readPage: (_userId, input) => figmaReadPage(_userId, /** @type {Record<string, unknown>} */ (input || {})),
     exportFrames: (_userId, input) => figmaExportFrames(_userId, /** @type {Record<string, unknown>} */ (input || {})),
