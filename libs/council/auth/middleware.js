@@ -30,6 +30,26 @@ export async function updateSession(request) {
   return { response, user };
 }
 
+const PUBLIC_PATH_PREFIXES = [
+  "/signin",
+  "/opening",
+  "/api/council/auth",
+  "/api/auth",
+  "/api/telnyx",
+  "/_next",
+  "/favicon",
+  "/images",
+  "/demopages",
+  "/blog",
+  "/robots.txt",
+  "/sitemap",
+];
+
 export function isProtectedPath(pathname) {
-  return pathname.startsWith("/") || pathname.startsWith("/opening");
+  for (const prefix of PUBLIC_PATH_PREFIXES) {
+    if (pathname === prefix || pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + ".")) {
+      return false;
+    }
+  }
+  return true;
 }
