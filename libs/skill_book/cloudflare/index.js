@@ -35,13 +35,14 @@ export const skillBook = {
       description: "Run the standard smoke-test ritual after toggling a single Cloudflare rule or setting. Returns GREEN/YELLOW/RED.",
       howTo: [
         "A smoke test has a fixed shape — do NOT improvise, do NOT skip steps:",
-        "1. BASELINE (T-0): before the change, capture metrics for affected paths via search({resource:'cacheByPath' or 'firewallEvents', windowHours:1, limit:50}). Save them.",
+        "1. BASELINE (T-0): before the change, capture (a) analytics metrics for affected paths via search({resource:'cacheByPath' or 'firewallEvents', windowHours:1, limit:50}) AND (b) run the SAME curl probes you plan to run post-change. Save both. This catches pre-existing flakiness (e.g. a URL that already times out at origin) so you don't misattribute it to your change.",
         "2. APPLY (T+0): the caller has already applied the change; your job is observation. Record the change description + timestamp.",
-        "3. ACTIVE SMOKE (T+0..5): run the per-change curl probes provided in input.probes. For each, pass the response to normalize({kind:'httpResponse'}). Expected classifications are in input.probes[i].expect.",
+        "3. ACTIVE SMOKE (T+0..5): re-run the baseline probes. For each, pass the response to normalize({kind:'httpResponse'}). Expected classifications are in input.probes[i].expect. Compare each result against the pre-change baseline, not against the abstract expectation — a URL that was already slow is not a regression.",
         "4. OBSERVE (T+5..35): DO NOT make other changes in this window.",
         "5. METRICS (T+35): re-run the baseline queries. Compute deltas. Pull a sample of 10 IPs hitting affected paths via firewallEvents — did any go from allow→block unexpectedly?",
-        "6. DECIDE: GREEN (all probes classified as expected AND no 5xx spike >2× baseline AND no legit-UA 403 spike >1%). YELLOW (probes OK but one soft signal off — tune, don't revert). RED (any probe misclassified OR 5xx spike OR legit-user blocked).",
+        "6. DECIDE: GREEN (all probes classified as expected AND no 5xx spike >2× baseline AND no legit-UA 403 spike >1%). YELLOW (probes OK but one soft signal off — tune, don't revert). RED (any probe misclassified vs baseline OR 5xx spike OR legit-user blocked).",
         "RED triggers immediate revert. Always ask the caller to confirm the revert action before reporting back — agent does not auto-revert.",
+        "CASE STUDY — load-bearing 'bypass' rule: A legacy Firewall Rule labeled '[Monitor only] Everyone Else' with wildcard host and action=bypass is NOT monitor-only — it was silently shielding 100% of fall-through traffic from managed WAF. Disabling it in one go causes a surge of previously-skipped traffic to hit managed WAF and Magento origin at once, producing RED smoke (timeouts on high-volume HTML URLs like /new-products). Correct path: phased migration — first narrow the filter scope to specific hostnames/paths, then migrate matches into explicit named Custom Rules, only then retire the catch-all. Never flip a wildcard-host bypass rule off in one step.",
       ].join("\n"),
       input: {
         zoneName: "string",
@@ -78,10 +79,23 @@ export const skillBook = {
     },
 
     classifyCloudflareResponse: {
-      description: "Classify an HTTP response as allow/challenge/block/origin-error/other using the right tells. Never guess by HTTP status alone — HTTP 403 with a CSP referencing challenges.cloudflare.com is a Managed Challenge (bot couldn't solve), NOT a block.",
-      howTo: "Capture the response as { status, headers, body } and pass to cloudflare.normalize({kind:'httpResponse', data}). Headers must include `cf-cache-status` and `content-security-policy` (lowercased keys are fine). Returns { classification, reason, cfCache, cfMitigated }.",
-      input: { status: "int", headers: "object", body: "string (optional, first 2KB is enough)" },
+      description: "Classify an HTTP response as allow/challenge/block/origin-error/other using the right tells. Never guess by HTTP status alone — HTTP 403 with a CSP referencing challenges.cloudflare.com is a Managed Challenge (bot couldn't solve), NOT a block. HTTP 403 with body `<center>nginx</center>` is ORIGIN blocking (e.g. nginx UA blocklist), NOT Cloudflare — fetch the body, don't just check status.",
+      howTo: "Capture the response as { status, headers, body } and pass to cloudflare.normalize({kind:'httpResponse', data}). Headers must include `cf-cache-status` and `content-security-policy` (lowercased keys are fine). Body must be at least the first 500 bytes — the origin-vs-CF distinction requires body inspection. Returns { classification, reason, cfCache, cfMitigated }.",
+      input: { status: "int", headers: "object", body: "string — first 500+ bytes required for origin-vs-CF distinction" },
       output: { classification: "string", reason: "string", cfCache: "string|null", cfMitigated: "string|null" },
+    },
+
+    diagnoseAIBotBlock: {
+      description: "When an AI/search bot UA gets 403 from a site behind Cloudflare, determine whether Cloudflare or the origin is blocking it. Do NOT assume Cloudflare.",
+      howTo: [
+        "Run `curl -sS -A '<bot UA>' -D headers.txt -o body.html https://site/`.",
+        "Inspect headers.txt: if `server: cloudflare` AND body contains `<center>nginx</center>` or `<center>apache</center>` — it's ORIGIN blocking. Cloudflare is just proxying the origin's 403. Fix requires SSH/cPanel access to edit the web server's UA blocklist, NOT a CF rule change.",
+        "If body contains `challenges.cloudflare.com` CSP directive — it's a Managed Challenge (not a block).",
+        "If `cf-mitigated` header is present — Cloudflare mitigated; the header value says why.",
+        "Common Magento/nginx pattern: origin explicitly blocks {ClaudeBot, anthropic-ai, CCBot, Bytespider, Amazonbot, Meta-ExternalAgent} in nginx/httpd.conf UA filter. GPTBot, OAI-SearchBot, PerplexityBot, Googlebot typically pass. If the user's goal is to ALLOW certain training bots, editing CF alone will not fix it.",
+      ].join("\n"),
+      input: { url: "string", botUserAgent: "string" },
+      output: { source: "'cloudflare-block'|'cloudflare-challenge'|'origin-block'|'allow'|'other'", fixRequires: "'cf-waf-rule'|'cf-toggle'|'origin-nginx-edit'|'none'", evidence: "string" },
     },
   },
 };
