@@ -29,7 +29,7 @@ export const skillBook = {
 
   toc: {
     generateSpriteSheet: {
-      description: "Generate a chibi character sprite sheet (1280×720, 8×4 grid, 4 animations) using the locked standard prompt via gpt-image-2.",
+      description: "Generate a chibi character sprite sheet (1280×720, 8×4 grid, 4 animations) using the locked standard prompt via gpt-image-2. Pass character='pig' for the GuildOS pig agent sheet.",
     },
     readPages: {
       description:
@@ -74,7 +74,7 @@ export const skillBook = {
 Generate a sprite sheet using the \`openai_images\` weapon (\`@/libs/weapon/openai_images\`).
 
 **Model:** gpt-image-2
-**Size:** 1536x1024 (landscape — closest supported size to the 1280×720 canvas)
+**Size:** 1536x1024 (landscape — closest supported size to 1280×720)
 **Quality:** high
 **DO NOT** pass \`response_format\` — unsupported, always returns b64_json.
 
@@ -82,66 +82,79 @@ Generate a sprite sheet using the \`openai_images\` weapon (\`@/libs/weapon/open
 \`\`\`js
 import { generate } from "@/libs/weapon/openai_images";
 const [b64] = await generate(
-  { prompt: SPRITE_SHEET_PROMPT, size: "1536x1024", quality: "high" },
+  { prompt: PROMPT, size: "1536x1024", quality: "high" },
   userId
 );
-// b64 is a base64 PNG string
 const buffer = Buffer.from(b64, "base64");
 \`\`\`
 
-**Locked standard prompt (use verbatim — do not paraphrase or shorten):**
+**Canvas / grid spec (locked — applies to all characters):**
+- Canvas: 1280×720 px
+- Grid: 8 columns × 4 rows
+- Cell: 160×180 px
+- Sprite crop area: 128×128 px, offset x+16 y+24 inside each cell
+- Labels below each pose, format: [pose, frame n, x, y, w, h]
 
+**Row layout:**
+| Row | Animation | Frames |
+|-----|-----------|--------|
+| 1   | idle (subtle breathing/bobbing) | 4 |
+| 2   | working (waving sword/tool) | 8 |
+| 3   | attention (jumping, one hand raised, O-mouth) | 6 |
+| 4   | walk cycle | 8 |
+
+**Exact frame labels (corrected y offsets — y+24 inside each 180px cell):**
 \`\`\`
-Create a transparent-background sprite sheet template for a featureless round chibi character body, no accessories, no animal features, no clothing, simple placeholder body only.
+idle, frame 1, 16, 24, 128, 128      idle, frame 2, 176, 24, 128, 128
+idle, frame 3, 336, 24, 128, 128     idle, frame 4, 496, 24, 128, 128
 
-Canvas size 1280x720 pixels. Arrange frames in a clean 8-column by 4-row grid. Each cell is 160x180 pixels. Inside each cell, place a 128x128 character pose area with consistent scale and centered alignment. Leave label text below each pose.
+working, frame 1, 16, 204, 128, 128  working, frame 2, 176, 204, 128, 128
+working, frame 3, 336, 204, 128, 128 working, frame 4, 496, 204, 128, 128
+working, frame 5, 656, 204, 128, 128 working, frame 6, 816, 204, 128, 128
+working, frame 7, 976, 204, 128, 128 working, frame 8, 1136, 204, 128, 128
 
-Use soft chibi-style fantasy game art, clean 2D illustration, pastel colors, simple body, no complex details, low visual noise.
+attention, frame 1, 16, 384, 128, 128  attention, frame 2, 176, 384, 128, 128
+attention, frame 3, 336, 384, 128, 128 attention, frame 4, 496, 384, 128, 128
+attention, frame 5, 656, 384, 128, 128 attention, frame 6, 816, 384, 128, 128
 
-Rows:
-Row 1: idle standing animation, 4 frames, subtle breathing/bobbing.
-Row 2: working animation, 8 frames, waving a simple placeholder sword/tool.
-Row 3: need attention animation, 6 frames, jumping with one hand raised and O-shaped mouth.
-Row 4: walking animation, 8 frames, simple walk cycle.
+walk, frame 1, 16, 564, 128, 128  walk, frame 2, 176, 564, 128, 128
+walk, frame 3, 336, 564, 128, 128 walk, frame 4, 496, 564, 128, 128
+walk, frame 5, 656, 564, 128, 128 walk, frame 6, 816, 564, 128, 128
+walk, frame 7, 976, 564, 128, 128 walk, frame 8, 1136, 564, 128, 128
+\`\`\`
 
-Under each visible frame, add small readable labels exactly in this format:
-[pose, frame n, x, y, w, h]
+---
 
-Use the following labels:
-idle, frame 1, 16, 8, 128, 128
-idle, frame 2, 176, 8, 128, 128
-idle, frame 3, 336, 8, 128, 128
-idle, frame 4, 496, 8, 128, 128
+**Character prompts — pick the right one:**
 
-working, frame 1, 16, 188, 128, 128
-working, frame 2, 176, 188, 128, 128
-working, frame 3, 336, 188, 128, 128
-working, frame 4, 496, 188, 128, 128
-working, frame 5, 656, 188, 128, 128
-working, frame 6, 816, 188, 128, 128
-working, frame 7, 976, 188, 128, 128
-working, frame 8, 1136, 188, 128, 128
+**Pig (GuildOS pig agent — use this for "piggy"):**
+\`\`\`
+Create a sprite sheet for a round chibi cowboy pig character on a white background.
 
-attention, frame 1, 16, 368, 128, 128
-attention, frame 2, 176, 368, 128, 128
-attention, frame 3, 336, 368, 128, 128
-attention, frame 4, 496, 368, 128, 128
-attention, frame 5, 656, 368, 128, 128
-attention, frame 6, 816, 368, 128, 128
+Character design: chubby round pig face with pink snout, wearing a brown cowboy hat with a gold sheriff star, red bandana around neck, brown leather vest, blue jeans, brown cowboy boots. Soft pastel chibi art style, clean 2D illustration, low visual noise.
 
-walk, frame 1, 16, 548, 128, 128
-walk, frame 2, 176, 548, 128, 128
-walk, frame 3, 336, 548, 128, 128
-walk, frame 4, 496, 548, 128, 128
-walk, frame 5, 656, 548, 128, 128
-walk, frame 6, 816, 548, 128, 128
-walk, frame 7, 976, 548, 128, 128
-walk, frame 8, 1136, 548, 128, 128
+Canvas size 1280x720 pixels. Arrange frames in a clean 8-column by 4-row grid. Each cell is 160x180 pixels. Inside each cell, place a 128x128 character pose area with consistent scale and centered alignment. Leave label text below each pose in small readable font.
+
+Row 1 (IDLE STANDING): 4 frames, subtle breathing/bobbing animation.
+Row 2 (WORKING - WAVING SWORD): 8 frames, character waves a silver sword in a full swing arc.
+Row 3 (RAISING HAND FOR ATTENTION): 6 frames, character jumps with one hand raised, O-shaped mouth, sparkle effects.
+Row 4 (WALKING): 8 frames, simple side-view walk cycle.
+
+Under each frame, add labels in this exact format [pose, frame n, x, y, w, h]:
+idle, frame 1, 16, 24, 128, 128 | idle, frame 2, 176, 24, 128, 128 | idle, frame 3, 336, 24, 128, 128 | idle, frame 4, 496, 24, 128, 128
+working, frame 1, 16, 204, 128, 128 | working, frame 2, 176, 204, 128, 128 | working, frame 3, 336, 204, 128, 128 | working, frame 4, 496, 204, 128, 128 | working, frame 5, 656, 204, 128, 128 | working, frame 6, 816, 204, 128, 128 | working, frame 7, 976, 204, 128, 128 | working, frame 8, 1136, 204, 128, 128
+attention, frame 1, 16, 384, 128, 128 | attention, frame 2, 176, 384, 128, 128 | attention, frame 3, 336, 384, 128, 128 | attention, frame 4, 496, 384, 128, 128 | attention, frame 5, 656, 384, 128, 128 | attention, frame 6, 816, 384, 128, 128
+walk, frame 1, 16, 564, 128, 128 | walk, frame 2, 176, 564, 128, 128 | walk, frame 3, 336, 564, 128, 128 | walk, frame 4, 496, 564, 128, 128 | walk, frame 5, 656, 564, 128, 128 | walk, frame 6, 816, 564, 128, 128 | walk, frame 7, 976, 564, 128, 128 | walk, frame 8, 1136, 564, 128, 128
+\`\`\`
+
+**Generic placeholder (featureless chibi body — for new character templates):**
+\`\`\`
+Create a transparent-background sprite sheet template for a featureless round chibi character body, no accessories, no animal features, no clothing, simple placeholder body only. Canvas size 1280x720 pixels. 8-column by 4-row grid, each cell 160x180 px, 128x128 crop area per pose, x+16 y+24 offset. Soft chibi fantasy art, pastel colors, low visual noise. Row 1: idle 4 frames. Row 2: working 8 frames. Row 3: attention 6 frames. Row 4: walk 8 frames. Label each frame below as [pose, frame n, x, y, w, h] using the corrected y values: idle y=24, working y=204, attention y=384, walk y=564.
 \`\`\`
 
 **After generating:**
-1. Save the buffer to Supabase Storage (bucket: \`assets\`, path: \`sprite-sheets/<name>-<timestamp>.png\`).
-2. Return the public URL and store it in quest inventory under key \`sprite_sheet_url\`.
+1. Save buffer to Supabase Storage — bucket: \`assets\`, path: \`sprite-sheets/<character>-<timestamp>.png\`.
+2. Store public URL in quest inventory under key \`sprite_sheet_url\`.
 `.trim(),
 };
 
