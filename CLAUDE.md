@@ -7,7 +7,56 @@ All ad-hoc changes — refactors, fixes, weapon/skill-book edits, CLAUDE.md upda
 Avoid asking questions that you can do without the user's input. The bypass permission is usually turned on and the goal for this system is to enable maximum leverage by allowing mutiple threads to run parallel. The goal to strike for is to ask user for questions and help only if there is no obvious answer/choice, or if there is a block that only the user can resolve, or if there are significant risk involved for proceeding. We shall lock down the rule here that before you present the list of questions to the user, ask yourself at least one time: do I really need user's input on this? Can I do this myself with the tools I have? Especially consider the CIC, most things the user can do you can do it through CIC as a fallback. Auto-approve on all low risk decisions and decisions that can easily be reversed without real harm.
 
 ## sit rep standard
-When user says "sit rep", output in table format all action items in this thread only, with (if applicable) status (usually the progression stages are defined by the user defined strategy), delta, and recommendations/questions/your message about the item (column name= note). 
+When user says "sit rep", output in table format all action items in this thread only, with (if applicable) 
+1. status (usually the progression stages are defined by the user defined strategy), 
+2. delta, 
+3. recommendations/questions/your message about the item (column name= note). 
+
+## "What would CJ do" / WWCD
+
+Triggered by "WWCD" or "what would CJ do." You exit in exactly one of two modes — never both.
+
+### Filter pass (kill every question and every "I can't" you can)
+
+Run each candidate through these gates in order. First hit kills it.
+
+1. **Low-value question?** (See "Never ask user low value questions" above.) → kill, assume obvious choice.
+2. **Already defined in a skill book or weapon?** Check assigned books first, then scan `libs/skill_book/index.js` registry. → read the howTo, use it.
+3. **CIC can retrieve the missing context?** (Logged-in dashboards, page state, anything the user can see.) → use CIC.
+4. **"Latest / current" question?** → web search.
+5. **A small-scope smoke test will answer it?** (No destructive writes, limited blast radius, can reverse.) → run it.
+
+A question survives only if all five gates fail.
+
+### Completion check before claiming "done"
+
+**Quest-backed work:**
+- Deliverables are screenshots attached to a quest currently in `review` or later (Cat has approved).
+- You opened each screenshot and visually confirmed it shows what the description claims.
+- Every main bullet in the quest description has a matching screenshot — no gaps.
+
+**Local-only work (no quest):** produce concrete evidence (file paths changed with diff, command output, terminal/UI screenshot) and verify it yourself before claiming done. Quest gate doesn't apply, rigor does.
+
+Full rubric: `housekeeping.verifyDeliverable`.
+
+### Output mode — pick exactly one
+
+**Mode A — Everything done:** sit rep, then end with the literal string `Everything is 100% done.` No question list. Do not include the Mode B preface.
+
+**Mode B — Blocked / questions outstanding:**
+1. *(Optional)* a brief comments block giving context for the surviving questions. Comments are about questions that *survived* — never about options you eliminated.
+2. The literal sentence, verbatim:
+   `I have done everything CJ would have done and I am 100% confident that what I am telling you is worth your attention`
+3. The bare question list. One sentence per question. Nothing after.
+
+The user greps responses for the substring `100%`. Both modes contain it; a response missing it is rejected unread. This is enforcement, not stylistic preference — quote the sentences verbatim.
+
+### Self-audit before sending
+
+- Did I leak any eliminated option, filter-pass reasoning, or "here's how I decided" commentary?
+- Does the questions section contain anything the user didn't explicitly need to decide?
+- Is each surviving question one sentence, no padding?
+- Is `100%` present in the right slot?
 
 ## Priority hierarchy
 When instructions conflict, follow this order:
@@ -206,4 +255,5 @@ Format: `- [YYYY-MM-DD] <insight>`
 - [2026-04-23] Browser control split: **Local Claude uses Claude-in-Chrome (CIC) MCP tools only** — `mcp__Claude_in_Chrome__*`. One tab group per objective; always start with `tabs_context_mcp({createIfEmpty: true})`. **Cloud Cursor agents drive their VM's native Playwright / headed Chrome** — do not instruct them to use CIC or reach `localhost:9222`. The legacy Browserclaw CDP weapon (`libs/weapon/browserclaw/cdp.js`) is deprecated for new local work; kept only for a few legacy pipeline scripts. `scripts/auth-capture.mjs` still stands — it's the one place Playwright launches Chrome directly, solely to export `playwright/.auth/user.json` for cloud agents' `storageState`. Details: `docs/browser-automation-guideline.md` and `libs/skill_book/browsercontrol`.
 - [2026-04-23] CIC now runs in the user's main Chrome via the installed extension — not a separate CDP-launched browser. Previously CIC was attached to a dedicated CDP Chrome (port 9222, isolated profile), which could not access logged-in sessions (ChatGPT, Supabase dashboard, etc.). Resolution: CIC extension installed in main Chrome; `switch_browser` used once to connect CIC to that instance. The separate CDP Chrome is permanently abandoned for local work. Consequence: CIC tab groups live inside the user's normal browsing windows; all logged-in sessions are available; `playwright/.auth/user.json` is only for cloud agents, not for local CIC anymore.
 - [2026-04-23] Cursor dispatch is for stable, reliable behaviors only. High-frequency iterative work — active development, debugging, exploring new capabilities — stays in the local Claude (Guildmaster) thread where the user can interact closely. Only hand off to a cursor cloud agent once the behavior is well-defined and the main variable is execution time, not correctness. Do not suggest cursor dispatch for anything still in active iteration.
+- [2026-04-24] Telnyx trial accounts return Q.850 cause code 17 ("User Busy") on **inbound** calls until a payment method is on file — the call is rejected at SIP layer before the TeXML application is invoked, so debug panels show zero TeXML records and the SIP Call Flow Tool is the only place the failure is visible. Same gate that blocks toll-free purchase. Adding a card lifts both restrictions; trial credit is still consumed first. Don't waste a debug cycle inspecting the webhook — check trial status first.
 
