@@ -80,46 +80,57 @@ Then figure out which situation you are in:
 
 1. **Direct action** — user issues direct tasks for Claude to perform (usually the personal assistant thread). Save screenshots in `docs/screenshots`; the user handles cleanup.
 
-2. **Chaperon cursor** — user tells the Claude session to chaperon (guide or directly communicate with) a cursor agent to remove obstacles and drive toward objectives. You must know which quest this is for and which repo the quest is associated with. If unclear, do a self-clarity check. Screenshots during chaperon work go in quest inventory — see `questmaster.reviewScreenshots`. Avoid overanchoring: communicate with cursor agents in natural language. Programming advice or screenshot requirements are fine; do not prescribe scripts or step-by-step tactics. Cursor agents have well-tuned defaults; tactical overrides cause them to deviate and fail.
+2. **Chaperon cursor** — user tells the local Claude (Guildmaster) to chaperon a cursor cloud agent: brief it on the objective, dispatch via `cursor.dispatchTask`, watch progress, unblock when stuck. Communicate in natural language; cursor agents have well-tuned defaults — programming advice and screenshot requirements are fine, prescribed scripts and step-by-step tactics cause deviation. You must know the quest and repo before dispatching; if unclear, self-clarity-check first.
 
-**Chaperon claude** — user tells the local Claude (Guildmaster) to chaperon other Claude sessions (claude.ai/code threads, each running as its own agent). Standard locked in 2026-04-24:
+   **Edge-case takeover.** When a cursor agent fails the same way twice on the same problem (auth wall it can't solve, framework gotcha, environment setup gone wrong), local Claude either (a) drops directly into the relevant repo and pushes the work over the edge in a development session — local has full filesystem, the user's logged-in browsers, the password manager — or (b) takes the smallest unblocking action and hands the rest back (e.g. capture an auth bundle once, push to artifact storage, cursor mounts via `storageState`). Do not escalate cursor → local for things a different prompt would solve; only when the substrate itself is the blocker.
 
-**Primary metric — agent uptime.** The chaperon is not optimizing for full-pass completeness; the chaperon is optimizing for keeping the maximum number of agents working productively. A "stopped" agent that the chaperon could have re-engaged is wasted time. Most cycles are a quick uptime scan (who stopped, can I dispatch them?), not a full sit rep. The chaperon also keeps its own thread alive by acting every cycle — sitting completely idle risks context compaction.
+3. **Cursor** (you ARE a cloud cursor agent): your job is to make the objective happen, smoke-test to prove it, save artifacts to Supabase Storage, write the corresponding `items` rows + worker rationale comments, and call `questExecution.submit`. The submit gate enforces verification — agents cannot self-claim done. After producing each artifact, READ it to confirm it shows what the deliverable's `accept_criteria` requires. If not, analyze the root cause and retry — **up to 3 times** — before contacting the Questmaster. A cursor agent always works on a quest; if quest or repo is unclear, contact the Questmaster to clarify. If you've contacted the Questmaster twice for the same issue without resolution, call `housekeeping.escalate`.
 
-**1. Comms channel — CIC only.** API and SDK both create forks (separate conversations); messages never land in the target thread. CIC (`mcp__Claude_in_Chrome__*`) is the only path that injects into the actual thread. Verified send protocol: navigate → wait for input field empty + no spinner → click into input → `type` action (real keystrokes; React state-aware, unlike `execCommand`/JS-insert which leaves Send disabled) → press `Return` → screenshot to confirm a blue user bubble appeared in the thread. Never trust a Send-button click alone — it is silently swallowed when the agent is busy. Enter bypasses the disabled-button state. If the first click+type fails (input still empty), retry once; the page may not have fully rendered.
+## Multi-agent fleet operations
+When multiple cursor cloud agents are in flight at once.
 
-**2. Sit rep table — fixed shape every round.** Same column order, same status taxonomy, same last-column shape. The user's eye lands in the same place each time, no mental re-orientation.
+**Default execution model — cursor as worker, local Claude as orchestrator and edge-case dev.** Cursor agents do the bulk of development work. Local Claude (Guildmaster) dispatches, monitors, and unblocks — never tries to multiplex other Claude sessions (that pattern is dead, see "Why we don't multiplex Claude sessions" below).
 
-| # | Thread | Quest | Status | Progress | Δ since last | Q / Rec |
+**Substrate check before adopting any thread.** Three substrates look similar but differ:
+- `claude.ai/code/session_<id>` opened on the user's *machine* via Claude Code desktop or `claude` CLI = local-Code, full filesystem, GuildOS available.
+- `claude.ai/code/session_<id>` opened in a *web browser* = cloud-sandboxed, only `/home/claude`, no GuildOS or local fs.
+- `claude.ai/chat/<id>` = web chat, no code execution, never agentic.
 
-- `Quest` = clickable link `[questId](http://localhost:3002/quest-board/<id>)`. `—` if no quest, `pending` if one is about to be created.
-- `Progress` = `X/Y` where Y = total known objectives in the quest (each objective = one screenshot deliverable in quest inventory) and X = how many have been chaperon-verified. Itemized + unambiguous; no narrative percentages. If Y is unknown, show `?/?` and flag in Q / Rec.
-- `Status` is one of six fixed labels: ✅ Finished · 🔵 Active · 🟡 Idle (decision) · 🔴 Blocked · ⚪ Strategic · 🤔 Confused.
-  - **Finished** = all known objectives finished (Progress = `Y/Y`, all screenshots verified by chaperon, quest in `review` stage). Terminal — agent can be released after user sign-off.
-  - **Active** = agent is working right now (spinner up).
-  - **Idle (decision)** = paused, waiting on a reversible decision; chaperon usually just dispatches the default.
-  - **Blocked** = clear external dependency (manual user action, third-party API failure). Won't unblock by re-dispatching.
-  - **Strategic** = needs pillar-level vision the user hasn't provided yet. Don't auto-progress.
-  - **Confused** = objective still unmet, agent idle, no obvious blocker, no question to user — agent should be working but isn't and can't explain why. Probe with "what's your next step? if blocked, what's blocking?" — give one round to self-recover, then escalate.
-- `Q / Rec` always carries actionable content — either a question OR a recommendation (`archive`, `retire`, `merge into <other thread>`, `escalate`). Never empty, never prose.
+The web "+ New session" button creates cloud-sandboxed sessions unless launched from the desktop app. Smoke-test capabilities (filesystem? quest API?) before assuming local-code substrate. Lesson cemented after a 2026-04-25 chaperon mistakenly drove a `claude.ai/chat/` thread.
 
-**3. Questions — bar is WWCD.** Only ask what genuinely needs the user's judgment. Same/similar question hits 3× across rounds → escalate to user with that history. Question shape (when isolated above the table): `Q1 [Thread #X]: <one line>` · `Why I need it: <one line>` · `Default if you skip: <one option I'll pick>`. Questions live only in the table's last column or in the isolated "Questions to user" block above the table — never as loose prose. **Do not issue a new sit rep while a question is on the floor unanswered.** Keep checking silently every cadence tick and accumulate deltas in the log; once the user answers (= they're available), summarize all accumulated deltas in the next sit rep. All still-unanswered questions re-surface in the next sit rep with a brief note on why they are repeating.
+**Status taxonomy — six labels for any sit rep across in-flight quests.**
+- ✅ **Finished** — quest reached `review` via `questPurrview.approve` (gate-passed end-to-end). Terminal.
+- 🔵 **Active** — cursor working right now (Cursor API status active, agent has recent commits/messages).
+- 🟡 **Idle (decision)** — paused awaiting a reversible decision; default-dispatch is fine.
+- 🔴 **Blocked** — clear external dependency (user action required, third-party API down, auth wall). Won't unblock by re-dispatching.
+- ⚪ **Strategic** — needs pillar-level vision the user hasn't provided. Don't auto-progress.
+- 🤔 **Confused** — objective unmet, agent idle, no obvious blocker, no question. Probe with "what's your next step? if blocked, what's blocking?" — one round to self-recover, then escalate.
 
-**4. Memory — single durable file, anti-bloat.** All chaperon state lives in `docs/rollcall-log.md` — single source of truth that survives compaction. Sections: (a) session inventory, (b) per-thread last-state digest, (c) sit rep history with newest at the bottom. Brief logs only — capture deltas, not full state. Trim per-thread digests when they go stale. Do not duplicate state in chat; do not keep separate per-round notes; everything appends to the single file.
+**Sit rep table shape** (when monitoring multiple in-flight quests): `# | Quest | Cursor | Status | Progress | Δ | Q/Rec`. `Progress = X/Y` where Y = `quests.deliverables.length`, X = items uploaded so far. `Q/Rec` always carries actionable content — never prose, never empty.
 
-**5. Operational details.**
-- **Two-tier cadence:**
-  - **Fast scan (every 5 min) — uptime check, NOT a sit rep.** Walk each thread's tail-end, classify state. 🔵 Active (spinner) → skip. 🔴 Blocked → skip. ⚪ Strategic → skip. 🟡 Idle-A (last assistant message has no question to user — agent awaits next dispatch) → dispatch the next reversible step. 🟡 Idle-B (last assistant message ends with a `?` to user) → don't dispatch; flag for next sit rep. 🤔 Confused (objective unmet, idle, no `?` to user, no clear next step) → probe the agent first with "what's your next step? if blocked, what's blocking?" — give it one round to recover. If the probe doesn't resolve, escalate to the user as a flag. The fast scan writes deltas to the log silently and never breaks the user's flow.
-  - **Full sit rep — on-demand only.** Triggered when (a) the user pings, (b) fast-scan accumulates ≥3 user-flags, or (c) the user explicitly asks for one. Never on a fixed interval unless the user requests it.
-- **Read pass:** scroll to bottom of each thread, read last ~40 lines. If state looks incomplete due to thread length, ask the user — do NOT try to fork the session via `claude --resume` (it works on local UUIDs only, not claude.ai web `session_01...` IDs).
-- **Roll call scope:** every visible thread in the claude.ai sidebar (currently ~12).
-- **Quest creation authority:** auto-create up to 1 quest per thread when missing (per user authorization). Surface gaps in the Q / Rec column. Created quest IDs land in the Quest column on the next round.
-- **Dispatch envelope — every message to a thread ends with: `+ screenshot proof + attach to quest inventory`.** Non-negotiable. The screenshot in quest inventory is the user's at-a-glance verification — it removes the need to decode prose claims.
-- **Strategic-direction flag:** mark threads ⚪ when they need pillar-level vision the user has not yet provided. These do not get auto-progressed; they wait for the user.
-- **Reversible-by-default:** if a decision is reversible, execute without asking. Only no-regrets decisions (irreversible, high-stakes, or genuinely needing user judgment) get isolated as questions above the table.
+**Why we don't multiplex Claude sessions.** 2026-04-24 → 04-26 we tried local-Claude-as-chaperon driving multiple `claude.ai/code` web threads via CIC. It failed: web-Claude has no API for inbound dispatch (CIC-only injection is brittle, character-transposition poisons threads), sessions die on browser restart, fork-archive is messy, RAM bloats from many CIC tabs, polling burns quota with mostly-noop scans. The lesson: claude.ai web threads are not a worker substrate. Cursor cloud agents are.
 
+## Local Claude operational hygiene
+When local Claude is running heavy work — multi-cursor dispatch, vision review for cursor failures (Tier 2 in the gate model), big refactors. Same operational rules apply.
 
-3. **Cursor** (you ARE a cloud cursor agent): your job is to make the objective happen, smoke-test to prove it, and save screenshots to document the result. After taking a screenshot, READ it to confirm it actually shows the objective accomplished. If not, analyze the root cause and retry — **up to 3 times** — before asking the Questmaster for help via direct message. Resume attempts after the Questmaster replies. If a screenshot proves success, save it to supabase and link it in quest inventory. A cursor agent always works on a quest. If it's unclear which quest or which repo, contact the Questmaster to clarify. If you've contacted the Questmaster for the same issue twice without resolution, escalate the quest (move it to `escalated`).
+**RAM monitoring.** PowerShell: `Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory, TotalVisibleMemorySize`. Action thresholds:
+- \> 85% → close any CIC tabs no longer in use; ask cursor agents to close their browser tabs as they finish.
+- \> 92% → halt new parallel windows; alert user.
+- \> 95% → close all non-active CIC tabs aggressively. Do NOT restart Chrome processes (destructive to user state).
+
+**CIC tab hygiene — close as you finish.** Any time local Claude opens a CIC tab for a one-off check, close it after. Tabs accumulate fast across long sessions; left unchecked they cap RAM. This applies to any local Claude work using CIC, not just multi-agent dispatch.
+
+**Plan usage check at start of heavy sessions.** Local Claude is on 20x Max subscription (flat-rate, not metered API), but rate limits still apply. Before running a heavy refactor or multi-cursor dispatch session, check `https://claude.ai/settings/usage` via CIC. Throttle parallel work if session > 70% with > 60 min to reset, OR weekly > 80%.
+
+## Next-steps discussion mode
+Triggered by the user asking for a "next steps discussion" (often prepping for voice-chat planning, e.g. drive / workout). Output for ChatGPT-voice consumption: conversational, voice-friendly, markdown OK.
+
+**Scope:** end-state quests only (`review` or `escalated`); skip in-flight unless asked. Combine sub-quests of one initiative into a single block.
+
+**Per-quest block:**
+1. One-line state recap + what was delivered.
+2. Screenshot verification — actually fetch each deliverable URL from the live `items` table (don't rely on memory of the quest), then phrase as "I looked at the screenshots, all looks good" OR flag specific issues. Note: quests advanced via `questPurrview.approve` already had Cat's per-item vision verdicts attached as `item_comments` rows; surface those rather than re-judging.
+3. Proposed strategic next step *beyond the quest scope* — what the broader initiative needs after this quest's defined work is done. Tone: discussion-prompt, not exec summary.
 
 **Questmaster is NOT bound by the 3-retry rule.** Cat (Questmaster) decides between feedback and escalation based on progress evidence (new method tried, measurable progress, new strategy available), not a fixed count. See Cat's system_prompt.
 
@@ -130,14 +141,14 @@ When the user says "update CLAUDE.md," edit the GuildOS repo's main branch CLAUD
 GuildOS is a fantasy-themed AI agent orchestration platform. Modules are named after typical fantasy role play games, where adventurers work towards completing quests. 
 Definitions and scopes: 
 
-Adventurer: an agent, defined in database table adventurers. An adventurer is reflected as a cloud cursor agent. Initiation, the cursor cloud agent receives a message about which adventurer it is. The agent loads the agent’s profile, and load the system_prompt as the system instruction. The main mode of operation for an adventurer is to work on quests to accomplish objectives defined in quests, and proof the completion of quest by saving screenshots to supabase storage, then associate the supabase storage links in quest inventory. <!-- [items workflow migration] inventory shape is defined below under "Quest inventory"; removed the older nested-JSON spec that used to live here. -->
+Adventurer: an agent, defined in database table adventurers. An adventurer is reflected as a cloud cursor agent. Initiation, the cursor cloud agent receives a message about which adventurer it is. The agent loads the agent's profile, and load the system_prompt as the system instruction. The main mode of operation for an adventurer is to work on quests: produce each artifact defined in `quests.deliverables`, upload to supabase storage, write the corresponding `items` row + worker rationale comment, and call `questExecution.submit` to advance the quest to purrview. The submit gate is the only path — agents cannot write `stage` directly.
 Associated session id: an adventurer is associated with a cursor agent on the cloud, and the id points to it. When a cloud cursor agent becomes unresponsive, the guildmaster will create another agent to replace the adventurer's associated session id. **One adventurer = one live session at all times — always archive the old session before the new one takes over.** Full procedure: `roster.spawnAgent`.
 Questmaster: a special agent responsible for helping adventure resolve issues and provide feedback to the deliverables. 
 
 Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. Users will provide fine-tuning adjustments for how to do things, and such insights and strategic fine tuning should be cumulated and cemented in skill books. 
 
 **Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
-- **Globals (everyone carries):** `housekeeping` (initAgent, createQuest, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp, etc.). `verifyDeliverable` is a required precondition of `submitForPurrview`.
+- **Globals (everyone carries):** `housekeeping` (initAgent, writeQuest, presentPlan, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp, etc.). `verifyDeliverable` is the recommended pre-flight self-check; `submitForPurrview` calls the `questExecution.submit` gate which enforces the load-bearing subset (count match, per-item comments, non-empty URLs).
 - **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
 
 Follow the "index first, content on demand" rule above: load toc only at boot; read a specific action's `howTo` only when you're about to execute it.
@@ -168,10 +179,22 @@ To create a new weapon, read the Blacksmith skill book.
 10. **Multipurpose vs entity-suffixed within a weapon.** Parameterize when resources share a shape (e.g. Zoho Books/CRM `search({module, query})`). Entity-suffix within the six verbs when shapes differ materially (e.g. Vercel `readProject` vs `readDeployment` — different response shapes). Don't force a union type just for symmetry.
 11. **Skill book returns quest-level results; weapons hide always-on plumbing.** Skill book actions return what the agent reports back (deliverable keys, statuses, URLs). Always-on plumbing with no decision content (token acquisition, auth refresh, retry on 5xx, pagination) stays inside weapons and is not exposed in their TOC — the agent never decides whether to refresh a token.
 
-Quest: a quest is a task to perform. When creating a quest, it should have title, description, assignee. The description should be written in a work breakdown structure—bullet points like 1. 2. 3… 4. 4.1 4.2…. Each main point should contain a clear description of the deliverable. The deliverable is by default a screenshot showing the main item is finished. The total number of screenshots should correspond to total number of main bullet points. The adventurer should read the screenshot taken and self evaluate if the screenshot meets the deliverable requirement and only load to supabase and update to inventory after confirmation of completion. 
-Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. 
-Quest inventory: holds items, usually screenshots; sometimes special items defined per-quest. Item shape: `{ item_key, url?, description?, source?, comments?: [{role, timestamp, text}] }`. `comments` is per-item — Cat's review notes attach to the specific item being judged. <!-- [items workflow migration] after migration: items live in `quest_items`, comments in `quest_item_comments`. UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on. -->
-Quest initiation interview: only create a quest when deliverable items and success criteria are unambiguous. If unclear, ask clarification questions until they are. Operational checklist: `housekeeping.createQuest`. 
+Quest: a quest is a task to perform. A quest has `title`, `description`, `deliverables`, `assignee`, `stage`.
+- **`description` is strategic context only.** Goal, source of truth, scope (in/out), key dependencies, and the high-level approach (narrative WBS / phasing is fine when sequence matters). Do NOT itemize artifacts here — that's what `deliverables` is for. Past convention of stuffing a numbered WBS list into description is deprecated; use it for strategy, not for the deliverable inventory.
+- **`deliverables` is the structured spec column** (JSONB array). One entry per artifact you'll ship: `{ item_key, description, accept_criteria }`. The `submitForPurrview` gate counts `deliverables.length` and requires one `items` row per entry; the `item_key` chains the spec entry to the uploaded artifact.
+- The adventurer reads each screenshot/file and self-evaluates against the entry's `accept_criteria` before uploading. Don't upload work that doesn't match its own spec.
+
+Quest stage transitions are script-locked end-to-end via two sister weapons:
+- **`questExecution.submit`** (worker-side) — execute → purrview. Refuses unless deliverables spec, items count, per-item comments, and per-item URL size all pass. Writes the SUBMIT lockphrase comment ("this quest now meets the criteria for purrview").
+- **`questPurrview.confirmSubmission`** — Questmaster-side read gate. Run BEFORE opening any screenshot — verifies the SUBMIT lockphrase comment is present. No phrase, no review.
+- **`questPurrview.approve`** — purrview → review. Requires per-item Cat verdicts, all `pass`. Writes APPROVE lockphrase ("this quest now meets the criteria for review"). The GM-desk script greps for that phrase before surfacing the quest.
+- **`questPurrview.bounce`** — purrview → execute. Requires per-item verdicts with ≥1 `fail` + a non-empty `reason`. Writes BOUNCE lockphrase ("this quest has been bounced back to execute"). Worker addresses listed `item_keys` and resubmits.
+Never write `stage` directly. There's no other path that produces the lockphrases, and the next consumer in the chain refuses to act without them.
+
+Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. The lockphrase comments above are NOT regular hand-off comments — they're machine-detectable handshakes; agents shouldn't post them manually. The agent's own hand-off rationale (one paragraph on what was done) goes in a separate comment alongside the lockphrase.
+
+Quest items: holds artifacts, usually screenshots. Item shape: `{ item_key, url, description, source, comments: [{role, text}] }`. `items` table holds the artifact rows; `item_comments` table holds per-item annotations (role='worker' for the submit-time rationale; role='questmaster' for Cat's verdict on approve/bounce). UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on — resubmits use the same `item_key` and UPSERT replaces in place.
+Quest initiation interview: only create a quest when deliverables and acceptance criteria are unambiguous — every artifact you'll ship must be expressible as a `{item_key, description, accept_criteria}` entry up front. If unclear, ask clarification questions until they are. Operational checklist: `housekeeping.presentPlan` (strategy + structured deliverables), then `housekeeping.writeQuest` (insert in execute stage). 
 
 Council: controls system level functions such as authentication, cron, settings/account management, formulary (user’s secretes), and database connection. 
 Important: when agent wants to access database, use the following wrapper and not the default libs of supabase. 
@@ -244,7 +267,7 @@ Stages: `execute → escalated → purrview → review → closing → complete`
 - `closing` — Questmaster archives summary (Asana optional)
 - `complete` — terminal; create a new quest rather than reopening
 
-Operational how-tos live in skill books: `housekeeping` (createQuest, clarifyQuest, seekHelp, escalate, submitForPurrview), `questmaster` (reviewCloudAgentWork, reportChaperonWork, handleFeedback), `cursor` (cloudEnvironment, apiSpecs, prepareEnvironment, writeMinimalSystemPrompt), `guildmaster` (dispatchWork, handleEscalation), `browsercontrol` (captureAuth).
+Operational how-tos live in skill books: `housekeeping` (writeQuest, presentPlan, clarifyQuest, seekHelp, escalate, verifyDeliverable, submitForPurrview), `questmaster` (reviewSubmission, reportChaperonWork, handleFeedback), `cursor` (cloudEnvironment, apiSpecs, prepareEnvironment, writeMinimalSystemPrompt), `guildmaster` (dispatchWork, handleEscalation), `browsercontrol` (captureAuth). Stage transitions are owned by weapons not skill books: `questExecution.submit` (worker), `questPurrview.confirmSubmission`/`approve`/`bounce` (Questmaster).
 
 ---
 

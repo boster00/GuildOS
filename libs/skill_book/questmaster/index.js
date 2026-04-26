@@ -124,27 +124,90 @@ export const definition = {
         due_date: "string, ISO 8601 or null",
       },
     },
-    reviewCloudAgentWork: {
-      description: "Review artifacts produced by a cloud agent before presenting to the user. Strategy + management layer.",
+    reviewSubmission: {
+      description: "Review a quest in purrview. Script-locked end-to-end via questPurrview weapon: confirmSubmission → per-item vision evaluation → approve OR bounce.",
       howTo: `
-Never present raw agent output directly to the user without review.
+This is the canonical purrview review flow. Both ends of every handoff are script-locked — never write \`stage\` directly, never open a screenshot before \`confirmSubmission\` passes.
 
-**After every agent task completion:**
-1. Pull artifacts (screenshots, PPTs, videos) and inspect them.
-2. Validate against success criteria. Check for:
-   - CAPTCHA/bot detection pages (Google reCAPTCHA, Cloudflare challenges)
-   - Blank/black screenshots
-   - Error pages or unexpected redirects
-   - Missing or corrupt files
-   - PPTs with wrong slide count or placeholder content
-3. If validation fails: reject the delivery, post a quest comment explaining the failure, and re-dispatch with corrective instructions (e.g. "use DuckDuckGo instead of Google", "add anti-detection flags", "retry with different approach").
-4. Only present results to the user after they pass review.
+### Step 1 — Verify the worker handoff (no shortcuts)
 
-**Common cloud agent pitfalls to catch:**
+\`\`\`javascript
+import { confirmSubmission } from "@/libs/weapon/questPurrview";
+const confirm = await confirmSubmission({ questId });
+if (!confirm.ok) {
+  // confirm.reason: 'no_gate_comment' | 'lockphrase_missing' | 'wrong_stage' | ...
+  // The quest didn't pass through questExecution.submit. Do NOT review it.
+  // Either bounce it back (if a worker is owning it) or escalate to Guildmaster.
+  return;
+}
+// confirm.deliverables = the pre-committed spec; confirm.item_keys = items to judge.
+\`\`\`
+
+### Step 2 — Open every item.url and grade against accept_criteria
+
+For each \`item_key\` returned by confirmSubmission, fetch the corresponding \`items\` row (url + description) and the deliverable spec entry (description + accept_criteria), then read the artifact:
+- Image URL → use Claude vision (multimodal Read or anthropic.messages with image content). Composer 2.0 is too weak for content judgments — explicitly call Claude Sonnet for the read step.
+- Text/JSON URL → fetch and inspect contents.
+- Document URL → render or extract content as needed.
+
+For each item, decide:
+- \`verdict: 'pass'\` if the artifact matches the spec's \`accept_criteria\`.
+- \`verdict: 'fail'\` if it doesn't (wrong content, stock image, error page, missing data, mismatched URL bar, etc.).
+- \`text\`: a one-sentence Cat note. On pass: what you verified. On fail: what's wrong + what the worker should fix.
+
+Build \`perItemVerdicts: [{ item_key, verdict, text }]\` — one entry for every item, no skips.
+
+### Step 3a — Approve (all pass)
+
+\`\`\`javascript
+import { approve } from "@/libs/weapon/questPurrview";
+const result = await approve({ questId, perItemVerdicts, summary: "Optional Cat-level note" });
+if (!result.ok) {
+  // approve refuses if any verdict !== 'pass'. Use bounce instead.
+  // result.report.fix tells you what to do.
+}
+\`\`\`
+
+On success: stage moves to \`review\`, per-item Cat verdict comments are written, and the APPROVE lockphrase ('this quest now meets the criteria for review') lands as a quest_comments row. The GM-desk script greps for that phrase before showing the quest to the user.
+
+### Step 3b — Bounce (≥1 fail)
+
+\`\`\`javascript
+import { bounce } from "@/libs/weapon/questPurrview";
+const result = await bounce({
+  questId,
+  perItemVerdicts, // mixed pass/fail — must include ≥1 'fail'
+  reason: "<one paragraph: what failed across the quest, what the worker should fix>",
+});
+\`\`\`
+
+On success: stage returns to \`execute\`, per-item Cat verdict comments are written (passing items get pass-comments too — useful feedback), and the BOUNCE lockphrase ('this quest has been bounced back to execute') lands as a quest_comments row. The worker resubmits using \`writeItem\` with the SAME item_keys (UPSERT replaces in place) — same items.length, same gate.
+
+### What NOT to do
+
+- Do NOT \`updateQuest({stage: 'review'})\` directly. There's no other path that writes the APPROVE lockphrase, and the GM desk will refuse to surface the quest.
+- Do NOT skip \`confirmSubmission\`. If a quest reached purrview without passing through the worker gate (e.g. legacy direct write), it's untrusted — bounce or escalate.
+- Do NOT call approve with a 'fail' verdict to "let it through with a note." The gate refuses; bounce is the only valid path for any failure.
+
+### Common content-quality bounces (history)
+
+- Stock images uploaded with descriptions claiming they're real artifacts (Caribbean beach for sales chart, Swiss-Made badge for folder listing).
+- Empty inventory passed via direct stage write (now blocked by the submit gate, but legacy quests may still appear).
+- Wrong repo/workspace artifacts (quest is for bosterbio.com2026, screenshots are from GuildOS dev server).
+- Dev overlays / 4xx pages captured as if they were the success state.
+`,
+    },
+    reviewCloudAgentWork: {
+      description: "Legacy: high-level review framing for cloud-agent deliverables. For new work, use reviewSubmission — the script-locked flow.",
+      howTo: `
+**Use reviewSubmission for any quest in \`purrview\`.** This action is kept as a meta-framing reference for cases where a cloud agent's output isn't yet on a quest (one-off investigations, exploratory dispatches), but the moment artifacts exist as items on a quest, the script-locked flow is the only acceptable path.
+
+**Common cloud agent pitfalls (still useful as a reference list — feed into reviewSubmission's per-item verdict text):**
 - Google/Bing CAPTCHA on headless cloud IPs → use DuckDuckGo or add \`--disable-blink-features=AutomationControlled\`
 - Full-page screenshots that are blank/black → use viewport capture instead
 - Secrets appearing in committed code → agent's repo has secret scanner
 - \`localhost:3002\` unreachable → agent forgot to start dev server
+- Stock image substitution masquerading as a real artifact (the dominant failure mode in the 2026-04-25 audit — 8 of 14 quests had bogus inventory)
 `,
     },
     reportChaperonWork: {

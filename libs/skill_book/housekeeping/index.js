@@ -111,59 +111,62 @@ Only comment for significant events: major milestone completion, escalation, res
       ].join("\n"),
     },
     presentPlan: {
-      description: "Present a WBS-format plan with clear deliverables and measurement criteria.",
+      description: "Present a strategic plan with a separate, structured deliverables list. WBS lives in the strategy section as narrative; itemized artifacts live in `deliverables`.",
       howTo: `
-**Read before you plan.** When the task references external resources (Figma files, URLs, docs, repos), read them BEFORE presenting the plan. You need to know what exists to create an accurate WBS. Don't plan speculatively — plan from evidence.
+**Read before you plan.** When the task references external resources (Figma files, URLs, docs, repos), read them BEFORE presenting. Plan from evidence, not speculation.
 
-**Format:** Work Breakdown Structure (WBS)
-\`\`\`
-1. Phase name
-   1.1 Task name
-       Deliverable: [what to produce — usually a screenshot]
-       Measurement: [how to verify success]
-   1.2 Task name
-       Deliverable: ...
-       Measurement: ...
-2. Phase name
-   2.1 ...
-\`\`\`
+**Format — two sections:**
+
+### Strategy
+1–3 short paragraphs covering: goal, source of truth, scope (in / out), key dependencies, and the high-level approach. WBS-style phasing here is fine when sequence matters ("phase 1 ingest, phase 2 transform, phase 3 ship"). Do NOT itemize each artifact in this section — it's narrative, not a checklist.
+
+### Deliverables (structured)
+A list, one entry per artifact you'll ship. Each entry MUST have:
+- \`item_key\` — stable kebab/snake identifier you'll reuse on the items row at submission time. Example: \`d1_route_response\`.
+- \`description\` — one sentence on what the artifact shows / contains.
+- \`accept_criteria\` — how to verify it's real (e.g., "image shows HTTP 200 and {inserted:8} JSON body" or "file >50KB and contains the string 'mvp_<timestamp>'"). The Questmaster grades against this.
 
 **Rules:**
-- Every task must have a deliverable (usually screenshot requirements)
-- Every deliverable must have a measurable success criterion
-- Include explicit reporting points: "Create a comment to report successful completion of this milestone"
-- Present to user for iteration before creating the quest
+- The submitForPurrview gate counts \`deliverables.length\` and requires one items row per entry — keep the list tight and real (every entry costs you a real screenshot/file).
+- Don't restate the WBS as deliverables. Phases ≠ artifacts. A phase can produce multiple deliverables, or none.
+- Present both sections to the user for iteration before creating the quest.
 `,
     },
     writeQuest: {
-      description: "Create a quest in execute stage after user approves the plan.",
+      description: "Create a quest in execute stage with structured deliverables (not WBS-in-description).",
       howTo: `
 **Flow:**
 1. User describes a project/task in chat
-2. Present a WBS plan (presentPlan action)
+2. Present a strategic plan (presentPlan action) — strategy paragraphs + structured deliverables list
 3. Iterate with the user until they approve
 
 **Pre-execution checklist — do NOT create the quest until ALL are satisfied:**
-- Clear deliverable description (what screenshots should show, acceptance criteria)
-- Priority assigned (high/medium/low)
+- \`description\`: strategic context only (goal, source of truth, scope, dependencies). NO itemized artifact list.
+- \`deliverables\`: array of \`{item_key, description, accept_criteria}\` — one entry per planned artifact. The submit gate enforces this.
+- Priority assigned (high/medium/low).
 
 4. Ask: "I have everything. Shall I create this quest and start working on it?"
-5. On confirmation, create the quest in \`execute\` stage:
+5. On confirmation, insert the quest in \`execute\` stage:
 
 \`\`\`javascript
-await db.from('quests').insert({
-  owner_id: '<user-id>',
+import { writeQuest } from "@/libs/quest";
+const { data, error } = await writeQuest({
+  userId,
   title: '<quest title>',
-  description: '<full WBS plan with deliverables>',
+  description: '<strategic context — goal, source of truth, scope. NO itemized artifact list>',
+  deliverables: [
+    { item_key: 'd1_route_response', description: '/api/track returns 200 with {inserted:8}', accept_criteria: 'image shows HTTP 200 status and JSON body with inserted=8' },
+    { item_key: 'd2_bq_rows',        description: 'BigQuery preview of 8 inserted rows',     accept_criteria: 'image shows 8 rows with the same user_pseudo_id sentinel' },
+    // ... one per planned artifact
+  ],
   stage: 'execute',
-  priority: 'medium',  // or high/low as discussed
-  assignee_id: '<your-adventurer-id>',
-  assigned_to: '<your-name>',
-  inventory: {}
+  priority: 'medium',
+  assigneeId: '<your-adventurer-id>',
+  assignedTo: '<your-name>',
 });
 \`\`\`
 
-Or via API: \`POST /api/quest?action=request\` — but this creates in 'idea' stage. Prefer direct DB insert for execute stage.
+The \`deliverables\` column is JSONB. Each entry's \`item_key\` becomes the key for the corresponding \`items\` row at submission time — keep them stable, don't rename mid-quest.
 `,
     },
     clarifyQuest: {
@@ -200,75 +203,85 @@ Query the quests table for your assigned quests that are not in complete stage. 
 `,
     },
     verifyDeliverable: {
-      description: "Self-QA every deliverable against universal BS-screenshot checks before submitting to purrview.",
+      description: "Pre-flight self-honesty checks for every deliverable. Advisory — the questExecution.submit gate enforces a subset; the rest is on you.",
       howTo: [
-        "Run this BEFORE `submitForPurrview`. If any check fails, fix the artifact first — do not submit.",
+        "Run this BEFORE `submitForPurrview`. The submit gate already enforces:",
+        "  - items.length === deliverables.length (count match)",
+        "  - every item has ≥1 item_comments rationale row",
+        "  - every item.url responds with content > 0 bytes",
         "",
-        "**This is a self-honesty gate, not a tactical instruction.** How you capture, fix, or re-render is up to you. These rules only describe what must be TRUE of every deliverable.",
+        "These additional checks are NOT enforced in code but they're what gets you bounced by Cat anyway. Self-reject before submitting:",
         "",
-        "### Universal checks (apply to every screenshot deliverable)",
-        "",
-        "1. **File size sanity.** A real page capture at 1400px is rarely under ~80KB. If a PNG is under ~50KB it is almost certainly a placeholder, an empty state, or an error page. Re-capture.",
-        "2. **URL match.** The URL bar in the screenshot (or the captured route) must match the route you claim to be showing. A `/products` deliverable that shows a Next.js starter page, a 404, or `/login` fails this check.",
-        "3. **HTTP 200 at capture time.** If the dev server returned 500 / 4xx / empty body, the capture is invalid regardless of how it looks. Confirm the response before capturing.",
-        "4. **No dev overlays.** Next.js/Vite error overlays, `N Issues` badges, hot-reload toasts, React dev warnings visible in the frame = auto-reject. Dismiss or fix before capturing.",
-        "5. **Expected content present.** Pages with placeholder blank rectangles where real content should be (blank product image, zero products on a catalog, skeleton loaders never resolved) fail. The quest's Deliverable Specification defines what 'real content' means for this quest.",
-        "",
-        "### Honesty checks (apply to the submission as a whole)",
-        "",
-        "6. **No fabricated scores.** If the quest asks for a Figma fidelity score, you must have either (a) actually read the Figma reference during this quest or (b) an explicit user waiver recorded in quest comments. Writing `figma_score: 9` because you hope it's 9 fails this check.",
-        "7. **Submission describes the artifact, not the commit.** The purrview comment must say what the screenshots SHOW, not just list commit hashes. `commit abc123 + def456` is not a deliverable description; `catalog shows 5 products with filter sidebar; PDP shows real image, specs, cart CTA` is.",
-        "8. **Correct repo / workspace.** If the quest is for a different repo (e.g. bosterbio.com2026) and your session is in GuildOS, switch repos before starting. Deliverables produced in the wrong repo fail this check.",
-        "",
-        "### Quest-specific acceptance",
-        "",
-        "9. **Cross-check against the quest's Deliverable Specification.** Re-read the quest description's Deliverable Specification section. Every acceptance criterion there must be verifiable in the deliverable. Self-reject any criterion you can't verify.",
+        "1. **File-size sanity.** A real page capture at 1400px is rarely under ~80KB. Under ~50KB is almost certainly a placeholder/empty/error page. Re-capture.",
+        "2. **URL match.** The URL bar in the screenshot (or captured route) must match the route you claim. `/products` showing a 404 or `/login` fails.",
+        "3. **HTTP 200 at capture time.** If the server returned 500/4xx/empty, the capture is invalid regardless of how it looks. Confirm before capturing.",
+        "4. **No dev overlays.** Next.js/Vite error overlays, `N Issues` badges, hot-reload toasts visible = auto-bounce. Dismiss or fix.",
+        "5. **Expected content present.** Blank product images, zero rows on a catalog, never-resolved skeleton loaders all fail. The quest's `deliverables[i].accept_criteria` defines what 'real content' means.",
+        "6. **Stock-image substitution = bounce.** If you uploaded a beach photo with a description claiming it's a sales chart, Cat will catch it on vision review and bounce. Always upload the actual artifact.",
+        "7. **No fabricated scores.** Don't invent Figma-fidelity scores or test counts. If you didn't run/read it, don't claim it.",
+        "8. **Per-item comment is the artifact rationale, not a commit log.** `commit abc123` is not a rationale; `catalog page shows 5 real products with filter sidebar — matches accept_criteria \"page must show ≥3 products with images\"` is.",
+        "9. **Correct repo/workspace.** If the quest is for a different repo and your session is in GuildOS, switch before starting.",
         "",
         "### If a check fails",
-        "",
-        "- Fix the underlying issue, re-capture, re-upload to the SAME item_key (REPLACE, don't pile on).",
-        "- If the issue is environmental (Medusa down, Postgres unreachable, 500 error you can't resolve), escalate the quest rather than submit a broken artifact — BS screenshots of a broken system are worse than no submission.",
+        "Fix the artifact, re-upload to Supabase Storage, call `writeItem` with the SAME item_key (UPSERT replaces in place — never invent `_v2` keys).",
+        "If the failure is environmental (system down) and you can't produce a real artifact, ESCALATE the quest. Do not submit known-bad work.",
         "",
         "### If all checks pass",
-        "",
-        "Proceed to `submitForPurrview`. Note in the purrview comment which rubric items you verified (e.g. 'all 9 verifyDeliverable checks passed; Figma score based on direct file read of NMfOvoGgMVFPYM4nLtN8zD').",
+        "Proceed to `submitForPurrview`. The submit gate will run the enforced subset; Cat's review will run the rest.",
       ].join("\n"),
     },
     submitForPurrview: {
-      description: "Submit quest for Questmaster review by moving to purrview stage.",
+      description: "Submit quest for Questmaster review. Hard-gated by code via questExecution.submit — no agent shortcut around it.",
       howTo: [
-        "Before moving to purrview, you MUST:",
+        "Submission is a code-enforced gate. The questExecution weapon refuses to advance the quest unless ALL of:",
+        "  1. quest is in `execute` stage",
+        "  2. `quests.deliverables` (the spec column) is a non-empty array",
+        "  3. items rows exist, count matches deliverables.length",
+        "  4. each item has ≥1 item_comments entry (your rationale: what it shows + why it satisfies the deliverable)",
+        "  5. each item.url responds with content > 0 bytes (no zero-byte placeholders, no 404s)",
         "",
-        "1. Upload every screenshot to Supabase Storage:",
-        "   - Bucket: GuildOS_Bucket",
-        "   - Path: cursor_cloud/<questId>/<filename>",
-        "   - Use the `supabase_storage` weapon: `writeFile` to upload, `readPublicUrl` to get the URL.",
-        "   - NOT file:// paths. NOT raw GitHub URLs. NOT in comments only.",
+        "On success, the gate writes a quest_comments row containing the SUBMIT lockphrase ('this quest now meets the criteria for purrview'). The Questmaster's `confirmSubmission` greps for that phrase before opening any screenshot — no phrase, no review.",
         "",
-        "2. Upsert each deliverable into the items table via `writeItem`:",
+        "### Pre-submission steps (per deliverable spec entry)",
         "",
+        "1. Produce the artifact and upload to Supabase Storage:",
+        "   - Bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`",
+        "   - Use the `supabase_storage` weapon (`writeFile` to upload, `readPublicUrl` to get the URL).",
+        "",
+        "2. Upsert into `items` using the SAME `item_key` as the deliverable spec entry:",
         "   ```javascript",
-        "   import { writeItem } from '@/libs/quest';",
-        "   await writeItem({",
+        "   import { writeItem, writeItemComment } from '@/libs/quest';",
+        "   const { data: item } = await writeItem({",
         "     questId,",
-        "     item_key: 'screenshot_1',",
-        "     url: 'https://.../bucket/.../screenshot_1.png',",
+        "     item_key: 'd1_route_response', // matches deliverables[0].item_key",
+        "     url: 'https://.../bucket/.../d1_route_response.png',",
         "     description: 'what it shows',",
         "     source: '<your-adventurer-name>',",
         "   });",
         "   ```",
+        "   UNIQUE(quest_id, item_key) means resubmits replace in place. Do NOT invent `_v2` keys.",
         "",
-        "   The UNIQUE(quest_id, item_key) constraint makes resubmissions an UPSERT — same key overwrites in place. REPLACE, don't pile on.",
+        "3. Post a worker rationale comment on each item:",
+        "   ```javascript",
+        "   await writeItemComment(item.id, {",
+        "     role: 'worker',",
+        "     text: 'Screenshot shows /api/track responding with HTTP 200 and {inserted:8}. Matches accept_criteria.',",
+        "   });",
+        "   ```",
         "",
-        "3. SELECT items for the quest and confirm the expected keys are all present.",
-        "4. Move the quest stage to `purrview`.",
-        "5. SELECT the quest back and confirm stage is purrview.",
+        "4. Call the gate:",
+        "   ```javascript",
+        "   import { submit } from '@/libs/weapon/questExecution';",
+        "   const result = await submit({ questId });",
+        "   if (!result.ok) {",
+        "     // result.failed = ['<gate-id>'], result.report = { msg, fix, ...details }",
+        "     // Read result.report.fix and address it. Do NOT retry without fixing.",
+        "   }",
+        "   ```",
         "",
-        "**REPLACE, do not pile on.** If resubmitting after feedback: for each deliverable item that changed, delete the old storage file and call writeItem with the SAME item_key — the DB constraint handles the replace. Do NOT invent new keys like screenshot_1_v2. A pile of mostly-similar screenshots is an auto-reject.",
+        "If `submit` returns `ok: false`, follow `result.report.fix` verbatim. Do NOT attempt to write `stage='purrview'` directly — there's no other path that produces the lockphrase, and Cat will reject the quest on review.",
         "",
-        "If no items exist for the quest when you move to purrview, Cat rejects immediately. Cat reviews from the items table, not from comments or your filesystem.",
-        "",
-        "**Precondition:** run `verifyDeliverable` first and confirm every check passes. If a check fails, do not submit — fix the artifact first. Cat applies the same rubric on review; submitting a known-bad deliverable wastes a review cycle.",
+        "If submit fails 3 times in a row on a gate you can't resolve, escalate the quest with the failure report attached.",
       ].join("\n"),
     },
     summarizeComments: {
