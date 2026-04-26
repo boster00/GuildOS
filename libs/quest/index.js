@@ -72,6 +72,36 @@ export async function writeQuest({
     { client: injected },
   );
   if (error) return { error };
+
+  // Post-merge: also seed items rows from the deliverables array so the gate
+  // (which reads items only) sees the spec. Idempotent — UPSERT on item_key
+  // skips entries that already exist. Tolerates failures here without rolling
+  // back the quest insert; callers can re-run writeItemExpectations if needed.
+  if (Array.isArray(deliverables) && deliverables.length > 0 && data?.id) {
+    const expectations = deliverables
+      .map((d) => {
+        if (!d || typeof d !== "object") return null;
+        const item_key = typeof d.item_key === "string" ? d.item_key.trim() : "";
+        const expectation =
+          (typeof d.expectation === "string" && d.expectation.trim()) ||
+          (typeof d.accept_criteria === "string" && d.accept_criteria.trim()) ||
+          (typeof d.description === "string" && d.description.trim()) ||
+          "";
+        if (!item_key || !expectation) return null;
+        return { item_key, expectation };
+      })
+      .filter(Boolean);
+    if (expectations.length > 0) {
+      const { error: itemsErr } = await writeItemExpectations(
+        { questId: data.id, expectations },
+        { client: injected },
+      );
+      if (itemsErr) {
+        console.warn("[writeQuest] failed to seed items rows from deliverables:", itemsErr.message);
+      }
+    }
+  }
+
   return { data };
 }
 
@@ -459,20 +489,68 @@ export async function loadQuest(questId, ownerId, { client }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Upsert an item into quest_items. Same (quest_id, item_key) replaces in place.
- * @param {{ questId: string, item_key: string, url?: string|null, description?: string|null, source?: string|null }} input
+ * Upsert an item into the items table.
+ *
+ * Lifecycle:
+ *  - Quest creation: insert with `expectation` (the spec), leave `url`/`caption` null.
+ *    Use `writeItemExpectation` for the bulk creation case.
+ *  - Worker delivery: upsert with the SAME `item_key` and fill in `url` + `caption`.
+ *    UNIQUE(quest_id, item_key) makes the upsert REPLACE in place — never invent
+ *    `_v2` keys.
+ *
+ * @param {{ questId: string, item_key: string, expectation?: string|null, url?: string|null, caption?: string|null }} input
  * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
  * @returns {Promise<{ data: object|null, error: Error|null }>}
  */
-export async function writeItem({ questId, item_key, url = null, description = null, source = null }, { client: injected } = {}) {
+export async function writeItem(
+  { questId, item_key, expectation = undefined, url = undefined, caption = undefined },
+  { client: injected } = {},
+) {
   const { publicTables } = await import("@/libs/council/publicTables");
   const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
   const client = await resolveServerClient(injected);
+  // Build the row defensively — only set fields the caller actually passed so that
+  // `writeItem({questId, item_key, url})` at delivery time does not nuke the
+  // `expectation` set at creation time.
+  const row = { quest_id: questId, item_key };
+  if (expectation !== undefined) row.expectation = expectation;
+  if (url !== undefined) row.url = url;
+  if (caption !== undefined) row.caption = caption;
   const { data, error } = await client
     .from(publicTables.items)
-    .upsert({ quest_id: questId, item_key, url, description, source }, { onConflict: "quest_id,item_key" })
-    .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
+    .upsert(row, { onConflict: "quest_id,item_key", ignoreDuplicates: false })
+    .select("id, quest_id, item_key, expectation, url, caption, created_at, updated_at")
     .single();
+  return { data, error };
+}
+
+/**
+ * Bulk-create items at quest creation time, one per declared expectation.
+ * Skips entries that already exist (so re-running on the same quest is a no-op).
+ *
+ * @param {{ questId: string, expectations: Array<{ item_key: string, expectation: string }> }} input
+ */
+export async function writeItemExpectations({ questId, expectations }, { client: injected } = {}) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+  if (!Array.isArray(expectations) || expectations.length === 0) {
+    return { data: [], error: null };
+  }
+  const rows = expectations
+    .map((e) => {
+      if (!e || typeof e !== "object") return null;
+      const item_key = typeof e.item_key === "string" ? e.item_key.trim() : "";
+      const expectation = typeof e.expectation === "string" ? e.expectation.trim() : "";
+      if (!item_key || !expectation) return null;
+      return { quest_id: questId, item_key, expectation };
+    })
+    .filter(Boolean);
+  if (rows.length === 0) return { data: [], error: null };
+  const { data, error } = await client
+    .from(publicTables.items)
+    .upsert(rows, { onConflict: "quest_id,item_key", ignoreDuplicates: true })
+    .select("id, item_key, expectation");
   return { data, error };
 }
 
