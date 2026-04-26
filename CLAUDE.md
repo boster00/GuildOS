@@ -12,9 +12,9 @@ Avoid asking questions that you can do without the user's input. The bypass perm
 ## BCS (Briefing CJ Style) standard
 *Renamed from "sit rep" on 2026-04-26 — the generic military term let training-data instincts override the canonical format. BCS is a three-letter acronym with no semantic meaning, like WWCD, so it has no shortcut to fall back on.*
 
-**Alias: "CBS" and "BCS" mean the same thing — both point to CJ Briefing Style.** The user may use either casing/order interchangeably; both trigger this protocol.
+**Aliases: any 3-letter permutation of B/C/S triggers this protocol** — BCS, CBS, CSB, BSC, SBC, SCB. All point to CJ Briefing Style. The user permutes the letters interchangeably; treat them as one term.
 
-When user says "BCS" or "CBS" (any casing), output in table format all action items in this thread only, with (if applicable):
+When user says any of those acronyms (any casing), output in table format all action items in this thread only, with (if applicable):
 1. **status** (progression stages defined by the user-defined strategy for the current work),
 2. **delta** (what changed since last mention, or "new" if first appearance),
 3. **note** (recommendations / questions / message about the item).
