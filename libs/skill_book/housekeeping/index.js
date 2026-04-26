@@ -183,7 +183,7 @@ Only comment for significant events: major milestone completion, escalation, res
     verifyQuestComplete: {
       description: "Programmatic check that a quest is in a valid user-ready end state. Required before any 'done' claim.",
       howTo: [
-        "**This is the scripted version of the completion criteria.** Call it before declaring a quest done in any output (Mode A, sit rep terminal verdict, agent task close-out). It returns ok:true only when:",
+        "**This is the scripted version of the completion criteria.** Call it before declaring a quest done in any output (Mode A, BCS terminal verdict, agent task close-out). It returns ok:true only when:",
         "  - quest.stage === 'review' AND a `questReview.final_gate_pass` comment with the FINAL_GATE_PASS lockphrase exists, OR",
         "  - quest.stage === 'escalated' AND the latest `action='escalate'` comment carries non-empty `detail.reason` AND non-empty `detail.unblock_path`.",
         "Anything else returns ok:false with `missing` (the specific gate that failed) and `reason` (a one-sentence description for the agent to read).",

@@ -1,16 +1,23 @@
 # GuildOS — Claude Code Guide
 
+## Read this file from main, not from your CWD.
+This file may be a stale copy if your session is rooted in a worktree or feature branch. **First action of any session: run `git show main:CLAUDE.md` and treat that as authoritative for the rest of the session.** If it differs from the auto-loaded version, the main version wins — without exception. The auto-load is a courtesy, not the source of truth. Worktree drift is the documented cause of past failures on named protocols (BCS, WWCD) — do not skip this step.
+
 ## Work on main. No ad-hoc branches.
 All ad-hoc changes — refactors, fixes, weapon/skill-book edits, CLAUDE.md updates — commit directly to `main`. Do not create feature branches or worktrees for this work. Branches fragment state and hide changes from other agents. If you're on a non-main branch, switch back before committing. Unless user specifically ask for a branch, in which case do what the user asks for. 
 
 ## Never ask user low value questions.
 Avoid asking questions that you can do without the user's input. The bypass permission is usually turned on and the goal for this system is to enable maximum leverage by allowing mutiple threads to run parallel. The goal to strike for is to ask user for questions and help only if there is no obvious answer/choice, or if there is a block that only the user can resolve, or if there are significant risk involved for proceeding. We shall lock down the rule here that before you present the list of questions to the user, ask yourself at least one time: do I really need user's input on this? Can I do this myself with the tools I have? Especially consider the CIC, most things the user can do you can do it through CIC as a fallback. Auto-approve on all low risk decisions and decisions that can easily be reversed without real harm.
 
-## sit rep standard
-When user says "sit rep", output in table format all action items in this thread only, with (if applicable) 
-1. status (usually the progression stages are defined by the user defined strategy), 
-2. delta, 
-3. recommendations/questions/your message about the item (column name= note). 
+## BCS (Briefing CJ Style) standard
+*Renamed from "sit rep" on 2026-04-26 — the generic military term let training-data instincts override the canonical format. BCS is a three-letter acronym with no semantic meaning, like WWCD, so it has no shortcut to fall back on.*
+
+When user says "BCS" (any casing), output in table format all action items in this thread only, with (if applicable):
+1. **status** (progression stages defined by the user-defined strategy for the current work),
+2. **delta** (what changed since last mention, or "new" if first appearance),
+3. **note** (recommendations / questions / message about the item).
+
+Named interaction protocols like BCS and WWCD are domain terms with defined contracts. **Before producing one, read this section verbatim — do not free-style.** If unsure of the spec, grep the codebase or ask, never infer.
 
 ## "What would CJ do" / WWCD
 
@@ -118,7 +125,7 @@ When multiple cursor cloud agents are in flight at once.
 
 The web "+ New session" button creates cloud-sandboxed sessions unless launched from the desktop app. Smoke-test capabilities (filesystem? quest API?) before assuming local-code substrate. Lesson cemented after a 2026-04-25 chaperon mistakenly drove a `claude.ai/chat/` thread.
 
-**Status taxonomy — six labels for any sit rep across in-flight quests.**
+**Status taxonomy — six labels for any BCS across in-flight quests.**
 - ✅ **Finished** — quest reached `review` via `questPurrview.approve` (gate-passed end-to-end). Terminal.
 - 🔵 **Active** — cursor working right now (Cursor API status active, agent has recent commits/messages).
 - 🟡 **Idle (decision)** — paused awaiting a reversible decision; default-dispatch is fine.
@@ -126,7 +133,9 @@ The web "+ New session" button creates cloud-sandboxed sessions unless launched 
 - ⚪ **Strategic** — needs pillar-level vision the user hasn't provided. Don't auto-progress.
 - 🤔 **Confused** — objective unmet, agent idle, no obvious blocker, no question. Probe with "what's your next step? if blocked, what's blocking?" — one round to self-recover, then escalate.
 
-**Sit rep table shape** (when monitoring multiple in-flight quests): `# | Quest | Cursor | Status | Progress | Δ | Q/Rec`. `Progress = X/Y` where Y = total items rows on the quest, X = items with `url IS NOT NULL`. `Q/Rec` always carries actionable content — never prose, never empty.
+**BCS table shape — quest-monitoring variant** (when monitoring multiple in-flight quests): `# | Quest | Cursor | Status | Progress | Δ | Q/Rec`. `Progress = X/Y` where Y = total items rows on the quest, X = items with `url IS NOT NULL`. `Q/Rec` always carries actionable content — never prose, never empty.
+
+**BCS table shape — generic variant** (any other action-item rundown — pending work, branch readiness, todo-style inventory): `# | Item | Status | Δ | Note`. The 3-column spec from the BCS standard above, plus a leading row number.
 
 **Why we don't multiplex Claude sessions.** 2026-04-24 → 04-26 we tried local-Claude-as-chaperon driving multiple `claude.ai/code` web threads via CIC. It failed: web-Claude has no API for inbound dispatch (CIC-only injection is brittle, character-transposition poisons threads), sessions die on browser restart, fork-archive is messy, RAM bloats from many CIC tabs, polling burns quota with mostly-noop scans. The lesson: claude.ai web threads are not a worker substrate. Cursor cloud agents are.
 
