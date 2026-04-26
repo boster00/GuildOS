@@ -234,6 +234,8 @@ Query the quests table for your assigned quests that are not in complete stage. 
     submitForPurrview: {
       description: "Submit quest for Questmaster review. Hard-gated by code via questExecution.submit — no agent shortcut around it.",
       howTo: [
+        "**THE GATE IS THE ONLY PATH.** Do not write `quests.stage = 'purrview'` directly. Do not post a self-attestation comment claiming submission. The next consumer (`questPurrview.confirmSubmission`) refuses to act unless the SUBMIT lockphrase comment is present, and the only path that produces that comment is calling `questExecution.submit({questId})` from this skill book action. Bypass attempts are caught downstream and the quest is treated as untrusted — your work won't get reviewed.",
+        "",
         "Submission is a code-enforced gate. The questExecution weapon refuses to advance the quest unless ALL of:",
         "  1. quest is in `execute` stage",
         "  2. items rows exist for the quest",
