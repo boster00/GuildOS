@@ -34,7 +34,9 @@ export const toc = {
   pass:
     "Write FINAL_GATE_PASS lockphrase + per-item local verdicts. Stage stays at review. Hard-gated: requires Cat-approval lockphrase + per-item verdicts (all 'pass').",
   bounce:
-    "Move quest from review back to execute. User never sees it. Hard-gated: requires Cat-approval lockphrase + per-item verdicts (≥1 'fail') + reason.",
+    "Move quest from review back to execute (agent failure path — agent could plausibly fix on retry). User never sees it. Hard-gated: requires Cat-approval lockphrase + per-item verdicts (≥1 'fail') + reason.",
+  flagInfeasibility:
+    "Move quest from review to escalated when the spec itself isn't satisfiable from reality (NOT agent failure — re-trying won't help). Surfaces to user with structured infeasibility evidence + a recommended_relaxation. The Guildmaster does NOT decide whether to relax; the user does.",
   confirmFinalGate:
     "Read whether FINAL_GATE_PASS lockphrase is present on a quest. Used by the GM desk UI to filter review-stage quests to those ready for the user.",
 };
@@ -50,6 +52,9 @@ export const FINAL_GATE_PASS_LOCKPHRASE = "this quest has cleared final verifica
 
 /** Local-Claude bounce lockphrase — distinguishes from Cat's purrview bounce. */
 export const FINAL_GATE_BOUNCE_LOCKPHRASE = "this quest has been bounced from review back to execute";
+
+/** Infeasibility lockphrase — quest can't be done as specified; user must decide whether to relax. */
+export const INFEASIBILITY_LOCKPHRASE = "this quest has been flagged as infeasible — user decision required";
 
 const PASS_CRITERIA_CHECKED = [
   "questId is a non-empty string",
@@ -327,6 +332,147 @@ export async function bounce({ questId, perItemVerdicts, reason, actor_name = GU
     ),
     lockphrase: FINAL_GATE_BOUNCE_LOCKPHRASE,
     criteria_checked: BOUNCE_CRITERIA_CHECKED,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// flagInfeasibility — review → escalated when the spec isn't satisfiable
+// from reality (NOT agent failure). T3.5's third outcome. The Guildmaster
+// surfaces the finding + a recommended_relaxation, but does NOT unilaterally
+// adjust the spec — the user decides.
+// ---------------------------------------------------------------------------
+
+const INFEASIBILITY_CRITERIA_CHECKED = [
+  "questId is a non-empty string",
+  "quest exists",
+  "quest.stage === 'review'",
+  "questPurrview.approve lockphrase comment present (Cat handoff verified)",
+  "infeasibility_reason is a non-empty string",
+  "items_evidence is a non-empty array (per-item evidence of why the spec is infeasible)",
+  "recommended_relaxation is a non-empty string (Guildmaster's suggested spec change for user to decide on)",
+  "stage write to escalated verified by SELECT-back",
+  "INFEASIBILITY lockphrase + structured detail.subtype='infeasibility_finding' written",
+];
+
+/**
+ * Flag a quest as infeasible AT THE REVIEW STAGE. Use this when:
+ *   - Cat already approved (final gate engaged)
+ *   - Local re-judge reveals the items can't satisfy the spec from reality, and
+ *   - Re-running the agent wouldn't help — the BLOCKER is the spec, not the work
+ *
+ * NOT for: agent failure paths (use bounce()), structural gate failures (use the
+ * upstream gates), or user-requested halts.
+ *
+ * The Guildmaster supplies evidence + a recommended_relaxation. The user decides
+ * whether to (a) accept the relaxation and re-dispatch with looser spec, (b) accept
+ * the partial deliverables as-is, or (c) hold the quest. The Guildmaster does NOT
+ * make this decision.
+ *
+ * @param {{ questId: string, infeasibility_reason: string, items_evidence: Array<{item_key: string, evidence: string}>, recommended_relaxation: string, actor_name?: string }} args
+ */
+export async function flagInfeasibility({
+  questId,
+  infeasibility_reason,
+  items_evidence,
+  recommended_relaxation,
+  actor_name = GUILDMASTER_ACTOR_DEFAULT,
+}) {
+  if (typeof questId !== "string" || !questId.trim()) {
+    return {
+      ok: false,
+      failed: ["questId"],
+      report: { msg: "questId is required (non-empty string).", fix: "Pass { questId }." },
+    };
+  }
+  if (typeof infeasibility_reason !== "string" || !infeasibility_reason.trim()) {
+    return {
+      ok: false,
+      failed: ["infeasibility_reason_required"],
+      report: {
+        msg: "infeasibility_reason must be a non-empty string explaining WHY the spec isn't satisfiable from reality.",
+        fix: "Pass { infeasibility_reason: '<one paragraph: the structural reason the work cannot satisfy the spec, regardless of agent effort>' }.",
+      },
+    };
+  }
+  if (!Array.isArray(items_evidence) || items_evidence.length === 0) {
+    return {
+      ok: false,
+      failed: ["items_evidence_required"],
+      report: {
+        msg: "items_evidence must be a non-empty array of {item_key, evidence} entries.",
+        fix: "For each item that can't satisfy the spec, supply concrete evidence (e.g. URLs checked, why the criterion isn't met, what would be needed).",
+      },
+    };
+  }
+  if (typeof recommended_relaxation !== "string" || !recommended_relaxation.trim()) {
+    return {
+      ok: false,
+      failed: ["recommended_relaxation_required"],
+      report: {
+        msg: "recommended_relaxation must be a non-empty string proposing how the spec could be relaxed to make the work feasible.",
+        fix: "The Guildmaster does NOT decide; this string is a suggestion the user weighs. Be specific: 'Drop requirement X', 'Reduce N from 5 to 3', 'Accept aggregator pages instead of farm-own pages', etc.",
+      },
+    };
+  }
+
+  const db = await database.init("service");
+
+  // Reuse confirmApproval to verify the Cat handoff.
+  const confirm = await confirmApproval({ questId });
+  if (!confirm.ok) {
+    return {
+      ok: false,
+      failed: ["confirmApproval_failed"],
+      report: {
+        msg: `Cat-approval not verified: ${confirm.msg}`,
+        fix: "flagInfeasibility only fires from review stage with a verified Cat approval. If Cat hasn't approved, the path back is bounce(), not infeasibility-flag.",
+        confirmApprovalReason: confirm.reason,
+      },
+    };
+  }
+
+  // Stage transition review → escalated
+  const stageRes = await writeStage(db, questId, "escalated");
+  if (!stageRes.ok) return stageRes.failure;
+
+  const lockSummary = `Final-gate INFEASIBILITY flag. ${capitalize(INFEASIBILITY_LOCKPHRASE)}. Reason: ${infeasibility_reason} Recommended relaxation (USER DECIDES, not Guildmaster): ${recommended_relaxation}`;
+  const { error: commentErr } = await db.from(publicTables.questComments).insert({
+    quest_id: questId,
+    source: "questReview",
+    action: "flag_infeasibility",
+    summary: lockSummary,
+    actor_name,
+    detail: {
+      gate_version: GATE_VERSION,
+      lockphrase: INFEASIBILITY_LOCKPHRASE,
+      criteria_checked: INFEASIBILITY_CRITERIA_CHECKED,
+      subtype: "infeasibility_finding",
+      reason: infeasibility_reason,
+      items_evidence,
+      recommended_relaxation,
+      // Mirror to the keys verifyQuestComplete reads for the escalated_blocked path:
+      unblock_path: `User decision required: ${recommended_relaxation}`,
+    },
+  });
+  if (commentErr) {
+    return {
+      ok: false,
+      failed: ["lockphrase_comment_write"],
+      report: {
+        msg: `Stage moved to escalated but the infeasibility lockphrase comment failed: ${commentErr.message}.`,
+        fix: `Manually insert a quest_comments row with the phrase "${INFEASIBILITY_LOCKPHRASE}" + structured detail so verifyQuestComplete recognizes the end state.`,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    stage: "escalated",
+    end_state: "escalated_infeasible",
+    lockphrase: INFEASIBILITY_LOCKPHRASE,
+    criteria_checked: INFEASIBILITY_CRITERIA_CHECKED,
+    items_evidence,
+    recommended_relaxation,
   };
 }
 
