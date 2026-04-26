@@ -758,6 +758,83 @@ export async function verifyQuestComplete({ questId }, { client: injected } = {}
 }
 
 // ---------------------------------------------------------------------------
+// auditStageBypass — find quest stage transitions in `quest_stage_log` that
+// don't have a corresponding gate comment from questExecution / questPurrview /
+// questReview within a small time window (default 10s). These are bypass
+// attempts (agent wrote stage directly instead of going through a gate).
+// ---------------------------------------------------------------------------
+
+/**
+ * Find stage transitions that happened without a corresponding gate comment.
+ *
+ * @param {{ since?: string, questId?: string, windowSeconds?: number }} args
+ *   since         — ISO timestamp; only consider transitions on or after this. Default: 24h ago.
+ *   questId       — narrow to one quest. Default: all owned quests.
+ *   windowSeconds — how close (in time) the gate comment must be to the stage change. Default 10.
+ * @returns {Promise<Array<{ quest_id, old_stage, new_stage, changed_at, has_gate_comment, nearby_comments: Array }>>}
+ */
+export async function auditStageBypass(
+  { since, questId, windowSeconds = 10 } = {},
+  { client: injected } = {},
+) {
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+
+  const cutoff =
+    since ||
+    new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // last 24h default
+
+  let logQuery = client
+    .from("quest_stage_log")
+    .select("id, quest_id, old_stage, new_stage, changed_at")
+    .gte("changed_at", cutoff)
+    .order("changed_at", { ascending: false });
+  if (questId) logQuery = logQuery.eq("quest_id", questId);
+  const { data: logs, error: logErr } = await logQuery;
+  if (logErr) throw new Error(`auditStageBypass: log read failed: ${logErr.message}`);
+  if (!logs?.length) return [];
+
+  // Pull all gate comments in the window
+  const questIds = [...new Set(logs.map((l) => l.quest_id))];
+  const earliest = logs[logs.length - 1].changed_at;
+  const earliestMinusWindow = new Date(new Date(earliest).getTime() - windowSeconds * 1000).toISOString();
+  const { data: comments } = await client
+    .from(publicTables.questComments)
+    .select("id, quest_id, source, action, summary, created_at")
+    .in("quest_id", questIds)
+    .in("source", ["questExecution", "questPurrview", "questReview"])
+    .gte("created_at", earliestMinusWindow);
+
+  const commentsByQuest = new Map();
+  for (const c of comments || []) {
+    if (!commentsByQuest.has(c.quest_id)) commentsByQuest.set(c.quest_id, []);
+    commentsByQuest.get(c.quest_id).push(c);
+  }
+
+  const results = [];
+  for (const log of logs) {
+    const ts = new Date(log.changed_at).getTime();
+    const nearby = (commentsByQuest.get(log.quest_id) || []).filter((c) => {
+      const diff = Math.abs(new Date(c.created_at).getTime() - ts);
+      return diff <= windowSeconds * 1000;
+    });
+    const hasGate = nearby.length > 0;
+    if (!hasGate) {
+      results.push({
+        quest_id: log.quest_id,
+        old_stage: log.old_stage,
+        new_stage: log.new_stage,
+        changed_at: log.changed_at,
+        has_gate_comment: false,
+        nearby_comments: [],
+      });
+    }
+  }
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // advance — implemented in adventurer domain (actor owns the stage machine).
 // ---------------------------------------------------------------------------
 

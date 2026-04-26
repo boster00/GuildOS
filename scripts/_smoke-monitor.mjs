@@ -5,8 +5,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const QUEST_ID = "8e37080b-d74a-4cf8-abb7-7a5c6dacd555";
-const AGENT_SID = "bc-51307aff-f77d-47e6-9b4c-ee29e7434f7c";
+const QUEST_ID = "2beac37f-6c7e-450d-9eb8-e642af41e3af";
+const AGENT_SID = "bc-94eb142f-c1c2-4f4d-9af3-516ef7c24072";
 const TIMEOUT_MS = 30 * 60 * 1000;
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRETE_KEY);

@@ -14,6 +14,7 @@ export const toc = {
   readQueuedMessages: "Read queued user messages sent after the last assistant reply.",
   writeAgent: "Create a new Cursor cloud agent for a given repository.",
   readEnvSetupInstructions: "Generate an env setup script to bootstrap a fresh Cursor agent session.",
+  syncSessionStatus: "Probe an adventurer's upstream Cursor session status and reconcile the adventurers DB row. Returns { upstream_status, alive, dispatch_safe, was_drift }.",
 };
 import { database } from "@/libs/council/database";
 
@@ -155,6 +156,86 @@ export async function writeAgent({ repository, ref, prompt } = {}, userId) {
     throw new Error(`Cursor API ${res.status}: ${body.slice(0, 500)}`);
   }
   return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Session-health probe — pre-dispatch check that the upstream Cursor session
+// matches what the adventurers DB row says, and is in a state that can accept
+// a followup. Reconciles drift (DB says idle, upstream says EXPIRED, etc.).
+// ---------------------------------------------------------------------------
+
+/**
+ * Probe one adventurer's session against the Cursor API and reconcile the DB.
+ *
+ * Returns:
+ *   {
+ *     upstream_status: 'RUNNING' | 'FINISHED' | 'EXPIRED' | 'CREATING' | 'ERROR' | <other>,
+ *     alive: boolean,            // upstream session exists at all
+ *     dispatch_safe: boolean,    // followup is expected to land (FINISHED/RUNNING/CREATING ok; EXPIRED not)
+ *     was_drift: boolean,        // db.session_status differed from upstream
+ *     adventurer: { id, name, session_id, session_status }, // post-sync row
+ *   }
+ *
+ * Drift handling: if upstream returns a status the local DB doesn't reflect
+ * accurately, this updates `adventurers.session_status` to a normalized
+ * "idle" (dispatch-safe) or "expired" (needs respawn) value. Does NOT auto-
+ * respawn — caller decides.
+ *
+ * @param {{ adventurerId?: string, adventurerName?: string }} input — pass one
+ * @param {string} [userId]
+ */
+export async function syncSessionStatus({ adventurerId, adventurerName } = {}, userId) {
+  if (!adventurerId && !adventurerName) {
+    throw new Error("syncSessionStatus: pass adventurerId or adventurerName");
+  }
+  const db = await database.init("service");
+  const q = db.from("adventurers").select("id, name, session_id, session_status, worker_type").limit(1);
+  const { data: rows } = await (adventurerId ? q.eq("id", adventurerId) : q.eq("name", adventurerName));
+  const adv = rows?.[0];
+  if (!adv) throw new Error(`syncSessionStatus: adventurer not found (${adventurerId || adventurerName})`);
+  if (!adv.session_id) {
+    return {
+      upstream_status: "no_session",
+      alive: false,
+      dispatch_safe: false,
+      was_drift: false,
+      adventurer: adv,
+    };
+  }
+
+  let upstreamStatus = "unknown";
+  let alive = false;
+  try {
+    const j = await cursorFetch(`/${adv.session_id}`, {}, userId);
+    upstreamStatus = String(j?.status || "unknown");
+    alive = true;
+  } catch (err) {
+    // Cursor API returns 404 / 410 for hard-deleted sessions; surface that
+    upstreamStatus = "deleted_or_unreachable";
+    alive = false;
+  }
+
+  // Normalize to DB-friendly status. dispatch_safe: can a followup land?
+  const dispatch_safe =
+    alive && (upstreamStatus === "RUNNING" || upstreamStatus === "FINISHED" || upstreamStatus === "CREATING");
+  const desiredDbStatus = dispatch_safe
+    ? "idle"
+    : upstreamStatus === "EXPIRED"
+      ? "expired"
+      : "unreachable";
+
+  const was_drift = adv.session_status !== desiredDbStatus;
+  if (was_drift) {
+    await db.from("adventurers").update({ session_status: desiredDbStatus }).eq("id", adv.id);
+  }
+
+  return {
+    upstream_status: upstreamStatus,
+    alive,
+    dispatch_safe,
+    was_drift,
+    adventurer: { ...adv, session_status: desiredDbStatus },
+  };
 }
 
 // ---------------------------------------------------------------------------
