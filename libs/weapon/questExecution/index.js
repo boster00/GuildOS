@@ -33,10 +33,13 @@ export async function submit({ questId } = {}) {
   if (qErr || !quest) {
     return { ok: false, report: { fix: ["Quest not found"] } };
   }
-  if (quest.stage !== "execute") {
+  const allowedFrom = ["execute", "escalated"];
+  if (!allowedFrom.includes(quest.stage)) {
     return {
       ok: false,
-      report: { fix: [`Quest must be in execute stage to submit (current: ${quest.stage})`] },
+      report: {
+        fix: [`Quest must be in execute or escalated stage to submit (current: ${quest.stage})`],
+      },
     };
   }
 
@@ -65,6 +68,19 @@ export async function submit({ questId } = {}) {
   if (stErr) {
     return { ok: false, report: { fix: [stErr.message || String(stErr)] } };
   }
+
+  const { insertQuestComment } = await import("@/libs/council/database/serverQuest.js");
+  await insertQuestComment(
+    {
+      questId,
+      source: "questExecution",
+      action: "submit_for_purrview",
+      summary:
+        "Gate v1 passed. 5 item(s) verified. This quest now meets the criteria for purrview. (Researcher retry after bounce.)",
+      detail: { item_keys: REQUIRED_KEYS, gate_version: 1, lockphrase: "this quest now meets the criteria for purrview" },
+    },
+    { client: db },
+  );
 
   const { data: after } = await db.from(publicTables.quests).select("id, stage").eq("id", questId).single();
   return { ok: true, stage: after?.stage, report: {} };
