@@ -22,6 +22,7 @@ import { checkCredentials as checkLinkedinCredentials } from "@/libs/weapon/link
 import { checkCredentials as checkPubcompareCredentials } from "@/libs/weapon/pubcompare";
 import { checkCredentials as checkCloudflareCredentials } from "@/libs/weapon/cloudflare";
 import { checkCredentials as checkTelnyxCredentials } from "@/libs/weapon/telnyx";
+import { checkCredentials as checkQuestExecutionCredentials } from "@/libs/weapon/questExecution";
 
 
 /**
@@ -220,6 +221,17 @@ export const WEAPONS = [
   { id: "linkedin", title: "LinkedIn", tagline: "Search profiles and read profile info via browser automation.", summary: "LinkedIn profile scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP (port 9222). Must be logged in via CDP profile."], requiresActivation: false },
   { id: "pubcompare", title: "PubCompare", tagline: "Search publication comparison data via browser automation.", summary: "PubCompare.ai scraper using Browserclaw CDP.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses Browserclaw CDP. Public site — no auth needed."], requiresActivation: false },
   { id: "cloudflare", title: "Cloudflare", tagline: "Read zone + DNS + firewall + cache analytics; interpret legacy action semantics.", summary: "Read/search/normalize connector for Cloudflare zones. Wraps auth + GraphQL scalar nuances + 1-day firewall-event window cap.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses CLOUDFLARE_API_TOKEN to call the Cloudflare REST API v4 + GraphQL analytics. Resources: zone, zones, dns, firewallRules, accessRules, pageRules, rateLimits, zoneSettings, rulesets, ruleset, botManagement, tokenCapabilities. Analytics: requestsDaily, cacheByHost, cacheByPath, cacheByContentType, firewallEvents, bypassedPaths. normalize kinds: legacyFirewallAction, httpResponse."], requiresActivation: false },
+  {
+    id: "questExecution",
+    title: "Quest execution",
+    tagline: "Gated quest submit (execute → purrview) with structural validation.",
+    summary: "Validates required item keys, URLs, captions, and item comments before advancing quest stage.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "Uses the service-role database client. Agents call submit({ questId }) instead of PATCHing quest stage directly.",
+    ],
+    requiresActivation: false,
+  },
   { id: "telnyx", title: "Telnyx", tagline: "Programmable voice + SMS PBX — search, buy, and operate phone numbers.", summary: "REST connector for Telnyx Voice/Messaging APIs. Search DIDs, purchase numbers, send SMS, place calls, manage AI assistants.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses TELNYX_API_KEY (Bearer) to call api.telnyx.com/v2. Optional MCP layer via team-telnyx/telnyx-mcp-server (uvx) registered globally in ~/.claude.json — additive, not required."], requiresActivation: false },
   { id: "lifesci", title: "LifeSci Intel", tagline: "Drive the boster_nexus LifeSci Intel UI via Claude-in-Chrome.", summary: "CIC pointer — no API surface. Agents navigate nexus.bosterbio.com/lifesci-intel (or localhost:3001) to import SciLeads contacts, triage order emails, and run enrichment workflows.", icon: "/images/guildos/chibis/bolt.svg", description: ["No JS runtime. Local Claude only — uses mcp__Claude_in_Chrome__* against the user's Chrome session on nexus.bosterbio.com. Cloud agents lack the nexus session and cannot run this."], requiresActivation: false },
   {
@@ -270,6 +282,7 @@ export async function readActivationSummaries(userId) {
     pubcompare: () => checkPubcompareCredentials(),
     cloudflare: () => checkCloudflareCredentials(),
     telnyx: () => checkTelnyxCredentials(),
+    questExecution: () => checkQuestExecutionCredentials(),
   };
   for (const w of WEAPONS) {
     if (checks[w.id]) {

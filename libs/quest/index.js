@@ -464,14 +464,18 @@ export async function loadQuest(questId, ownerId, { client }) {
  * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
  * @returns {Promise<{ data: object|null, error: Error|null }>}
  */
-export async function writeItem({ questId, item_key, url = null, description = null, source = null }, { client: injected } = {}) {
+export async function writeItem(
+  { questId, item_key, url = null, description = null, caption = null, source = null },
+  { client: injected } = {},
+) {
   const { publicTables } = await import("@/libs/council/publicTables");
   const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
   const client = await resolveServerClient(injected);
+  const cap = caption != null && String(caption).trim() ? String(caption).trim() : description;
   const { data, error } = await client
     .from(publicTables.items)
-    .upsert({ quest_id: questId, item_key, url, description, source }, { onConflict: "quest_id,item_key" })
-    .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
+    .upsert({ quest_id: questId, item_key, url, caption: cap, source }, { onConflict: "quest_id,item_key" })
+    .select("id, quest_id, item_key, url, caption, source, created_at, updated_at")
     .single();
   return { data, error };
 }
@@ -482,14 +486,16 @@ export async function writeItem({ questId, item_key, url = null, description = n
  * @param {{ role: string, text: string }} input
  * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
  */
-export async function writeItemComment(itemId, { role, text }, { client: injected } = {}) {
+export async function writeItemComment(itemId, { role, text, actor_name = null }, { client: injected } = {}) {
   const { publicTables } = await import("@/libs/council/publicTables");
   const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
   const client = await resolveServerClient(injected);
+  const row = { item_id: itemId, role, text };
+  if (actor_name != null && String(actor_name).trim()) row.actor_name = String(actor_name).trim();
   const { data, error } = await client
     .from(publicTables.itemComments)
-    .insert({ item_id: itemId, role, text })
-    .select("id, item_id, role, text, created_at")
+    .insert(row)
+    .select("id, item_id, role, text, actor_name, created_at")
     .single();
   return { data, error };
 }
@@ -506,7 +512,7 @@ export async function searchItems(questId, { client: injected } = {}) {
   const client = await resolveServerClient(injected);
   const { data: items, error } = await client
     .from(publicTables.items)
-    .select("id, item_key, url, description, source, created_at, updated_at")
+    .select("id, item_key, url, caption, expectation, source, created_at, updated_at")
     .eq("quest_id", questId)
     .order("created_at", { ascending: true });
   if (error || !items?.length) return [];
@@ -523,7 +529,11 @@ export async function searchItems(questId, { client: injected } = {}) {
     if (!byItem.has(c.item_id)) byItem.set(c.item_id, []);
     byItem.get(c.item_id).push(c);
   }
-  return items.map((i) => ({ ...i, comments: byItem.get(i.id) || [] }));
+  return items.map((i) => ({
+    ...i,
+    description: i.caption ?? null,
+    comments: byItem.get(i.id) || [],
+  }));
 }
 
 /**
