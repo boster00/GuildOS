@@ -106,7 +106,7 @@ The web "+ New session" button creates cloud-sandboxed sessions unless launched 
 - ⚪ **Strategic** — needs pillar-level vision the user hasn't provided. Don't auto-progress.
 - 🤔 **Confused** — objective unmet, agent idle, no obvious blocker, no question. Probe with "what's your next step? if blocked, what's blocking?" — one round to self-recover, then escalate.
 
-**Sit rep table shape** (when monitoring multiple in-flight quests): `# | Quest | Cursor | Status | Progress | Δ | Q/Rec`. `Progress = X/Y` where Y = `quests.deliverables.length`, X = items uploaded so far. `Q/Rec` always carries actionable content — never prose, never empty.
+**Sit rep table shape** (when monitoring multiple in-flight quests): `# | Quest | Cursor | Status | Progress | Δ | Q/Rec`. `Progress = X/Y` where Y = total items rows on the quest, X = items with `url IS NOT NULL`. `Q/Rec` always carries actionable content — never prose, never empty.
 
 **Why we don't multiplex Claude sessions.** 2026-04-24 → 04-26 we tried local-Claude-as-chaperon driving multiple `claude.ai/code` web threads via CIC. It failed: web-Claude has no API for inbound dispatch (CIC-only injection is brittle, character-transposition poisons threads), sessions die on browser restart, fork-archive is messy, RAM bloats from many CIC tabs, polling burns quota with mostly-noop scans. The lesson: claude.ai web threads are not a worker substrate. Cursor cloud agents are.
 
@@ -179,22 +179,27 @@ To create a new weapon, read the Blacksmith skill book.
 10. **Multipurpose vs entity-suffixed within a weapon.** Parameterize when resources share a shape (e.g. Zoho Books/CRM `search({module, query})`). Entity-suffix within the six verbs when shapes differ materially (e.g. Vercel `readProject` vs `readDeployment` — different response shapes). Don't force a union type just for symmetry.
 11. **Skill book returns quest-level results; weapons hide always-on plumbing.** Skill book actions return what the agent reports back (deliverable keys, statuses, URLs). Always-on plumbing with no decision content (token acquisition, auth refresh, retry on 5xx, pagination) stays inside weapons and is not exposed in their TOC — the agent never decides whether to refresh a token.
 
-Quest: a quest is a task to perform. A quest has `title`, `description`, `deliverables`, `assignee`, `stage`.
-- **`description` is strategic context only.** Goal, source of truth, scope (in/out), key dependencies, and the high-level approach (narrative WBS / phasing is fine when sequence matters). Do NOT itemize artifacts here — that's what `deliverables` is for. Past convention of stuffing a numbered WBS list into description is deprecated; use it for strategy, not for the deliverable inventory.
-- **`deliverables` is the structured spec column** (JSONB array). One entry per artifact you'll ship: `{ item_key, description, accept_criteria }`. The `submitForPurrview` gate counts `deliverables.length` and requires one `items` row per entry; the `item_key` chains the spec entry to the uploaded artifact.
-- The adventurer reads each screenshot/file and self-evaluates against the entry's `accept_criteria` before uploading. Don't upload work that doesn't match its own spec.
+Quest: a quest is a task to perform. A quest has `title`, `description`, `assignee`, `stage`, plus a set of `items` rows.
+- **`description` is strategic context only.** Goal, source of truth, scope (in/out), key dependencies, the high-level approach. Narrative WBS / phasing is fine when sequence matters. Do NOT itemize artifacts here — that's what `items` is for.
+- **`items` is the structured spec, one row per artifact.** Each row has `item_key` (stable handle), `expectation` (the per-row spec, set at quest creation), `url` (filled when worker uploads — `NULL` means pending), `caption` (worker's one-liner about what was shipped). UNIQUE(quest_id, item_key) makes resubmission an UPSERT-in-place — never invent `_v2` keys.
+- **`item_comments` carries the role-coded discussion thread per item.** `role` ∈ `{adventurer, questmaster, guildmaster, user}`. Worker writes one rationale comment at submit time; Cat writes per-item verdicts at approve/bounce; local Claude writes verdicts at the final gate; user can attach notes from the GM desk.
+- The adventurer reads each artifact and self-evaluates against the item's `expectation` before filling in `url + caption`. Don't upload work that doesn't match its own spec.
 
-Quest stage transitions are script-locked end-to-end via two sister weapons:
-- **`questExecution.submit`** (worker-side) — execute → purrview. Refuses unless deliverables spec, items count, per-item comments, and per-item URL size all pass. Writes the SUBMIT lockphrase comment ("this quest now meets the criteria for purrview").
-- **`questPurrview.confirmSubmission`** — Questmaster-side read gate. Run BEFORE opening any screenshot — verifies the SUBMIT lockphrase comment is present. No phrase, no review.
-- **`questPurrview.approve`** — purrview → review. Requires per-item Cat verdicts, all `pass`. Writes APPROVE lockphrase ("this quest now meets the criteria for review"). The GM-desk script greps for that phrase before surfacing the quest.
-- **`questPurrview.bounce`** — purrview → execute. Requires per-item verdicts with ≥1 `fail` + a non-empty `reason`. Writes BOUNCE lockphrase ("this quest has been bounced back to execute"). Worker addresses listed `item_keys` and resubmits.
-Never write `stage` directly. There's no other path that produces the lockphrases, and the next consumer in the chain refuses to act without them.
+Quest stage transitions are script-locked end-to-end via three sister weapons. Each transition leaves a lockphrase comment that the next consumer greps for:
 
-Quest Comment: a comment associated with quest. Comments are used to document major events the user should know, and only one comment per hand off—a comment is made before an adventurer hand the quest to the next adventurer, usually between workers and questmaster. The lockphrase comments above are NOT regular hand-off comments — they're machine-detectable handshakes; agents shouldn't post them manually. The agent's own hand-off rationale (one paragraph on what was done) goes in a separate comment alongside the lockphrase.
+- **`questExecution.submit`** (worker side) — execute → purrview. Refuses unless every items row has `expectation` + `url` + ≥1 comment + a URL that returns content > 0 bytes. Writes SUBMIT lockphrase: "this quest now meets the criteria for purrview".
+- **`questPurrview.confirmSubmission`** — Cat read gate. Run BEFORE opening any screenshot. Verifies the SUBMIT lockphrase. Returns the items as the per-row spec to grade against. No phrase, no review.
+- **`questPurrview.approve`** — purrview → review. Requires per-item Cat verdicts, all `pass`. Writes APPROVE lockphrase: "this quest now meets the criteria for review".
+- **`questPurrview.bounce`** — purrview → execute. Requires per-item verdicts with ≥1 `fail` + a non-empty `reason`. Writes BOUNCE lockphrase: "this quest has been bounced back to execute". Worker fixes the listed `item_keys` and resubmits.
+- **`questReview.confirmApproval`** — local final-gate read. Verifies APPROVE lockphrase before the local CIC + imageJudge pass.
+- **`questReview.pass`** — writes FINAL_GATE_PASS lockphrase ("this quest has cleared final verification") + per-item local verdicts. Stage stays at `review`. The GM desk surfaces only review-stage quests with this lockphrase.
+- **`questReview.bounce`** — review → execute. User never sees the quest. Writes FINAL_GATE_BOUNCE lockphrase ("this quest has been bounced from review back to execute") + per-item verdicts.
 
-Quest items: holds artifacts, usually screenshots. Item shape: `{ item_key, url, description, source, comments: [{role, text}] }`. `items` table holds the artifact rows; `item_comments` table holds per-item annotations (role='worker' for the submit-time rationale; role='questmaster' for Cat's verdict on approve/bounce). UNIQUE(quest_id, item_key) enforces REPLACE-don't-pile-on — resubmits use the same `item_key` and UPSERT replaces in place.
-Quest initiation interview: only create a quest when deliverables and acceptance criteria are unambiguous — every artifact you'll ship must be expressible as a `{item_key, description, accept_criteria}` entry up front. If unclear, ask clarification questions until they are. Operational checklist: `housekeeping.presentPlan` (strategy + structured deliverables), then `housekeeping.writeQuest` (insert in execute stage). 
+Never write `stage` directly. There's no other path that produces the lockphrases, and the next consumer refuses to act without them.
+
+Quest initiation interview: only create a quest when every artifact you'll ship can be expressed as an `items` row with a clear `item_key` and a verifiable `expectation`. If unclear, ask clarification questions until they are. Operational checklist: `housekeeping.presentPlan` (strategy + per-row expectations), then `housekeeping.writeQuest` (inserts the quest + seeds the items rows in one call).
+
+Quest Comment: a quest-level comment used to document major events. The lockphrase comments above are NOT regular hand-off comments — they're machine-detectable handshakes; agents shouldn't post them manually. An agent's own narrative hand-off ("what I did in this round") goes in a separate `quest_comments` row alongside the lockphrase.
 
 Council: controls system level functions such as authentication, cron, settings/account management, formulary (user’s secretes), and database connection. 
 Important: when agent wants to access database, use the following wrapper and not the default libs of supabase. 

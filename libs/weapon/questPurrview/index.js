@@ -264,6 +264,14 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     };
   }
 
+  // Bounce-loop detection: count prior BOUNCE comments per failing item_key.
+  // Doesn't block — surfaces the count so the worker / Guildmaster can decide
+  // whether to escalate instead of running yet another retry.
+  const failingItemIds = items
+    .filter((it) => fails.some((f) => f.item_key === it.item_key))
+    .map((i) => i.id);
+  const priorBounces = await countPriorBounces(db, failingItemIds);
+
   // Write per-item verdict comments
   const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "bounce");
   if (!writeRes.ok) return writeRes.failure;
@@ -273,7 +281,11 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
   if (!stageRes.ok) return stageRes.failure;
 
   const failingKeys = fails.map((v) => v.item_key);
-  const lockSummary = `Bounce gate v${GATE_VERSION} passed. ${fails.length} item(s) failed: ${failingKeys.join(", ")}. ${capitalize(BOUNCE_LOCKPHRASE)}. Reason: ${reason}`;
+  const chronicKeys = failingKeys.filter((k) => {
+    const itemId = items.find((i) => i.item_key === k)?.id;
+    return itemId && (priorBounces.get(itemId) || 0) >= 2; // 2 prior + this one = 3rd bounce
+  });
+  const lockSummary = `Bounce gate v${GATE_VERSION} passed. ${fails.length} item(s) failed: ${failingKeys.join(", ")}. ${capitalize(BOUNCE_LOCKPHRASE)}. Reason: ${reason}${chronicKeys.length > 0 ? ` ⚠️ Chronic-bounce items (3+ bounces): ${chronicKeys.join(", ")} — consider escalating instead of resubmitting.` : ""}`;
   const { error: commentErr } = await db.from(publicTables.questComments).insert({
     quest_id: questId,
     source: "questPurrview",
@@ -307,9 +319,32 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     items_count: items.length,
     failing_count: fails.length,
     failing_item_keys: failingKeys,
+    chronic_bounce_keys: chronicKeys, // item_keys that have now bounced 3+ times — caller should consider escalating
+    prior_bounce_counts: Object.fromEntries(
+      failingItemIds.map((id) => {
+        const it = items.find((i) => i.id === id);
+        return [it?.item_key, priorBounces.get(id) || 0];
+      }),
+    ),
     lockphrase: BOUNCE_LOCKPHRASE,
     criteria_checked: BOUNCE_CRITERIA_CHECKED,
   };
+}
+
+/** Count prior bounce comments per item (across both Cat and Guildmaster bounces). */
+async function countPriorBounces(db, itemIds) {
+  if (!itemIds.length) return new Map();
+  const { data } = await db
+    .from(publicTables.itemComments)
+    .select("item_id, text")
+    .in("item_id", itemIds);
+  const counts = new Map();
+  for (const c of data || []) {
+    if (typeof c.text === "string" && /BOUNCE.*:fail/i.test(c.text)) {
+      counts.set(c.item_id, (counts.get(c.item_id) || 0) + 1);
+    }
+  }
+  return counts;
 }
 
 // ---------------------------------------------------------------------------

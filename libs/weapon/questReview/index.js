@@ -262,6 +262,13 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     };
   }
 
+  // Bounce-loop detection: count prior BOUNCE comments per failing item across
+  // both purrview and review bounces. Surfaces chronic failures.
+  const failingItemIds = items
+    .filter((it) => fails.some((f) => f.item_key === it.item_key))
+    .map((i) => i.id);
+  const priorBounces = await countPriorBounces(db, failingItemIds);
+
   const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "final_gate_bounce");
   if (!writeRes.ok) return writeRes.failure;
 
@@ -269,7 +276,11 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
   if (!stageRes.ok) return stageRes.failure;
 
   const failingKeys = fails.map((v) => v.item_key);
-  const lockSummary = `Final gate v${GATE_VERSION} BOUNCE. ${fails.length} item(s) failed local verification: ${failingKeys.join(", ")}. ${capitalize(FINAL_GATE_BOUNCE_LOCKPHRASE)}. Reason: ${reason}`;
+  const chronicKeys = failingKeys.filter((k) => {
+    const itemId = items.find((i) => i.item_key === k)?.id;
+    return itemId && (priorBounces.get(itemId) || 0) >= 2;
+  });
+  const lockSummary = `Final gate v${GATE_VERSION} BOUNCE. ${fails.length} item(s) failed local verification: ${failingKeys.join(", ")}. ${capitalize(FINAL_GATE_BOUNCE_LOCKPHRASE)}. Reason: ${reason}${chronicKeys.length > 0 ? ` ⚠️ Chronic-bounce items (3+ bounces): ${chronicKeys.join(", ")} — escalate instead of resubmitting.` : ""}`;
   const { error: commentErr } = await db.from(publicTables.questComments).insert({
     quest_id: questId,
     source: "questReview",
@@ -301,9 +312,32 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     items_count: items.length,
     failing_count: fails.length,
     failing_item_keys: failingKeys,
+    chronic_bounce_keys: chronicKeys,
+    prior_bounce_counts: Object.fromEntries(
+      failingItemIds.map((id) => {
+        const it = items.find((i) => i.id === id);
+        return [it?.item_key, priorBounces.get(id) || 0];
+      }),
+    ),
     lockphrase: FINAL_GATE_BOUNCE_LOCKPHRASE,
     criteria_checked: BOUNCE_CRITERIA_CHECKED,
   };
+}
+
+/** Count prior bounce comments per item across both Cat (purrview) and local (review) bounces. */
+async function countPriorBounces(db, itemIds) {
+  if (!itemIds.length) return new Map();
+  const { data } = await db
+    .from(publicTables.itemComments)
+    .select("item_id, text")
+    .in("item_id", itemIds);
+  const counts = new Map();
+  for (const c of data || []) {
+    if (typeof c.text === "string" && /BOUNCE.*:fail/i.test(c.text)) {
+      counts.set(c.item_id, (counts.get(c.item_id) || 0) + 1);
+    }
+  }
+  return counts;
 }
 
 // ---------------------------------------------------------------------------

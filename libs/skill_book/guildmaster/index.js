@@ -40,6 +40,82 @@ Do NOT:
 4. If no: flag for user attention.
 `,
     },
+    runFinalGate: {
+      description: "Run the local final-gate verification on a quest in review stage. Cat already approved; this is the last check before the user sees it on the GM desk. Pass → quest stays in review with FINAL_GATE_PASS lockphrase. Fail → bounce to execute, user never sees it.",
+      howTo: `
+This is the canonical local-only review pass. Use it for any quest in \`review\` stage that has Cat's approve lockphrase but no FINAL_GATE_PASS lockphrase yet (the GM desk filters quests to those with the pass lockphrase, so unverified ones are invisible until you process them).
+
+### Step 1 — Verify Cat's approval lockphrase
+
+\`\`\`javascript
+import { confirmApproval } from "@/libs/weapon/questReview";
+const confirm = await confirmApproval({ questId });
+if (!confirm.ok) {
+  // confirm.reason: 'no_gate_comment' | 'lockphrase_missing' | 'wrong_stage' | ...
+  // The quest reached review without passing through Cat. Don't run the final gate;
+  // either escalate or bounce manually.
+  return;
+}
+// confirm.items = the per-row spec; each carries { item_key, expectation, url, caption }
+// confirm.cat_perItemVerdicts = Cat's verdicts (useful as a baseline / sanity check)
+\`\`\`
+
+### Step 2 — Local verification per item
+
+Two complementary verification paths; use both for high-value quests, the cheaper one alone for routine ones:
+
+**Path A — contextless second pair of eyes (cheap, fast, catches stock-photo / blank / wrong-page failures Cat may have missed):**
+
+\`\`\`javascript
+import { judge } from "@/libs/weapon/openai_images";
+for (const item of confirm.items) {
+  const isImage = /\\.(png|jpg|jpeg|gif|webp)/i.test(item.url);
+  if (!isImage) continue; // text artifacts: read directly via fetch
+  const v = await judge({ imageUrl: item.url, claim: item.expectation });
+  // v: { verdict: 'match'|'mismatch'|'inconclusive', confidence, reasoning }
+}
+\`\`\`
+
+**Path B — local CIC visual check (slower, catches subtler issues; uses your logged-in browser so authenticated dashboards work):**
+
+For each item URL, open in CIC, screenshot the rendered page, Read the image yourself with multimodal vision, decide pass/fail. This is the path Cat-cloud can't take because it doesn't have your auth state.
+
+### Step 3 — Build per-item verdicts
+
+For every item in \`confirm.items\`, decide \`{item_key, verdict, text}\`:
+- \`verdict: 'pass'\` when both your check (Path A or B) says match AND Cat's prior verdict was pass. Disagreement → 'fail'.
+- \`verdict: 'fail'\` when your check disagrees with the expectation, even if Cat passed it. Cat-cloud uses Composer 2.0 which has weaker vision than the contextless gpt-4o-mini judge or your own multimodal Read.
+- \`text\`: one-sentence note. On pass, what you verified. On fail, what's wrong + what worker should fix.
+
+### Step 4a — All pass
+
+\`\`\`javascript
+import { pass } from "@/libs/weapon/questReview";
+const result = await pass({ questId, perItemVerdicts, summary: "Optional Guildmaster note" });
+\`\`\`
+
+Result: stage stays at \`review\`, FINAL_GATE_PASS lockphrase comment lands on the quest, GM desk now surfaces the quest to the user.
+
+### Step 4b — Any fail
+
+\`\`\`javascript
+import { bounce } from "@/libs/weapon/questReview";
+const result = await bounce({
+  questId,
+  perItemVerdicts,
+  reason: "<one paragraph: what failed across the quest, what the worker should fix>",
+});
+\`\`\`
+
+Result: stage moves to \`execute\`, FINAL_GATE_BOUNCE lockphrase lands, user never sees the quest. Worker resubmits using the same item_keys (UPSERT replaces in place).
+
+### What NOT to do
+
+- Do NOT call \`pass\` with any 'fail' verdicts to "let it through with notes." The gate refuses; bounce is the only valid path for any failure.
+- Do NOT skip \`confirmApproval\`. If a quest reached review without passing through Cat, it's untrusted — escalate.
+- Do NOT auto-pass quests just because Cat approved. The whole point of this gate is to catch what Cat missed (Composer 2.0 vision weaknesses, edge cases). Form your own verdict.
+`,
+    },
   },
 };
 

@@ -127,7 +127,7 @@ A list, one entry per artifact you'll ship. Each entry MUST have:
 - \`accept_criteria\` — how to verify it's real (e.g., "image shows HTTP 200 and {inserted:8} JSON body" or "file >50KB and contains the string 'mvp_<timestamp>'"). The Questmaster grades against this.
 
 **Rules:**
-- The submitForPurrview gate counts \`deliverables.length\` and requires one items row per entry — keep the list tight and real (every entry costs you a real screenshot/file).
+- The submitForPurrview gate refuses to advance unless every items row has \`url IS NOT NULL\`. Each entry is one screenshot/file you'll actually ship — keep the list tight and real.
 - Don't restate the WBS as deliverables. Phases ≠ artifacts. A phase can produce multiple deliverables, or none.
 - Present both sections to the user for iteration before creating the quest.
 `,
@@ -203,10 +203,11 @@ Query the quests table for your assigned quests that are not in complete stage. 
 `,
     },
     verifyDeliverable: {
-      description: "Pre-flight self-honesty checks for every deliverable. Advisory — the questExecution.submit gate enforces a subset; the rest is on you.",
+      description: "Pre-flight self-honesty checks for every item. Advisory — the questExecution.submit gate enforces a subset; the rest is on you.",
       howTo: [
         "Run this BEFORE `submitForPurrview`. The submit gate already enforces:",
-        "  - items.length === deliverables.length (count match)",
+        "  - every items row has `expectation` set (declared spec)",
+        "  - every items row has `url` set (no pending items)",
         "  - every item has ≥1 item_comments rationale row",
         "  - every item.url responds with content > 0 bytes",
         "",
@@ -216,7 +217,7 @@ Query the quests table for your assigned quests that are not in complete stage. 
         "2. **URL match.** The URL bar in the screenshot (or captured route) must match the route you claim. `/products` showing a 404 or `/login` fails.",
         "3. **HTTP 200 at capture time.** If the server returned 500/4xx/empty, the capture is invalid regardless of how it looks. Confirm before capturing.",
         "4. **No dev overlays.** Next.js/Vite error overlays, `N Issues` badges, hot-reload toasts visible = auto-bounce. Dismiss or fix.",
-        "5. **Expected content present.** Blank product images, zero rows on a catalog, never-resolved skeleton loaders all fail. The quest's `deliverables[i].accept_criteria` defines what 'real content' means.",
+        "5. **Expected content present.** Blank product images, zero rows on a catalog, never-resolved skeleton loaders all fail. Each item's `expectation` defines what 'real content' means for that row — the imageJudge / Cat verifier grades against it.",
         "6. **Stock-image substitution = bounce.** If you uploaded a beach photo with a description claiming it's a sales chart, Cat will catch it on vision review and bounce. Always upload the actual artifact.",
         "7. **No fabricated scores.** Don't invent Figma-fidelity scores or test counts. If you didn't run/read it, don't claim it.",
         "8. **Per-item comment is the artifact rationale, not a commit log.** `commit abc123` is not a rationale; `catalog page shows 5 real products with filter sidebar — matches accept_criteria \"page must show ≥3 products with images\"` is.",
@@ -235,10 +236,11 @@ Query the quests table for your assigned quests that are not in complete stage. 
       howTo: [
         "Submission is a code-enforced gate. The questExecution weapon refuses to advance the quest unless ALL of:",
         "  1. quest is in `execute` stage",
-        "  2. `quests.deliverables` (the spec column) is a non-empty array",
-        "  3. items rows exist, count matches deliverables.length",
-        "  4. each item has ≥1 item_comments entry (your rationale: what it shows + why it satisfies the deliverable)",
-        "  5. each item.url responds with content > 0 bytes (no zero-byte placeholders, no 404s)",
+        "  2. items rows exist for the quest",
+        "  3. every items row has `expectation` set (the declared spec, set at quest creation)",
+        "  4. every items row has `url` set (no items still pending)",
+        "  5. each item has ≥1 item_comments entry (your rationale: what it shows + why it satisfies the expectation)",
+        "  6. each item.url responds with content > 0 bytes (no zero-byte placeholders, no 404s)",
         "",
         "On success, the gate writes a quest_comments row containing the SUBMIT lockphrase ('this quest now meets the criteria for purrview'). The Questmaster's `confirmSubmission` greps for that phrase before opening any screenshot — no phrase, no review.",
         "",
@@ -248,18 +250,17 @@ Query the quests table for your assigned quests that are not in complete stage. 
         "   - Bucket: `GuildOS_Bucket`, path: `cursor_cloud/<questId>/<filename>`",
         "   - Use the `supabase_storage` weapon (`writeFile` to upload, `readPublicUrl` to get the URL).",
         "",
-        "2. Upsert into `items` using the SAME `item_key` as the deliverable spec entry:",
+        "2. Upsert into `items` using the SAME `item_key` as the items row that was created with the quest:",
         "   ```javascript",
         "   import { writeItem, writeItemComment } from '@/libs/quest';",
         "   const { data: item } = await writeItem({",
         "     questId,",
-        "     item_key: 'd1_route_response', // matches deliverables[0].item_key",
+        "     item_key: 'd1_route_response', // matches the items row's item_key",
         "     url: 'https://.../bucket/.../d1_route_response.png',",
-        "     description: 'what it shows',",
-        "     source: '<your-adventurer-name>',",
+        "     caption: 'what the screenshot actually shows',",
         "   });",
         "   ```",
-        "   UNIQUE(quest_id, item_key) means resubmits replace in place. Do NOT invent `_v2` keys.",
+        "   The upsert only writes the fields you pass — it will NOT overwrite the `expectation` that was set at quest creation. UNIQUE(quest_id, item_key) means resubmits replace in place. Do NOT invent `_v2` keys.",
         "",
         "3. Post a worker rationale comment on each item:",
         "   ```javascript",

@@ -140,7 +140,7 @@ if (!confirm.ok) {
   // Either bounce it back (if a worker is owning it) or escalate to Guildmaster.
   return;
 }
-// confirm.deliverables = the pre-committed spec; confirm.item_keys = items to judge.
+// confirm.items = the per-row spec (id, item_key, expectation, url, caption); judge each one against its expectation.
 \`\`\`
 
 ### Step 2 — Open every item.url and grade against accept_criteria
