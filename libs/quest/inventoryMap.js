@@ -17,7 +17,8 @@ export function inventoryRawToMap(items) {
     if (!it || typeof it !== "object") continue;
     const k = it.item_key != null ? String(it.item_key) : "";
     if (!k) continue;
-    map[k] = { url: it.url ?? null, description: it.description ?? null, source: it.source ?? null, comments: Array.isArray(it.comments) ? it.comments : [] };
+    const cap = it.caption != null ? it.caption : it.description;
+    map[k] = { url: it.url ?? null, description: cap ?? null, source: it.source ?? null, comments: Array.isArray(it.comments) ? it.comments : [] };
   }
   return map;
 }
