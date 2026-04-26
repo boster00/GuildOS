@@ -6,6 +6,7 @@
 export const toc = {
   searchDatasets: "Search BigQuery datasets available to the service account.",
   readRecentEvents: "Read the most recent rows from a BigQuery table.",
+  insertRows: "Stream-insert rows into a BigQuery table via tabledata.insertAll.",
 };
 import { getGoogleCredentials } from "@/libs/council/profileEnvVars";
 
@@ -40,13 +41,13 @@ async function getServiceAccountKey(userId) {
  * @param {string} userId
  * @returns {Promise<string>}
  */
-async function getAccessToken(userId) {
+async function getAccessToken(userId, scope = "https://www.googleapis.com/auth/bigquery.readonly") {
   const key = await getServiceAccountKey(userId);
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
     iss: key.client_email,
-    scope: "https://www.googleapis.com/auth/bigquery.readonly",
+    scope,
     aud: key.token_uri || TOKEN_URL,
     iat: now,
     exp: now + 3600,
@@ -168,6 +169,35 @@ export async function readRecentEvents(datasetId, tableId, limit = 10, userId) {
     return obj;
   });
   return { rows };
+}
+
+/**
+ * Stream-insert rows into a BigQuery table.
+ * @param {{ datasetId: string, tableId: string, rows: Array<{insertId?: string, json: Record<string, unknown>}>, userId?: string }} params
+ * @returns {Promise<{ inserted: number, errors: Array<{index: number, errors: unknown}> }>}
+ */
+export async function insertRows({ datasetId, tableId, rows, userId }) {
+  if (!datasetId || !tableId) throw new Error("datasetId and tableId are required.");
+  if (!Array.isArray(rows) || rows.length === 0) return { inserted: 0, errors: [] };
+  const uid = await resolveUserId(userId);
+  const token = await getAccessToken(uid, "https://www.googleapis.com/auth/bigquery");
+  const projectId = await getProjectId(uid);
+
+  const res = await fetch(
+    `${BIGQUERY_API}/projects/${projectId}/datasets/${datasetId}/tables/${tableId}/insertAll`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ rows, skipInvalidRows: false, ignoreUnknownValues: false }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`insertAll failed (${res.status}): ${text}`);
+  }
+  const body = await res.json();
+  const errors = (body.insertErrors || []).map((e) => ({ index: e.index, errors: e.errors }));
+  return { inserted: rows.length - errors.length, errors };
 }
 
 /**

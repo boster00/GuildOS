@@ -36,6 +36,7 @@ const PUBLIC_PATH_PREFIXES = [
   "/api/council/auth",
   "/api/auth",
   "/api/telnyx",
+  "/api/track",
   "/_next",
   "/favicon",
   "/images",
