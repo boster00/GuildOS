@@ -223,6 +223,42 @@ export const WEAPONS = [
   { id: "telnyx", title: "Telnyx", tagline: "Programmable voice + SMS PBX — search, buy, and operate phone numbers.", summary: "REST connector for Telnyx Voice/Messaging APIs. Search DIDs, purchase numbers, send SMS, place calls, manage AI assistants.", icon: "/images/guildos/chibis/bolt.svg", description: ["Uses TELNYX_API_KEY (Bearer) to call api.telnyx.com/v2. Optional MCP layer via team-telnyx/telnyx-mcp-server (uvx) registered globally in ~/.claude.json — additive, not required."], requiresActivation: false },
   { id: "lifesci", title: "LifeSci Intel", tagline: "Drive the boster_nexus LifeSci Intel UI via Claude-in-Chrome.", summary: "CIC pointer — no API surface. Agents navigate nexus.bosterbio.com/lifesci-intel (or localhost:3001) to import SciLeads contacts, triage order emails, and run enrichment workflows.", icon: "/images/guildos/chibis/bolt.svg", description: ["No JS runtime. Local Claude only — uses mcp__Claude_in_Chrome__* against the user's Chrome session on nexus.bosterbio.com. Cloud agents lack the nexus session and cannot run this."], requiresActivation: false },
   {
+    id: "questExecution",
+    title: "Quest Execution",
+    tagline: "Worker-side quest stage transition: hard-gated execute → purrview.",
+    summary:
+      "Owns the worker handoff. submit() refuses to advance unless deliverables spec, items count, per-item comments, and per-item URL size all pass; on success leaves the SUBMIT lockphrase comment that questPurrview.confirmSubmission verifies.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "No external credentials — uses the service-role DB facade. Closes the self-reporting loophole that let agents advance quests with empty or bogus inventories.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "questPurrview",
+    title: "Quest Purrview",
+    tagline: "Questmaster-side quest stage transitions: confirmSubmission, approve, bounce.",
+    summary:
+      "Owns the Questmaster handoff. confirmSubmission() verifies the worker's submit lockphrase before any screenshot is opened. approve() advances purrview → review with per-item Cat verdicts (all pass). bounce() returns purrview → execute with per-item verdicts (≥1 fail) and a reason. Each successful action writes a stage-specific lockphrase comment for the next consumer in the chain.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "No external credentials — uses the service-role DB facade. Pairs with questExecution to make the full lifecycle script-locked end-to-end.",
+    ],
+    requiresActivation: false,
+  },
+  {
+    id: "questReview",
+    title: "Quest Review",
+    tagline: "Local-Claude final gate before user sees a quest. Failed quests bounce back; user never sees them.",
+    summary:
+      "Owns the LAST gate. confirmApproval() verifies Cat's approval lockphrase. pass() writes FINAL_GATE_PASS lockphrase + per-item local verdicts (all pass) — quest stays at review, GM desk surfaces it. bounce() returns review → execute with per-item verdicts (≥1 fail) and a reason. confirmFinalGate() is the read-side helper for the GM desk UI to filter visible quests.",
+    icon: "/images/guildos/chibis/bolt.svg",
+    description: [
+      "No external credentials — service-role DB facade. The third weapon in the script-locked stage chain (execute → purrview → review → user). Pairs with openai_images.judge for contextless second-pair-of-eyes verification.",
+    ],
+    requiresActivation: false,
+  },
+  {
     id: "bosterbio.comLiveSite",
     title: "bosterbio.com Live Site",
     tagline: "Read genes and write enrichment via bapi.php on the live bosterbio.com site.",
