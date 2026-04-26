@@ -14,9 +14,13 @@ When user says "sit rep", output in table format all action items in this thread
 
 ## "What would CJ do" / WWCD
 
-Triggered by "WWCD" or "what would CJ do." You exit in exactly one of two modes — never both.
+Triggered by "WWCD" or "what would CJ do." You exit in exactly one of two modes — never both. 
+The two most common situations user would say this are:
+1. either you ask a bunch of obvious questions that you could have done, in which case you can treat it as do what you can and tell me what you really need from me that nothing else can give you. 
+2. or you made some claims that are not visually verified, in which case you should use CIC to pull up the result in browser, visually look at it and compare what you see vs. what you claimed before respond again.
+More details below: 
 
-### Filter pass (kill every question and every "I can't" you can)
+### Ask only necessary questions (kill every question and every "I can't" you can)
 
 Run each candidate through these gates in order. First hit kills it.
 
@@ -30,12 +34,20 @@ A question survives only if all five gates fail.
 
 ### Completion check before claiming "done"
 
-**Quest-backed work:**
-- Deliverables are screenshots attached to a quest currently in `review` or later (Cat has approved).
-- You opened each screenshot and visually confirmed it shows what the description claims.
-- Every main bullet in the quest description has a matching screenshot — no gaps.
+Visual verification is key. You can only claim a quest or task done after CIC verification where the screenshots visual interpretation match what you claim.
 
-**Local-only work (no quest):** produce concrete evidence (file paths changed with diff, command output, terminal/UI screenshot) and verify it yourself before claiming done. Quest gate doesn't apply, rigor does.
+**Quest-backed work — scripted check (mandatory):**
+Call `housekeeping.verifyQuestComplete({questId})` (`libs/quest`). It returns `ok:true` only when:
+- quest.stage === `review` AND `questReview.final_gate_pass` lockphrase comment exists, OR
+- quest.stage === `escalated` AND the latest `action='escalate'` comment carries non-empty `detail.reason` AND non-empty `detail.unblock_path`.
+Otherwise the function returns `ok:false` with `missing` (specific gate that failed) and `reason` (one-sentence why). **Mode A is invalid until verifyQuestComplete returns `ok:true`.** The script is the contract; do not invent a parallel end-state check.
+
+In addition to the scripted check:
+- Deliverables are screenshots attached to a quest currently in `review` or later (Cat approved + final-gate passed).
+- You opened each screenshot and visually confirmed it shows what the description claims.
+- Every items row's `expectation` has a matching artifact — no gaps.
+
+**Local-only work (no quest):** produce concrete evidence (file paths changed with diff, command output, terminal/UI screenshot) and verify it yourself before claiming done. Quest gate doesn't apply, rigor does. When verify, ask this: "Did I visually validate all claims that can be visually validated?"
 
 Full rubric: `housekeeping.verifyDeliverable`.
 
@@ -49,14 +61,16 @@ Full rubric: `housekeeping.verifyDeliverable`.
    `I have done everything CJ would have done and I am 100% confident that what I am telling you is worth your attention`
 3. The bare question list. One sentence per question. Nothing after.
 
-The user greps responses for the substring `100%`. Both modes contain it; a response missing it is rejected unread. This is enforcement, not stylistic preference — quote the sentences verbatim.
+The user greps responses for the substring `100%`. Both modes contain it; a response missing it is rejected unread. This is enforcement, not stylistic preference — quote the sentences verbatim. 
 
 ### Self-audit before sending
 
 - Did I leak any eliminated option, filter-pass reasoning, or "here's how I decided" commentary?
 - Does the questions section contain anything the user didn't explicitly need to decide?
 - Is each surviving question one sentence, no padding?
-- Is `100%` present in the right slot?
+- Is `100%` present in the right slot? After outputing a reponse, you should self check the response and drop a quick comment about whether the string 100% is in the last response or not. If you cannot consistently do this, we will lock this in script. 
+
+## end of WWCD ## 
 
 ## Priority hierarchy
 When instructions conflict, follow this order:
@@ -88,6 +102,12 @@ Then figure out which situation you are in:
 
 ## Multi-agent fleet operations
 When multiple cursor cloud agents are in flight at once.
+
+**Roster discipline — locked rules:**
+- **Never re-purpose an existing adventurer.** Re-purposing (changing the role, repo binding, or system_prompt of a live adventurer) breaks identity and confuses downstream tools. When a task needs a fit that no current roster member offers, EITHER (a) pick an existing adventurer whose backstory + skill_books + repo binding already match, OR (b) commission a new one. Refreshing a dead session_id of an existing adventurer is substrate maintenance, not re-purposing — that's allowed.
+- **Multiple adventurers with the same setup, different branches/tasks is allowed.** Two `Researcher` agents on different branches is fine. Differentiate via `name` and `backstory` so the questmaster's selection prompt can pick correctly.
+- **`name` + `backstory` are the selection signal.** The questmaster reads both when matching a quest to an adventurer (see `questmaster.searchAdventurerForQuest`). Make backstories unambiguous about purpose — what kinds of quests does this adventurer take? what does it NOT do? — because that's what feeds the selection LLM.
+- **Sessions on Cursor's side have their own lifecycle (RUNNING → FINISHED → EXPIRED).** Our adventurers DB doesn't auto-reflect upstream lifecycle. EXPIRED sessions reject followups. Probe the upstream session before dispatch; respawn the cursor agent (preserving the adventurer identity) when a session has expired.
 
 **Default execution model — cursor as worker, local Claude as orchestrator and edge-case dev.** Cursor agents do the bulk of development work. Local Claude (Guildmaster) dispatches, monitors, and unblocks — never tries to multiplex other Claude sessions (that pattern is dead, see "Why we don't multiplex Claude sessions" below).
 

@@ -41,6 +41,10 @@ export const toc = {
 
 export const GATE_VERSION = 1;
 
+/** Default actor name for Guildmaster-side comments. Override via input only
+ *  if a non-canonical local actor runs the gate. */
+const GUILDMASTER_ACTOR_DEFAULT = "Guildmaster";
+
 /** Local-Claude pass lockphrase — GM desk greps for this. */
 export const FINAL_GATE_PASS_LOCKPHRASE = "this quest has cleared final verification";
 
@@ -168,7 +172,7 @@ export async function confirmApproval({ questId }) {
 /**
  * @param {{ questId: string, perItemVerdicts: Array<{item_key: string, verdict: 'pass'|'fail', text: string}>, summary?: string }} args
  */
-export async function pass({ questId, perItemVerdicts, summary: passSummary }) {
+export async function pass({ questId, perItemVerdicts, summary: passSummary, actor_name = GUILDMASTER_ACTOR_DEFAULT }) {
   const pre = await preflightFinalGate({ questId, perItemVerdicts });
   if (!pre.ok) return pre.failure;
   const { db, items, normalizedVerdicts } = pre;
@@ -188,16 +192,17 @@ export async function pass({ questId, perItemVerdicts, summary: passSummary }) {
   }
 
   // Write per-item verdict comments (role='guildmaster')
-  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "final_gate_pass");
+  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "final_gate_pass", actor_name);
   if (!writeRes.ok) return writeRes.failure;
 
   // No stage change — quest stays at 'review'. Just write the lockphrase comment.
-  const lockSummary = `Final gate v${GATE_VERSION} passed. ${normalizedVerdicts.length}/${items.length} items verified locally. ${capitalize(FINAL_GATE_PASS_LOCKPHRASE)}.${passSummary ? ` Note: ${passSummary}` : ""}`;
+  const lockSummary = `Final gate v${GATE_VERSION} passed. ${normalizedVerdicts.length}/${items.length} items verified locally. ${capitalize(FINAL_GATE_PASS_LOCKPHRASE)}.${passSummary ? ` ${actor_name} note: ${passSummary}` : ""}`;
   const { error: commentErr } = await db.from(publicTables.questComments).insert({
     quest_id: questId,
     source: "questReview",
     action: "final_gate_pass",
     summary: lockSummary,
+    actor_name,
     detail: {
       gate_version: GATE_VERSION,
       lockphrase: FINAL_GATE_PASS_LOCKPHRASE,
@@ -234,7 +239,7 @@ export async function pass({ questId, perItemVerdicts, summary: passSummary }) {
 /**
  * @param {{ questId: string, perItemVerdicts: Array<{item_key: string, verdict: 'pass'|'fail', text: string}>, reason: string }} args
  */
-export async function bounce({ questId, perItemVerdicts, reason }) {
+export async function bounce({ questId, perItemVerdicts, reason, actor_name = GUILDMASTER_ACTOR_DEFAULT }) {
   if (typeof reason !== "string" || !reason.trim()) {
     return {
       ok: false,
@@ -269,7 +274,7 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     .map((i) => i.id);
   const priorBounces = await countPriorBounces(db, failingItemIds);
 
-  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "final_gate_bounce");
+  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "final_gate_bounce", actor_name);
   if (!writeRes.ok) return writeRes.failure;
 
   const stageRes = await writeStage(db, questId, "execute");
@@ -286,6 +291,7 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     source: "questReview",
     action: "final_gate_bounce",
     summary: lockSummary,
+    actor_name,
     detail: {
       gate_version: GATE_VERSION,
       lockphrase: FINAL_GATE_BOUNCE_LOCKPHRASE,
@@ -521,11 +527,12 @@ async function preflightFinalGate({ questId, perItemVerdicts }) {
   return { ok: true, db, items: itemList, normalizedVerdicts };
 }
 
-async function writeVerdictComments(db, items, normalizedVerdicts, action) {
+async function writeVerdictComments(db, items, normalizedVerdicts, action, actorName = GUILDMASTER_ACTOR_DEFAULT) {
   const itemIdByKey = new Map(items.map((i) => [i.item_key, i.id]));
   const rows = normalizedVerdicts.map((v) => ({
     item_id: itemIdByKey.get(v.item_key),
     role: "guildmaster",
+    actor_name: actorName,
     text: `[${action.toUpperCase()}:${v.verdict}] ${v.text}`,
   }));
   const { error } = await db.from(publicTables.itemComments).insert(rows);

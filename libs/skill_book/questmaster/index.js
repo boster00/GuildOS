@@ -570,6 +570,7 @@ export async function selectAdventurer(userId, { quest, client }) {
   const brief = await Promise.all(rosterArr.map(async (a) => ({
     id: a.id,
     name: a.name,
+    backstory: typeof a.backstory === "string" ? a.backstory : "",
     capabilities:
       typeof a.capabilities === "string"
         ? a.capabilities
@@ -584,7 +585,14 @@ export async function selectAdventurer(userId, { quest, client }) {
 User request (raw):
 ${initialRequest}
 
-Roster — each entry has "id", "name", "capabilities" (high-level description), and "boast" (exact list of skill book actions the adventurer can perform).
+Roster — each entry has:
+  "id" / "name" — identifiers,
+  "backstory" — the adventurer's intended purpose in a sentence or two; THIS IS THE PRIMARY SIGNAL for fit,
+  "capabilities" — high-level description of work they handle,
+  "boast" — exact list of skill book actions available to them.
+
+Read backstory FIRST. The backstory tells you what the adventurer is FOR. Capabilities and boast are about HOW they do it. A task that fits an adventurer's backstory is a good match even if the boast is generic; a task that mismatches the backstory is a poor match even if the boast technically covers it.
+
 ${JSON.stringify(brief, null, 2)}
 
 Reply with ONLY one JSON object (no markdown, no prose):

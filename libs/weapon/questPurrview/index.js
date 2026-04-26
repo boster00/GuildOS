@@ -32,6 +32,10 @@ export const toc = {
 
 export const GATE_VERSION = 1;
 
+/** Default actor name for Cat-side comments. Override via the caller's input
+ *  if multi-questmaster setups exist down the road. */
+const QUESTMASTER_ACTOR_DEFAULT = "Cat";
+
 /** Worker → Questmaster handoff lockphrase (set by questExecution.submit). */
 // (imported above as SUBMIT_LOCKPHRASE)
 
@@ -161,9 +165,9 @@ export async function confirmSubmission({ questId }) {
 // ---------------------------------------------------------------------------
 
 /**
- * @param {{ questId: string, perItemVerdicts: Array<{item_key: string, verdict: 'pass'|'fail', text: string}>, summary?: string }} args
+ * @param {{ questId: string, perItemVerdicts: Array<{item_key: string, verdict: 'pass'|'fail', text: string}>, summary?: string, actor_name?: string }} args
  */
-export async function approve({ questId, perItemVerdicts, summary: approvalSummary }) {
+export async function approve({ questId, perItemVerdicts, summary: approvalSummary, actor_name = QUESTMASTER_ACTOR_DEFAULT }) {
   const pre = await preflightStageTransition({ questId, perItemVerdicts, requiredStage: "purrview" });
   if (!pre.ok) return pre.failure;
   const { db, items, normalizedVerdicts } = pre;
@@ -183,7 +187,7 @@ export async function approve({ questId, perItemVerdicts, summary: approvalSumma
   }
 
   // Write per-item verdict comments (role='questmaster')
-  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "approve");
+  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "approve", actor_name);
   if (!writeRes.ok) return writeRes.failure;
 
   // Advance stage with SELECT-back verify
@@ -191,19 +195,20 @@ export async function approve({ questId, perItemVerdicts, summary: approvalSumma
   if (!stageRes.ok) return stageRes.failure;
 
   // Lockphrase quest-level comment
-  const lockSummary = `Approve gate v${GATE_VERSION} passed. ${normalizedVerdicts.length}/${items.length} items pass. ${capitalize(APPROVE_LOCKPHRASE)}.${approvalSummary ? ` Cat note: ${approvalSummary}` : ""}`;
+  const lockSummary = `Approve gate v${GATE_VERSION} passed. ${normalizedVerdicts.length}/${items.length} items pass. ${capitalize(APPROVE_LOCKPHRASE)}.${approvalSummary ? ` ${actor_name} note: ${approvalSummary}` : ""}`;
   const { error: commentErr } = await db.from(publicTables.questComments).insert({
     quest_id: questId,
     source: "questPurrview",
     action: "approve",
     summary: lockSummary,
+    actor_name,
     detail: {
       gate_version: GATE_VERSION,
       lockphrase: APPROVE_LOCKPHRASE,
       criteria_checked: APPROVE_CRITERIA_CHECKED,
       items_count: items.length,
       perItemVerdicts: normalizedVerdicts,
-      cat_summary: approvalSummary || null,
+      questmaster_summary: approvalSummary || null,
     },
   });
   if (commentErr) {
@@ -235,7 +240,7 @@ export async function approve({ questId, perItemVerdicts, summary: approvalSumma
 /**
  * @param {{ questId: string, perItemVerdicts: Array<{item_key: string, verdict: 'pass'|'fail', text: string}>, reason: string }} args
  */
-export async function bounce({ questId, perItemVerdicts, reason }) {
+export async function bounce({ questId, perItemVerdicts, reason, actor_name = QUESTMASTER_ACTOR_DEFAULT }) {
   if (typeof reason !== "string" || !reason.trim()) {
     return {
       ok: false,
@@ -273,7 +278,7 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
   const priorBounces = await countPriorBounces(db, failingItemIds);
 
   // Write per-item verdict comments
-  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "bounce");
+  const writeRes = await writeVerdictComments(db, items, normalizedVerdicts, "bounce", actor_name);
   if (!writeRes.ok) return writeRes.failure;
 
   // Move stage back to execute with SELECT-back verify
@@ -291,6 +296,7 @@ export async function bounce({ questId, perItemVerdicts, reason }) {
     source: "questPurrview",
     action: "bounce",
     summary: lockSummary,
+    actor_name,
     detail: {
       gate_version: GATE_VERSION,
       lockphrase: BOUNCE_LOCKPHRASE,
@@ -489,11 +495,12 @@ async function preflightStageTransition({ questId, perItemVerdicts, requiredStag
   return { ok: true, db, items: itemList, normalizedVerdicts };
 }
 
-async function writeVerdictComments(db, items, normalizedVerdicts, action) {
+async function writeVerdictComments(db, items, normalizedVerdicts, action, actorName = QUESTMASTER_ACTOR_DEFAULT) {
   const itemIdByKey = new Map(items.map((i) => [i.item_key, i.id]));
   const rows = normalizedVerdicts.map((v) => ({
     item_id: itemIdByKey.get(v.item_key),
     role: "questmaster",
+    actor_name: actorName,
     text: `[${action.toUpperCase()}:${v.verdict}] ${v.text}`,
   }));
   const { error } = await db.from(publicTables.itemComments).insert(rows);

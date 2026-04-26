@@ -120,7 +120,7 @@ export async function transitionQuestStage(questId, newStage, { client: injected
  * @param {{ source: string, action: string, summary: string, detail?: Record<string, unknown> }} payload
  */
 export async function recordQuestComment(questId, payload, { client: injected } = {}) {
-  const { source, action, summary, detail } = payload;
+  const { source, action, summary, detail, actor_name = null } = payload;
   const { error } = await insertQuestComment(
     {
       questId,
@@ -128,6 +128,7 @@ export async function recordQuestComment(questId, payload, { client: injected } 
       action,
       summary: String(summary || "").slice(0, 2000),
       detail: detail && typeof detail === "object" && !Array.isArray(detail) ? detail : {},
+      actor_name,
     },
     { client: injected },
   );
@@ -560,14 +561,14 @@ export async function writeItemExpectations({ questId, expectations }, { client:
  * @param {{ role: string, text: string }} input
  * @param {{ client?: import("@/libs/council/database/types.js").DatabaseClient }} [opts]
  */
-export async function writeItemComment(itemId, { role, text }, { client: injected } = {}) {
+export async function writeItemComment(itemId, { role, text, actor_name = null }, { client: injected } = {}) {
   const { publicTables } = await import("@/libs/council/publicTables");
   const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
   const client = await resolveServerClient(injected);
   const { data, error } = await client
     .from(publicTables.itemComments)
-    .insert({ item_id: itemId, role, text })
-    .select("id, item_id, role, text, created_at")
+    .insert({ item_id: itemId, role, text, actor_name })
+    .select("id, item_id, role, text, actor_name, created_at")
     .single();
   return { data, error };
 }
@@ -587,12 +588,16 @@ export async function searchItems(questId, { client: injected } = {}) {
     .select("id, item_key, expectation, url, caption, created_at, updated_at")
     .eq("quest_id", questId)
     .order("created_at", { ascending: true });
-  if (error || !items?.length) return [];
+  if (error) {
+    console.warn("[searchItems]", error.message);
+    return [];
+  }
+  if (!items?.length) return [];
 
   const ids = items.map((i) => i.id);
   const { data: comments } = await client
     .from(publicTables.itemComments)
-    .select("id, item_id, role, text, created_at")
+    .select("id, item_id, role, actor_name, text, created_at")
     .in("item_id", ids)
     .order("created_at", { ascending: true });
 
@@ -614,6 +619,142 @@ export async function deleteItem(questId, itemKey, { client: injected } = {}) {
   const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
   const client = await resolveServerClient(injected);
   return client.from(publicTables.items).delete().eq("quest_id", questId).eq("item_key", itemKey);
+}
+
+// ---------------------------------------------------------------------------
+// verifyQuestComplete — programmatic check that a quest is in a valid
+// "user-ready" end state (review with FINAL_GATE_PASS, or escalated with
+// structured reason + unblock_path). Existence checks live here; quality
+// checks live upstream (T2/T3 vision-judge for review path; agent best-effort
+// + housekeeping.escalate contract for escalated path).
+// ---------------------------------------------------------------------------
+
+import { SUBMIT_LOCKPHRASE as _SUBMIT_LP } from "@/libs/weapon/questExecution";
+
+const FINAL_GATE_PASS_LOCKPHRASE = "this quest has cleared final verification";
+
+/**
+ * Returns one of:
+ *  - { ok: true, end_state: "review_ready", stage: "review", final_gate_passed_at, items_count }
+ *  - { ok: true, end_state: "escalated_blocked", stage: "escalated", reason, unblock_path, escalated_at }
+ *  - { ok: false, stage, missing: [...], reason: "<human-readable why this is not a valid end state>" }
+ *
+ * Use BEFORE claiming a quest is "done" (Mode A in WWCD output, agent task
+ * completion, etc.). Code-checkable conditions only — content quality is
+ * enforced by upstream gates.
+ *
+ * @param {{ questId: string }} args
+ */
+export async function verifyQuestComplete({ questId }, { client: injected } = {}) {
+  if (typeof questId !== "string" || !questId.trim()) {
+    return { ok: false, missing: ["questId"], reason: "questId is required (non-empty string)." };
+  }
+  const { publicTables } = await import("@/libs/council/publicTables");
+  const { resolveServerClient } = await import("@/libs/council/database/resolveServer.js");
+  const client = await resolveServerClient(injected);
+
+  const { data: quest, error: qErr } = await client
+    .from(publicTables.quests)
+    .select("id, stage, title")
+    .eq("id", questId)
+    .single();
+  if (qErr || !quest) {
+    return { ok: false, missing: ["quest_exists"], reason: qErr?.message || "Quest not found." };
+  }
+
+  // Path A — review_ready
+  if (quest.stage === "review") {
+    const { data: pass } = await client
+      .from(publicTables.questComments)
+      .select("id, summary, detail, created_at")
+      .eq("quest_id", questId)
+      .eq("source", "questReview")
+      .eq("action", "final_gate_pass")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const gate = pass?.[0];
+    if (!gate) {
+      return {
+        ok: false,
+        stage: "review",
+        missing: ["final_gate_pass"],
+        reason: "Quest is in review stage but no questReview.final_gate_pass comment exists. Run questReview.pass after Cat approval, with per-item Guildmaster verdicts.",
+      };
+    }
+    const summary = String(gate.summary || "");
+    const detailLock = gate.detail && typeof gate.detail === "object" ? String(gate.detail.lockphrase || "") : "";
+    const hasLockphrase =
+      summary.toLowerCase().includes(FINAL_GATE_PASS_LOCKPHRASE) ||
+      detailLock.toLowerCase() === FINAL_GATE_PASS_LOCKPHRASE;
+    if (!hasLockphrase) {
+      return {
+        ok: false,
+        stage: "review",
+        missing: ["final_gate_pass_lockphrase"],
+        reason: `final_gate_pass comment exists but lockphrase "${FINAL_GATE_PASS_LOCKPHRASE}" is absent. Treating as unverified.`,
+      };
+    }
+    return {
+      ok: true,
+      end_state: "review_ready",
+      stage: "review",
+      final_gate_passed_at: gate.created_at,
+      items_count: gate.detail?.items_count ?? null,
+    };
+  }
+
+  // Path B — escalated_blocked
+  if (quest.stage === "escalated") {
+    const { data: esc } = await client
+      .from(publicTables.questComments)
+      .select("id, summary, detail, source, action, created_at")
+      .eq("quest_id", questId)
+      .eq("action", "escalate")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const gate = esc?.[0];
+    if (!gate) {
+      return {
+        ok: false,
+        stage: "escalated",
+        missing: ["escalation_comment"],
+        reason: "Quest is in escalated stage but no comment with action='escalate' exists. Use housekeeping.escalate (which writes a structured comment with reason + unblock_path) instead of writing the stage directly.",
+      };
+    }
+    const detail = gate.detail && typeof gate.detail === "object" ? gate.detail : {};
+    const reason = typeof detail.reason === "string" && detail.reason.trim() ? detail.reason.trim() : null;
+    const unblockPath =
+      typeof detail.unblock_path === "string" && detail.unblock_path.trim()
+        ? detail.unblock_path.trim()
+        : null;
+    const missing = [];
+    if (!reason) missing.push("escalation_reason");
+    if (!unblockPath) missing.push("unblock_path");
+    if (missing.length > 0) {
+      return {
+        ok: false,
+        stage: "escalated",
+        missing,
+        reason: `Escalation comment exists but is missing structured fields: ${missing.join(", ")}. The escalator must populate detail.reason (what failed) and detail.unblock_path (what the user needs to do).`,
+      };
+    }
+    return {
+      ok: true,
+      end_state: "escalated_blocked",
+      stage: "escalated",
+      reason,
+      unblock_path: unblockPath,
+      escalated_at: gate.created_at,
+    };
+  }
+
+  // Any other stage — not a valid user-ready end state.
+  return {
+    ok: false,
+    stage: quest.stage,
+    missing: ["end_state"],
+    reason: `Quest is in stage "${quest.stage}". Valid end states are "review" (with FINAL_GATE_PASS lockphrase) or "escalated" (with structured reason + unblock_path). Not done yet.`,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -66,7 +66,7 @@ export async function updateQuestExecutionPlan(questId, planArray, { client: inj
     .single();
 }
 
-export async function insertQuestComment({ questId, source, action, summary, detail }, { client: injected } = {}) {
+export async function insertQuestComment({ questId, source, action, summary, detail, actor_name = null }, { client: injected } = {}) {
   const client = await resolve(injected);
   const row = {
     quest_id: questId,
@@ -74,11 +74,12 @@ export async function insertQuestComment({ questId, source, action, summary, det
     action: String(action || "unknown"),
     summary: String(summary || "").slice(0, 2000),
     detail: detail != null && typeof detail === "object" && !Array.isArray(detail) ? detail : {},
+    actor_name: actor_name ? String(actor_name).slice(0, 80) : null,
   };
   return client
     .from(publicTables.questComments)
     .insert(row)
-    .select("id, source, action, summary, detail, created_at")
+    .select("id, source, action, summary, detail, actor_name, created_at")
     .single();
 }
 

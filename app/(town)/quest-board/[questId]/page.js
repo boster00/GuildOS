@@ -197,6 +197,7 @@ export default async function QuestDetailPage({ params }) {
           initialTitle={quest.title}
           initialDescription={quest.description}
           initialInventory={quest.inventory}
+          initialItems={Array.isArray(quest.items) ? quest.items : []}
           initialAssignedTo={quest.assigned_to}
           initialAssigneeId={quest.assignee_id}
           initialDueDate={quest.due_date}

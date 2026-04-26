@@ -72,10 +72,11 @@ export async function submit({ questId }) {
 
   const db = await database.init("service");
 
-  // Gates 2 + 3 — read the quest
+  // Gates 2 + 3 — read the quest (also pulls assigned_to so we can stamp
+  // actor_name on the submit comment).
   const { data: quest, error: qErr } = await db
     .from(publicTables.quests)
-    .select("id, stage, title")
+    .select("id, stage, title, assigned_to")
     .eq("id", questId)
     .single();
   if (qErr || !quest) {
@@ -253,6 +254,7 @@ export async function submit({ questId }) {
     source: "questExecution",
     action: "submit_for_purrview",
     summary,
+    actor_name: quest.assigned_to || null,
     detail: {
       gate_version: GATE_VERSION,
       lockphrase: SUBMIT_LOCKPHRASE,

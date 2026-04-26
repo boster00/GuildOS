@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { inventoryRawToMap, inventoryToDisplayRows } from "@/libs/quest/inventoryMap.js";
 import { ItemsListDisplay } from "./questDetailDisplays.js";
 import { ImageCarousel, extractImages } from "../../guildmaster-room/desk/DeskReviewClient";
+import QuestItemsModal from "../../_components/QuestItemsModal.js";
 
 const QUEST_PATCH_RELATIVE_URL = "/api/quest";
 
@@ -50,6 +51,7 @@ export default function QuestDetailFieldEditClient({
   initialTitle,
   initialDescription,
   initialInventory,
+  initialItems = null,
   initialAssignedTo = null,
   initialAssigneeId = null,
   initialDueDate = null,
@@ -276,22 +278,32 @@ export default function QuestDetailFieldEditClient({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {stageControls}
-          {screenshots.length > 0 ? (
+          {(Array.isArray(initialItems) && initialItems.length > 0) || screenshots.length > 0 ? (
             <button
               type="button"
               className="btn btn-outline btn-sm"
               onClick={() => setViewScreenshotsOpen(true)}
             >
-              View screenshots ({screenshots.length})
+              View items ({Array.isArray(initialItems) && initialItems.length > 0 ? initialItems.length : screenshots.length})
             </button>
           ) : null}
         </div>
       </div>
 
-      {viewScreenshotsOpen && typeof document !== "undefined"
+      {/* Full-screen items modal: image left, extendable info side panel right (cookie-remembered). */}
+      <QuestItemsModal
+        items={Array.isArray(initialItems) ? initialItems : []}
+        open={viewScreenshotsOpen}
+        onClose={() => setViewScreenshotsOpen(false)}
+        title={title || "Quest items"}
+      />
+
+      {/* Legacy ImageCarousel-in-modal fallback path retained only for quests with no
+          items[] hydrated (very old data). The new modal above is the canonical view. */}
+      {viewScreenshotsOpen && (!initialItems || initialItems.length === 0) && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal="true"
               onClick={(e) => {
@@ -300,7 +312,7 @@ export default function QuestDetailFieldEditClient({
             >
               <div className="flex h-[90vh] w-full max-w-5xl flex-col rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl">
                 <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">Screenshots ({screenshots.length})</h2>
+                  <h2 className="text-sm font-semibold">Screenshots ({screenshots.length}) — legacy view</h2>
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm btn-circle"
