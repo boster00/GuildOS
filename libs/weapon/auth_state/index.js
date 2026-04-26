@@ -12,6 +12,10 @@ export const toc = {
   writeState: "Write a Playwright auth state blob for a service.",
   readExpiryStatus: "Read the auth-state expiry status (fresh / stale).",
   deleteState: "Delete a stored auth state for a service.",
+  uploadBundle:
+    "Upload the local Playwright storageState file to Supabase Storage so cursor cloud agents (which can't reach the local filesystem) can pull it on init. Local-side action.",
+  downloadBundle:
+    "Download the latest auth-state bundle from Supabase Storage and write it to disk in the cursor agent's filesystem. Cursor-side action; pair with Playwright's storageState option.",
 };
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -152,6 +156,76 @@ export async function deleteState({ statePath } = {}) {
   } catch {
     return { ok: true, deleted: null, msg: "File did not exist" };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Distribution: local → Supabase Storage → cursor cloud agents
+//
+// The local user runs `auth-capture.mjs` to log into services interactively
+// and produce `playwright/.auth/user.json`. Cursor agents can't reach the local
+// filesystem, so we put the bundle in a private Supabase bucket location keyed
+// by ownerId and let the agents pull it on init via downloadBundle.
+// ---------------------------------------------------------------------------
+
+const BUNDLE_BUCKET = "GuildOS_Bucket";
+const BUNDLE_PATH = (ownerId) => `auth_bundles/${ownerId}/storageState.json`;
+
+/**
+ * Upload the local storageState JSON to Supabase Storage so cloud agents can
+ * pull it. Local-side action (run from the user's machine after auth-capture).
+ *
+ * @param {{ ownerId: string, statePath?: string }} input
+ * @returns {Promise<{ ok: true, path: string, sizeBytes: number, lastModified: string }>}
+ */
+export async function uploadBundle({ ownerId, statePath } = {}) {
+  if (!ownerId) throw new Error("ownerId is required");
+  const local = statePath || DEFAULT_STATE_PATH;
+  const buf = await readFile(local);
+  const stats = await stat(local);
+
+  // Use the supabase_storage weapon — same convention as quest items.
+  const { writeFile: writeStorageFile } = await import("@/libs/weapon/supabase_storage");
+  const path = BUNDLE_PATH(ownerId);
+  await writeStorageFile({
+    path,
+    content: buf,
+    contentType: "application/json",
+    bucket: BUNDLE_BUCKET,
+    upsert: true,
+  });
+  return {
+    ok: true,
+    path,
+    sizeBytes: buf.length,
+    lastModified: stats.mtime.toISOString(),
+  };
+}
+
+/**
+ * Download the auth bundle for the given ownerId from Supabase Storage and
+ * write it to local disk. Cursor-side action — call once during agent init,
+ * then point Playwright at the resulting path via `storageState`.
+ *
+ * @param {{ ownerId: string, statePath?: string }} input
+ * @returns {Promise<{ ok: true, path: string, sizeBytes: number }>}
+ */
+export async function downloadBundle({ ownerId, statePath } = {}) {
+  if (!ownerId) throw new Error("ownerId is required");
+  const dest = statePath || DEFAULT_STATE_PATH;
+
+  const { readFile: readStorageFile } = await import("@/libs/weapon/supabase_storage");
+  const path = BUNDLE_PATH(ownerId);
+  const { content } = await readStorageFile({ path, bucket: BUNDLE_BUCKET });
+  if (!content) {
+    return { ok: false, msg: `No auth bundle at ${path}. Have the user run scripts/auth-capture.mjs --upload.` };
+  }
+  // Buffer or string both fine; ensure dir exists then write.
+  const { mkdir, writeFile: writeFsFile } = await import("node:fs/promises");
+  const { dirname: pathDirname } = await import("node:path");
+  await mkdir(pathDirname(dest), { recursive: true });
+  const buf = Buffer.isBuffer(content) ? content : Buffer.from(content);
+  await writeFsFile(dest, buf);
+  return { ok: true, path: dest, sizeBytes: buf.length };
 }
 
 // ---------------------------------------------------------------------------

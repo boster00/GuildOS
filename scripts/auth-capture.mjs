@@ -125,3 +125,21 @@ if (!profileOnly) {
   console.log(`✓ storageState exported: ${STORAGE_STATE_PATH}`);
   console.log("  Run  node scripts/auth-load.mjs  to verify.\n");
 }
+
+// Optional: push the bundle to Supabase Storage so cursor cloud agents can pull it.
+const wantsUpload = process.argv.includes("--upload");
+if (wantsUpload && !profileOnly) {
+  const ownerId = process.env.GUILDOS_OWNER_ID;
+  if (!ownerId) {
+    console.warn("⚠  --upload requires GUILDOS_OWNER_ID env var. Skipping upload.");
+  } else {
+    try {
+      const { uploadBundle } = await import("../libs/weapon/auth_state/index.js");
+      const r = await uploadBundle({ ownerId, statePath: STORAGE_STATE_PATH });
+      console.log(`✓ Auth bundle uploaded to Supabase Storage (${r.path}, ${r.sizeBytes} bytes)`);
+      console.log("  Cursor agents can pull via auth_state.downloadBundle({ownerId}) on init.");
+    } catch (err) {
+      console.error("✗ Bundle upload failed:", err.message);
+    }
+  }
+}
