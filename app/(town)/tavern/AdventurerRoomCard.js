@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
+import { AdventurerSprite, CHARACTER_SHEETS } from "@/libs/adventurer/animation";
 
 const STATUS_BADGE = {
   idle: { label: "Idle", className: "badge-ghost" },
@@ -13,9 +14,10 @@ const STATUS_BADGE = {
   inactive: { label: "Inactive", className: "badge-ghost opacity-50" },
 };
 
-const STATUS_POSE = {
-  idle: "normal",
-  inactive: "normal",
+// Map adventurer session_status → animation state in the sprite sheet.
+const STATUS_TO_STATE = {
+  idle: "idle",
+  inactive: "idle",
   busy: "working",
   confused: "attention",
   sick: "attention",
@@ -28,10 +30,11 @@ const STAGE_LABELS = {
   closing: { label: "Closing", className: "badge-ghost" },
 };
 
-function getAvatarSrc(avatarType, status) {
-  const type = avatarType || "monkey";
-  const pose = STATUS_POSE[status] || "normal";
-  return `/images/guildos/sprites/${type}-${pose}.png`;
+// If the adventurer's avatar_url doesn't match a known animated character,
+// fall back to pig so we always play a loop rather than show nothing.
+function resolveCharacter(avatarType) {
+  if (avatarType && CHARACTER_SHEETS[avatarType]) return avatarType;
+  return "pig";
 }
 
 export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
@@ -47,7 +50,8 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
   const name = typeof a.name === "string" ? a.name : "—";
   const status = a.session_status || "inactive";
   const badge = STATUS_BADGE[status] || STATUS_BADGE.inactive;
-  const avatarSrc = getAvatarSrc(a.avatar_url, status);
+  const character = resolveCharacter(a.avatar_url);
+  const animState = STATUS_TO_STATE[status] || "idle";
   const hasSession = !!a.session_id;
   const cursorUrl = hasSession ? `https://cursor.com/agents/${a.session_id}` : null;
 
@@ -128,7 +132,9 @@ export default function AdventurerRoomCard({ adventurer: a, questCounts }) {
       <div className="flex items-start gap-4">
         {/* Avatar + status */}
         <div className="relative shrink-0">
-          <img src={avatarSrc} alt={name} className="h-40 w-24 rounded-lg object-contain" />
+          <div className="flex h-40 w-32 items-center justify-center rounded-lg bg-base-100/40">
+            <AdventurerSprite character={character} state={animState} scale={1} />
+          </div>
           <span className={`badge badge-sm absolute -bottom-1 left-1/2 -translate-x-1/2 ${badge.className}`}>
             {badge.label}
           </span>

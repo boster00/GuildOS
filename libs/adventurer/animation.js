@@ -3,15 +3,20 @@
 import { useEffect, useState } from "react";
 
 /**
- * Sprite sheet frame atlas for adventurer avatars.
- * Coordinates match the template: { x, y, w, h } in sheet pixels.
- * States map to a frame sequence + fps for driving the animation.
+ * Per-character sprite sheets. All sheets share the same frame layout.
+ * Add a new character by dropping `<name>-sheet.png` in public/images/guildos/sprites/.
  */
-export const ADVENTURER_SHEET = {
-  src: "/images/guildos/sprites/adventurer-sheet.png",
-  frameW: 128,
-  frameH: 128,
+export const CHARACTER_SHEETS = {
+  pig: "/images/guildos/sprites/pig-sheet.png",
+  cat: "/images/guildos/sprites/cat-sheet.png",
+  monkey: "/images/guildos/sprites/monkey-sheet.png",
+  rabbit: "/images/guildos/sprites/rabbit-sheet.png",
+  bunny: "/images/guildos/sprites/rabbit-sheet.png",
+  // falls back to pig when character unknown
 };
+
+export const FRAME_W = 128;
+export const FRAME_H = 128;
 
 export const ADVENTURER_STATES = {
   idle: {
@@ -66,20 +71,24 @@ export const ADVENTURER_STATES = {
   },
 };
 
+export function resolveSheetSrc(character) {
+  return CHARACTER_SHEETS[character] || CHARACTER_SHEETS.pig;
+}
+
 /**
- * Script-driven sprite animation. Takes a state name, renders a div
- * with background-image cropped to the current frame; advances frames
- * on a fps timer.
+ * Script-driven sprite animation. Pass `character` ("pig", "cat", ...) and `state`.
+ * Advances frames on a setInterval matching the state's fps.
  */
 export function AdventurerSprite({
+  character = "pig",
   state = "idle",
   scale = 1,
-  sheet = ADVENTURER_SHEET,
   states = ADVENTURER_STATES,
   className = "",
   style = {},
 }) {
   const cfg = states[state] || states.idle;
+  const src = resolveSheetSrc(character);
   const [i, setI] = useState(0);
 
   useEffect(() => {
@@ -98,18 +107,18 @@ export function AdventurerSprite({
     <div
       className={className}
       style={{
-        width: sheet.frameW * scale,
-        height: sheet.frameH * scale,
+        width: FRAME_W * scale,
+        height: FRAME_H * scale,
         overflow: "hidden",
         ...style,
       }}
-      aria-label={`adventurer ${state}`}
+      aria-label={`${character} ${state}`}
     >
       <div
         style={{
-          width: sheet.frameW,
-          height: sheet.frameH,
-          backgroundImage: `url(${sheet.src})`,
+          width: FRAME_W,
+          height: FRAME_H,
+          backgroundImage: `url(${src})`,
           backgroundPosition: `-${frame.x}px -${frame.y}px`,
           backgroundRepeat: "no-repeat",
           transform: `scale(${scale})`,
