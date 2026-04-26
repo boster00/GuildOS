@@ -5,10 +5,11 @@ import { database } from "@/libs/council/database";
 import { selectQuestCommentsForQuest } from "@/libs/council/database/serverQuest.js";
 import { GLOBAL_QUEST_ASSIGNEES } from "@/libs/adventurer_runtime/ui.js";
 import { listAdventurers } from "@/libs/adventurer_runtime/server.js";
-import { getQuestForOwner, QUEST_PATCH_RELATIVE_URL, QUEST_STAGES } from "@/libs/quest";
+import { getQuestForOwner, QUEST_PATCH_RELATIVE_URL, QUEST_STAGES, searchItems } from "@/libs/quest";
 import QuestActivityCommentsPanel from "./QuestActivityCommentsPanel.js";
 import QuestDetailFieldEditClient from "./QuestDetailFieldEditClient.js";
 import QuestNextStepsEditClient from "./QuestNextStepsEditClient.js";
+import QuestItemsCarousel from "../../_components/QuestItemsCarousel.js";
 // QuestAdvanceButtons removed — agent-driven model, no manual stage advance
 
 function JsonBlock({ label, value, showEmptyObject = false }) {
@@ -151,16 +152,14 @@ export default async function QuestDetailPage({ params }) {
     notFound();
   }
 
-  // Hydrate items from the new table (replaces quests.inventory JSONB).
-  // Ownership was just verified via getQuestForOwner, so use service role to
-  // sidestep item-RLS evaluation quirks on the user-scoped server client.
+  // Hydrate items + per-item comments via searchItems (libs/quest). Ownership
+  // was just verified via getQuestForOwner, so use service role to sidestep
+  // item-RLS evaluation quirks on the user-scoped server client.
   const svc = await database.init("service");
-  const { data: items } = await svc
-    .from("items")
-    .select("id, item_key, url, description, source, created_at, updated_at")
-    .eq("quest_id", quest.id)
-    .order("created_at", { ascending: true });
-  quest.inventory = items || [];
+  const items = await searchItems(quest.id, { client: svc });
+  quest.items = items;
+  // Legacy alias — some downstream renderers still read quest.inventory.
+  quest.inventory = items;
 
   const { data: roster } = await listAdventurers(user.id, { client: db });
   const assigneeOptions = [
@@ -216,7 +215,12 @@ export default async function QuestDetailPage({ params }) {
           </div>
         </dl>
 
-        <JsonBlock label="Deliverables" value={quest.deliverables} />
+        <div className="mt-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-base-content/55">Items</h2>
+          <div className="mt-2">
+            <QuestItemsCarousel items={Array.isArray(quest.items) ? quest.items : []} />
+          </div>
+        </div>
 
         <ExecutionPlanTable plan={quest.execution_plan} />
 

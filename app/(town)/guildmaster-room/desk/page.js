@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/libs/council/auth/server";
 import { MerchantGuildExplain } from "@/components/MerchantGuildExplain";
 import { database } from "@/libs/council/database";
-import { inventoryRawToMap } from "@/libs/quest";
+import { inventoryRawToMap, searchItems } from "@/libs/quest";
 import DeskReviewClient from "./DeskReviewClient";
 
 export const metadata = {
@@ -30,17 +30,15 @@ async function loadReviewQuests(userId) {
   // user-scoped server client.
   const svc = await database.init("service");
 
-  // Fetch comments and items in parallel
-  const [{ data: allComments }, { data: allItems }] = await Promise.all([
+  // Fetch quest_comments + per-quest items (with item_comments hydrated) in parallel.
+  const itemsPromise = Promise.all(quests.map((q) => searchItems(q.id, { client: svc })));
+  const [{ data: allComments }, itemsByQuestArr] = await Promise.all([
     db.from("quest_comments")
       .select("id, quest_id, source, action, summary, detail, created_at")
       .in("quest_id", questIds)
       .order("created_at", { ascending: false })
       .limit(500),
-    svc.from("items")
-      .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
-      .in("quest_id", questIds)
-      .order("created_at", { ascending: true }),
+    itemsPromise,
   ]);
 
   const commentsByQuest = {};
@@ -49,17 +47,16 @@ async function loadReviewQuests(userId) {
     commentsByQuest[c.quest_id].push(c);
   }
 
-  const itemsByQuest = {};
-  for (const i of allItems || []) {
-    if (!itemsByQuest[i.quest_id]) itemsByQuest[i.quest_id] = [];
-    itemsByQuest[i.quest_id].push(i);
-  }
-
-  const enriched = quests.map((q) => ({
-    ...q,
-    inventory: inventoryRawToMap(itemsByQuest[q.id] || []),
-    _comments: commentsByQuest[q.id] || [],
-  }));
+  const enriched = quests.map((q, idx) => {
+    const items = itemsByQuestArr[idx] || [];
+    return {
+      ...q,
+      items,
+      // Legacy alias for any downstream renderer that still reads quest.inventory.
+      inventory: inventoryRawToMap(items),
+      _comments: commentsByQuest[q.id] || [],
+    };
+  });
 
   return { quests: enriched, error: null };
 }

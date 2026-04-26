@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import QuestItemsCarousel from "../../_components/QuestItemsCarousel.js";
 
 /**
  * Extract image URLs from inventory items.
@@ -137,7 +138,10 @@ function ReviewCard({ quest, comments, onUpdate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const images = extractImages(quest.inventory);
+  // Prefer the items[] array hydrated by the desk page (new schema).
+  // Fall back to extractImages on legacy inventory shape if items aren't present.
+  const items = Array.isArray(quest.items) ? quest.items : null;
+  const legacyImages = items ? null : extractImages(quest.inventory);
 
   const markDone = useCallback(async () => {
     setBusy(true);
@@ -273,9 +277,13 @@ function ReviewCard({ quest, comments, onUpdate }) {
           </div>
         </div>
 
-        {/* Right panel: image carousel â€” max 500px height, images max 1200px width, scrollable */}
+        {/* Right panel: items carousel — one slide per declared expectation */}
         <div className="w-full flex-1 p-5" style={{ maxHeight: 600 }}>
-          <ImageCarousel images={images} />
+          {items ? (
+            <QuestItemsCarousel items={items} />
+          ) : (
+            <ImageCarousel images={legacyImages} />
+          )}
         </div>
       </div>
     </div>
