@@ -143,51 +143,79 @@ if (!confirm.ok) {
 // confirm.items = the per-row spec (id, item_key, expectation, url, caption); judge each one against its expectation.
 \`\`\`
 
-### Step 2 — Open every item.url and grade against accept_criteria
+### Step 2 — Invoke the vision judge per item (mandatory)
 
-For each \`item_key\` returned by confirmSubmission, fetch the corresponding \`items\` row (url + description) and the deliverable spec entry (description + accept_criteria), then read the artifact:
-- Image URL → use Claude vision (multimodal Read or anthropic.messages with image content). Composer 2.0 is too weak for content judgments — explicitly call Claude Sonnet for the read step.
-- Text/JSON URL → fetch and inspect contents.
-- Document URL → render or extract content as needed.
+**The judge is mandatory, not optional.** Layer-attribution finding (5f9b4c0): Cat alone (Composer 2.0 vision) has 0/2 catch rate on visual verification. The \`questPurrview.approve\` and \`bounce\` gates now refuse any verdict missing \`judge_origin\`. The judge's verdict binds — Cat's \`text\` is the wrapper note, not the decision.
 
-For each item, decide:
-- \`verdict: 'pass'\` if the artifact matches the spec's \`accept_criteria\`.
-- \`verdict: 'fail'\` if it doesn't (wrong content, stock image, error page, missing data, mismatched URL bar, etc.).
-- \`text\`: a one-sentence Cat note. On pass: what you verified. On fail: what's wrong + what the worker should fix.
+For each \`item_key\` returned by confirmSubmission:
+- **Image URL** → call \`openai_images.judge({ imageUrl, claim })\` where \`claim\` is the item's \`expectation\` verbatim. Default model is \`gpt-4o\` (full); never override to \`gpt-4o-mini\` (banned, see CLAUDE.md WWCD).
+- **Text / JSON URL** → fetch the body and judge it yourself via Claude Sonnet (claudeCLI). Use \`judge_origin: 'claude-multimodal-read'\` for these.
+- **Document / non-image URL** → same as text.
 
-Build \`perItemVerdicts: [{ item_key, verdict, text }]\` — one entry for every item, no skips.
+\`\`\`javascript
+import { judge } from "@/libs/weapon/openai_images";
 
-### Step 3a — Approve (all pass)
+const perItemVerdicts = [];
+for (const item of confirm.items) {
+  const isImage = /\\.(png|jpg|jpeg|gif|webp)/i.test(item.url);
+  if (isImage) {
+    const j = await judge({ imageUrl: item.url, claim: item.expectation });
+    // j.verdict ∈ {'match','mismatch','inconclusive'}; map conservatively.
+    const verdict = j.verdict === "match" ? "pass" : "fail";
+    perItemVerdicts.push({
+      item_key: item.item_key,
+      verdict,
+      text: verdict === "pass"
+        ? \`Judge confirmed: \${j.reasoning}\`
+        : \`Judge flagged \${j.verdict} (confidence \${j.confidence}): \${j.reasoning}\`,
+      judge_origin: \`openai_images.judge:\${j.model}\`,
+      judge_rationale: j.reasoning,
+      judge_model: j.model,
+    });
+  } else {
+    // Text/JSON/doc — fetch + Claude-judge, then build the verdict with
+    // judge_origin: 'claude-multimodal-read'.
+  }
+}
+\`\`\`
+
+### Step 3a — Approve (every judge says match)
 
 \`\`\`javascript
 import { approve } from "@/libs/weapon/questPurrview";
 const result = await approve({ questId, perItemVerdicts, summary: "Optional Cat-level note" });
 if (!result.ok) {
-  // approve refuses if any verdict !== 'pass'. Use bounce instead.
-  // result.report.fix tells you what to do.
+  // Common rejections:
+  //   failed: ['judge_origin_missing_or_invalid'] → you forgot to invoke the judge
+  //                                                  for one or more items.
+  //   failed: ['verdict_not_all_pass']            → at least one judge said
+  //                                                  mismatch/inconclusive. Use bounce.
+  // result.report.fix tells you exactly what to do.
 }
 \`\`\`
 
-On success: stage moves to \`review\`, per-item Cat verdict comments are written, and the APPROVE lockphrase ('this quest now meets the criteria for review') lands as a quest_comments row. The GM-desk script greps for that phrase before showing the quest to the user.
+On success: stage moves to \`review\`, per-item Cat verdict comments are written (text includes judge rationale), \`items.purrview_check\` (T2 column) is filled per item via the writeReview chokepoint, and the APPROVE lockphrase ('this quest now meets the criteria for review') lands as a quest_comments row. The GM-desk script greps for that phrase before showing the quest to the user.
 
-### Step 3b — Bounce (≥1 fail)
+### Step 3b — Bounce (≥1 judge said mismatch / inconclusive)
 
 \`\`\`javascript
 import { bounce } from "@/libs/weapon/questPurrview";
 const result = await bounce({
   questId,
-  perItemVerdicts, // mixed pass/fail — must include ≥1 'fail'
-  reason: "<one paragraph: what failed across the quest, what the worker should fix>",
+  perItemVerdicts, // same shape as approve — judge_origin still required even on bounce
+  reason: "<one paragraph: which item_keys failed, what the judge flagged, what the worker should fix>",
 });
 \`\`\`
 
-On success: stage returns to \`execute\`, per-item Cat verdict comments are written (passing items get pass-comments too — useful feedback), and the BOUNCE lockphrase ('this quest has been bounced back to execute') lands as a quest_comments row. The worker resubmits using \`writeItem\` with the SAME item_keys (UPSERT replaces in place) — same items.length, same gate.
+On success: stage returns to \`execute\`, per-item Cat verdict comments are written, \`items.purrview_check\` is filled per item, and the BOUNCE lockphrase lands as a quest_comments row. The worker resubmits using \`writeItem\` with the SAME item_keys (UPSERT replaces in place) — same items.length, same gate.
 
 ### What NOT to do
 
 - Do NOT \`updateQuest({stage: 'review'})\` directly. There's no other path that writes the APPROVE lockphrase, and the GM desk will refuse to surface the quest.
-- Do NOT skip \`confirmSubmission\`. If a quest reached purrview without passing through the worker gate (e.g. legacy direct write), it's untrusted — bounce or escalate.
+- Do NOT skip \`confirmSubmission\`. If a quest reached purrview without passing through the worker gate, it's untrusted — bounce or escalate.
 - Do NOT call approve with a 'fail' verdict to "let it through with a note." The gate refuses; bounce is the only valid path for any failure.
+- Do NOT post a verdict without a \`judge_origin\`. Cat's standalone visual judgment has 0/2 catch rate — the gate will reject and tell you which item_keys are missing the judge call.
+- Do NOT make up a \`judge_origin\` value. The gate accepts only \`openai_images.judge[:model]\` and \`claude-multimodal-read\`. Inventing labels like \`"cat"\` or \`"manual-review"\` will fail validation.
 
 ### Common content-quality bounces (history)
 
