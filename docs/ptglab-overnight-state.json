@@ -1,0 +1,65 @@
+{
+  "at": "2026-04-27T06:38:29.231Z",
+  "quest_stage": "execute",
+  "quest_updated_at": "2026-04-27T06:36:35.685226+00:00",
+  "items_with_url": 0,
+  "items_total": 5,
+  "cj_upstream_status": "RUNNING",
+  "cj_upstream_branch": "cursor/unspecified-task-content-5fad",
+  "cj_lines_added": 163,
+  "cat_upstream_status": "FINISHED",
+  "last_comment": null,
+  "items": [
+    {
+      "key": "screenshot_1_demo_mode_ui",
+      "has_url": false,
+      "has_caption": false,
+      "self": false,
+      "openai": false,
+      "purrview": false,
+      "claude": false,
+      "user": false
+    },
+    {
+      "key": "screenshot_2_best_page_analysis",
+      "has_url": false,
+      "has_caption": false,
+      "self": false,
+      "openai": false,
+      "purrview": false,
+      "claude": false,
+      "user": false
+    },
+    {
+      "key": "screenshot_3_job_details_checklist",
+      "has_url": false,
+      "has_caption": false,
+      "self": false,
+      "openai": false,
+      "purrview": false,
+      "claude": false,
+      "user": false
+    },
+    {
+      "key": "screenshot_4_finished_article_preview",
+      "has_url": false,
+      "has_caption": false,
+      "self": false,
+      "openai": false,
+      "purrview": false,
+      "claude": false,
+      "user": false
+    },
+    {
+      "key": "screenshot_5_email_draft_html",
+      "has_url": false,
+      "has_caption": false,
+      "self": false,
+      "openai": false,
+      "purrview": false,
+      "claude": false,
+      "user": false
+    }
+  ],
+  "consec_no_progress_ticks": 0
+}
