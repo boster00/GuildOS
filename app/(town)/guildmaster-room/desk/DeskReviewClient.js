@@ -332,11 +332,33 @@ function ReviewCard({ quest, comments, onUpdate }) {
 
 export default function DeskReviewClient({ quests }) {
   const router = useRouter();
+  // Optimistic removal: when a quest is approved or feedback-sent, hide it
+  // immediately rather than waiting for the server-side refresh roundtrip.
+  // The router.refresh() still fires; if the server's view disagrees on
+  // re-render, the dismissed state resets naturally on the new server tree.
+  const [dismissed, setDismissed] = useState(() => new Set());
+  const dismissQuest = useCallback((id) => {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    router.refresh();
+  }, [router]);
 
   if (!quests || quests.length === 0) return null;
 
-  const reviewQuests = quests.filter((q) => q.stage === "review");
-  const escalatedQuests = quests.filter((q) => q.stage === "escalated");
+  const visibleQuests = quests.filter((q) => !dismissed.has(q.id));
+  const reviewQuests = visibleQuests.filter((q) => q.stage === "review");
+  const escalatedQuests = visibleQuests.filter((q) => q.stage === "escalated");
+
+  if (reviewQuests.length === 0 && escalatedQuests.length === 0) {
+    return (
+      <div className="mt-8 rounded-2xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center">
+        <p className="text-base-content/75">All caught up — no quests need your attention right now.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-6 space-y-12">
@@ -350,7 +372,7 @@ export default function DeskReviewClient({ quests }) {
               key={q.id}
               quest={q}
               comments={q._comments || []}
-              onUpdate={() => router.refresh()}
+              onUpdate={() => dismissQuest(q.id)}
             />
           ))}
         </section>
@@ -366,7 +388,7 @@ export default function DeskReviewClient({ quests }) {
               key={q.id}
               quest={q}
               comments={q._comments || []}
-              onUpdate={() => router.refresh()}
+              onUpdate={() => dismissQuest(q.id)}
             />
           ))}
         </section>

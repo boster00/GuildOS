@@ -15,7 +15,10 @@ async function loadReviewQuests(userId) {
     .from("quests")
     .select("id, title, description, stage, assigned_to, assignee_id, created_at, updated_at")
     .eq("owner_id", userId)
-    .in("stage", ["purrview", "review", "escalated", "closing"])
+    // Closing/complete are not user-actionable on this surface — Cat
+    // archives closing to Asana via cron, and complete is terminal. The
+    // GM-desk shows only what the user can act on right now.
+    .in("stage", ["purrview", "review", "escalated"])
     .order("updated_at", { ascending: false });
 
   if (error) return { quests: [], error: error.message };
