@@ -219,8 +219,13 @@ Only comment for significant events: major milestone completion, escalation, res
 ### Deliverables (structured)
 A list, one entry per artifact you'll ship. Each entry MUST have:
 - \`item_key\` — stable kebab/snake identifier you'll reuse on the items row at submission time. Example: \`d1_route_response\`.
-- \`description\` — one sentence on what the artifact shows / contains.
-- \`accept_criteria\` — how to verify it's real (e.g., "image shows HTTP 200 and {inserted:8} JSON body" or "file >50KB and contains the string 'mvp_<timestamp>'"). The Questmaster grades against this.
+- \`expectation\` — the **reviewer-facing claim** about the artifact, written so the Questmaster + the user know what to look for at a glance. Required style:
+  - For screenshots: **"In the screenshot, we should see &lt;subject/element&gt; showing &lt;state or content&gt; with these details: &lt;numbered, specific facts&gt;."**
+  - For docs (.md, .json, .txt): **"In the document, we should see &lt;subject&gt; covering &lt;scope&gt; with these details: &lt;facts&gt;."**
+  - For other artifacts: **"In the artifact, we should see &lt;subject&gt; demonstrating &lt;property&gt; with these details: &lt;facts&gt;."**
+  Example (good): \`"In the screenshot, we should see the /api/track fire-response panel showing HTTP 200 with these details: response body is {inserted:8, rejected:[], errors:[]}; sentinel user_pseudo_id appears in the row preview."\`
+  Example (bad — too terse, no anchor): \`"image shows HTTP 200 and {inserted:8} JSON body"\` — the reviewer doesn't know where on the page to look or what counts as success.
+  The expectation is the literal claim the gpt-4o judge (T1) is given verbatim, AND the literal claim the user reads in the side panel before reviewing. Specific, anchored, numbered.
 
 **Rules:**
 - The submitForPurrview gate refuses to advance unless every items row has \`url IS NOT NULL\`. Each entry is one screenshot/file you'll actually ship — keep the list tight and real.
@@ -238,7 +243,7 @@ A list, one entry per artifact you'll ship. Each entry MUST have:
 
 **Pre-execution checklist — do NOT create the quest until ALL are satisfied:**
 - \`description\`: strategic context only (goal, source of truth, scope, dependencies). NO itemized artifact list.
-- \`deliverables\`: array of \`{item_key, description, accept_criteria}\` — one entry per planned artifact. The submit gate enforces this.
+- \`deliverables\`: array of \`{item_key, expectation}\` — one entry per planned artifact, expectation in the reviewer-facing style (see presentPlan). The submit gate enforces this.
 - Priority assigned (high/medium/low).
 
 4. Ask: "I have everything. Shall I create this quest and start working on it?"
@@ -251,9 +256,15 @@ const { data, error } = await writeQuest({
   title: '<quest title>',
   description: '<strategic context — goal, source of truth, scope. NO itemized artifact list>',
   deliverables: [
-    { item_key: 'd1_route_response', description: '/api/track returns 200 with {inserted:8}', accept_criteria: 'image shows HTTP 200 status and JSON body with inserted=8' },
-    { item_key: 'd2_bq_rows',        description: 'BigQuery preview of 8 inserted rows',     accept_criteria: 'image shows 8 rows with the same user_pseudo_id sentinel' },
-    // ... one per planned artifact
+    {
+      item_key: 'd1_route_response',
+      expectation: 'In the screenshot, we should see the /api/track fire-response panel showing HTTP 200 with these details: response body is {inserted:8, rejected:[], errors:[]}; sentinel user_pseudo_id is visible in the request log.',
+    },
+    {
+      item_key: 'd2_bq_rows',
+      expectation: 'In the screenshot, we should see the BigQuery rows-landed preview showing 8 of 8 rows for the smoke run with these details: each row carries the same sentinel user_pseudo_id; event_name column lists the Tier-1 allowlist (page_view, session_start, purchase, form_submit, GAds Conversion, P1.Search, P2.ClickProductLink, P4.AddToCart).',
+    },
+    // ... one per planned artifact, each in the same reviewer-facing style
   ],
   stage: 'execute',
   priority: 'medium',
