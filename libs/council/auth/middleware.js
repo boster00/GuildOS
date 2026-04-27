@@ -34,6 +34,7 @@ const PUBLIC_PATH_PREFIXES = [
   "/signin",
   "/opening",
   "/api/council/auth",
+  "/api/council/cron", // Vercel cron hits /api/council/cron/trigger unauthenticated; the route validates the CRON_SECRET bearer header instead.
   "/api/auth",
   "/api/telnyx",
   "/api/track",
