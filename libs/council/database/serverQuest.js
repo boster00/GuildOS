@@ -88,7 +88,7 @@ export async function selectQuestCommentsForQuest(questId, { limit = 100, client
   const lim = Math.min(Math.max(Number(limit) || 100, 1), 500);
   return client
     .from(publicTables.questComments)
-    .select("id, source, action, summary, detail, created_at")
+    .select("id, source, action, summary, detail, actor_name, created_at")
     .eq("quest_id", questId)
     .order("created_at", { ascending: false })
     .limit(lim);
@@ -106,7 +106,7 @@ export async function updateQuestCommentSummaryById(
     .update({ summary: text })
     .eq("id", commentId)
     .eq("quest_id", questId)
-    .select("id, source, action, summary, detail, created_at")
+    .select("id, source, action, summary, detail, actor_name, created_at")
     .maybeSingle();
 }
 

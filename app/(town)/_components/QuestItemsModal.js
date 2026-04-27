@@ -65,8 +65,11 @@ function writeSidePanelCookie(open) {
 export function QuestItemsContent({ items, title, onClose, showChrome = true }) {
   const [current, setCurrent] = useState(0);
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
+  const [enlarged, setEnlarged] = useState(false);
 
   useEffect(() => { setSidePanelOpen(readSidePanelCookie()); }, []);
+  // Reset zoom when navigating between items.
+  useEffect(() => { setEnlarged(false); }, [current]);
 
   const togglePanel = () => {
     setSidePanelOpen((prev) => {
@@ -128,7 +131,11 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
 
       {/* Left column: image area + thumbnail strip. */}
       <div className={`flex flex-1 flex-col ${showChrome ? "pt-12" : ""}`}>
-        <div className="relative flex flex-1 items-center justify-center">
+        <div
+          className={`relative flex flex-1 ${
+            enlarged && itemImage ? "items-start justify-center overflow-y-auto" : "items-center justify-center"
+          }`}
+        >
           {empty ? (
             <p className="text-base-content/60">No items on this quest.</p>
           ) : pending ? (
@@ -137,9 +144,17 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
               <p className="text-sm">No artifact uploaded yet.</p>
             </div>
           ) : itemImage ? (
-            <a href={item.url} target="_blank" rel="noopener noreferrer" className="block max-h-[88vh] max-w-full">
-              <img src={item.url} alt={item.expectation || item.item_key} className="max-h-[88vh] max-w-full object-contain" />
-            </a>
+            <img
+              src={item.url}
+              alt={item.expectation || item.item_key}
+              onClick={() => setEnlarged((v) => !v)}
+              title={enlarged ? "Click to shrink" : "Click to enlarge"}
+              className={
+                enlarged
+                  ? "h-auto max-w-full cursor-zoom-out"
+                  : "max-h-[88vh] max-w-full cursor-zoom-in object-contain"
+              }
+            />
           ) : (
             <a
               href={item.url}

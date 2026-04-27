@@ -246,8 +246,11 @@ export default function QuestActivityCommentsPanel({ questId, initialComments })
                     <span className="font-mono text-[10px] text-base-content/45">
                       {row.created_at ? new Date(row.created_at).toISOString().replace("T", " ").slice(0, 19) : "—"}
                     </span>
-                    <span className="text-xs font-semibold text-primary">{row.source}</span>
-                    <span className="font-mono text-xs text-base-content/60">{row.action}</span>
+                    <span className={`text-xs font-semibold ${row.actor_name ? "text-primary" : "italic text-base-content/45"}`}>
+                      {row.actor_name || "name missing"}
+                    </span>
+                    <span className="text-xs text-base-content/45">via</span>
+                    <span className="font-mono text-xs text-base-content/60">{row.source}.{row.action}</span>
                   </div>
                   {editingId === row.id ? (
                     <div className="space-y-2 pt-1">
