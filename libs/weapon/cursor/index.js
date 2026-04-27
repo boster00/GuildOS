@@ -163,11 +163,20 @@ export async function writeAgent({ repository, ref, prompt, skipCredentialsInjec
   let finalPrompt = prompt || "Wait for initialization instructions.";
 
   if (!skipCredentialsInjection) {
-    const guildosUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const guildosKey = process.env.SUPABASE_SECRETE_KEY;
+    // Prefer the GUILDOS_-prefixed names so the GuildOS project is unambiguous
+    // even when the orchestrator's env is also wired to a project's own
+    // Supabase. Falls back to the basic names for backward compat.
+    const guildosUrl =
+      process.env.GUILDOS_NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const guildosKey =
+      process.env.GUILDOS_SUPABASE_SECRETE_KEY ||
+      process.env.GUILDOS_SUPABASE_SECRET_KEY ||
+      process.env.SUPABASE_SECRETE_KEY ||
+      process.env.SUPABASE_SECRET_KEY;
     if (!guildosUrl || !guildosKey) {
       throw new Error(
-        "writeAgent: GuildOS credentials missing from process.env (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SECRETE_KEY). The agent cannot do GuildOS bookkeeping without these. Either run with `--env-file=.env.local` so they're loaded, or pass `skipCredentialsInjection: true` if you genuinely want a creds-less agent (rare — almost always wrong)."
+        "writeAgent: GuildOS credentials missing from process.env. Required: GUILDOS_NEXT_PUBLIC_SUPABASE_URL + GUILDOS_SUPABASE_SECRETE_KEY (or the basic NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SECRETE_KEY for backward compat). The agent cannot do GuildOS bookkeeping without these. Run with `--env-file=.env.local` or pass `skipCredentialsInjection: true` if you genuinely want a creds-less agent (rare — almost always wrong)."
       );
     }
     finalPrompt = guildosCredentialsSetupBlock({ supabaseUrl: guildosUrl, supabaseKey: guildosKey }) + finalPrompt;

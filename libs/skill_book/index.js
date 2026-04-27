@@ -34,6 +34,8 @@ import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 import { skillBook as dailiesSkillBook } from "./dailies/index.js";
 import { skillBook as graphicSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./graphic/index.js";
 import { skillBook as rosterSkillBook } from "./roster/index.js";
+import { skillBook as codexSkillBook } from "./codex/index.js";
+import { skillBook as workerSkillBook } from "./worker/index.js";
 import { skillBook as supabaseUiSkillBook, readTable as supabaseUiReadTable, readLogs as supabaseUiReadLogs, readAPISettings as supabaseUiReadAPISettings, readStorageBuckets as supabaseUiReadStorageBuckets } from "./supabase_ui/index.js";
 import { skillBook as cloudflareSkillBook, audit as cloudflareAudit, classifyCloudflareResponse as cloudflareClassify, interpretLegacyAction as cloudflareInterpretLegacy } from "./cloudflare/index.js";
 
@@ -315,6 +317,8 @@ export const SKILL_BOOKS = {
   graphic: graphicSkillBook,
   roster: rosterSkillBook,
   questmaster_registry: questmasterRegistry,
+  codex: codexSkillBook,
+  worker: workerSkillBook,
 };
 
 /** Catalog keys (for persistence validation). */
@@ -436,6 +440,8 @@ const ADVENTURER_REGISTRY = {
   questmaster: { definition: questmasterDef, adventurerActions: questmasterAdventurerActions },
   guildmaster: { definition: guildmasterSkillBook, adventurerActions: guildmasterAdventurerActions },
   blacksmith: { definition: blacksmithSkillBook, adventurerActions: blacksmithAdventurerActions },
+  codex: { definition: codexSkillBook, adventurerActions: {} },
+  worker: { definition: workerSkillBook, adventurerActions: {} },
 
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: {} },
   bigquery: { definition: bigquerySkillBook, adventurerActions: {

@@ -9,7 +9,7 @@ import { checkCredentials as checkSshCredentials } from "@/libs/weapon/ssh";
 import { checkCredentials as checkCdpCredentials } from "@/libs/weapon/browserclaw/cdp";
 import { ping as pingBosterBio } from "@/libs/weapon/bosterbio.comLiveSite";
 import { checkCredentials as checkImapCredentials } from "@/libs/weapon/imap";
-import { checkCredentials as checkBioinvsyncCredentials } from "@/libs/weapon/bioinvsync";
+import { checkCredentials as checkBioinvsyncCredentials } from "@/libs/weapon/bioinvsyncAccess";
 import { checkCredentials as checkStripeCredentials } from "@/libs/weapon/stripe";
 import { checkCredentials as checkMerchantCredentials } from "@/libs/weapon/google_merchant_center";
 import { checkCredentials as checkSemrushCredentials } from "@/libs/weapon/semrush";
@@ -197,7 +197,7 @@ export const WEAPONS = [
     requiresActivation: false,
   },
   {
-    id: "bioinvsync",
+    id: "bioinvsyncAccess",
     title: "Bioinvsync",
     tagline: "SSH access to the bioinvsync.com legacy server (JetRails hosting).",
     summary:
@@ -293,7 +293,7 @@ export async function readActivationSummaries(userId) {
     browserclaw: () => checkCdpCredentials(),
     "bosterbio.comLiveSite": () => pingBosterBio({ userId }).catch((e) => ({ ok: false, msg: e.message })),
     imap: () => checkImapCredentials({}, userId),
-    bioinvsync: () => checkBioinvsyncCredentials(),
+    bioinvsyncAccess: () => checkBioinvsyncCredentials(),
     stripe: () => checkStripeCredentials(),
     google_merchant_center: () => checkMerchantCredentials(),
     semrush: () => checkSemrushCredentials(),

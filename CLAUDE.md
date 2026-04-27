@@ -72,6 +72,12 @@ Before any claim of "verified", "done", "ready for review", "ready for user", "c
 - "All deliverables verified"
 - ✅ done in any BCS row that has image deliverables
 
+**Banned vision-judge shortcuts (2026-04-27 layer-attribution finding on 13-quest sample):**
+- **gpt-4o-mini as the vision judge.** 49% false-alarm rate; let bad artifacts pass. Retired. Use `openai_images.judge` (routes to gpt-4o-full, 21% false-alarm rate, both errors caught) or local Claude multimodal Read (2/2 catch, 0 false alarms) instead.
+- **Calibration laundering** (priming the judge with one example-pass + one example-fail before judging the real items). 0/2 catch rate on the held-out test — laundered Q5 + Q6 wrongs through. Banned: per-item judging stays independent, no priming, no shared context across items.
+- **Cat (T2 Composer 2.0) as the sole vision verdict.** 0/2 catch rate on the same sample. Cat must invoke `openai_images.judge` per item before writing `purrview_check`, OR be treated as a workflow gate only with vision verdicts coming from a separate judge call. Untrusted as a standalone vision authority.
+- **Ground truth for vision verification** is local Claude multimodal Read (T3.5) — 2/2 catch, 0 false alarms. When tier verdicts disagree, T3.5 wins.
+
 If the user has to ask "did you visually verify?" — you've already failed the rule. The rule is preemptive, not reactive.
 
 **Quest-backed work — scripted check (mandatory):**
@@ -211,8 +217,15 @@ Questmaster: a special agent responsible for helping adventure resolve issues an
 Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. Users will provide fine-tuning adjustments for how to do things, and such insights and strategic fine tuning should be cumulated and cemented in skill books. 
 
 **Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
-- **Globals (everyone carries):** `housekeeping` (initAgent, writeQuest, presentPlan, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp, etc.). `verifyDeliverable` is the recommended pre-flight self-check; `submitForPurrview` calls the `questExecution.submit` gate which enforces the load-bearing subset (count match, per-item comments, non-empty URLs).
-- **Assigned per adventurer:** the `skill_books` array on the adventurer's DB row (e.g. Cat carries `questmaster`, a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`).
+- **Globals (everyone carries — the "kit on day one"):** `codex` (contracts + named protocols + tier ownership + locked language style), `housekeeping` (initAgent, writeQuest, presentPlan, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp), `dailies` (insight cementing). `verifyDeliverable` is the recommended pre-flight self-check; `submitForPurrview` calls the `questExecution.submit` gate which enforces the load-bearing subset (count match, per-item comments, non-empty URLs).
+- **Class books (one of these, depending on adventurer role):**
+  - `worker` — for adventurers whose role is shipping quest deliverables (CJGEO Dev, BosterBio Website Dev, Nexus Armor Dev, Researcher, etc.). Covers the claim → execute → ship-per-item → submit → address-feedback loop.
+  - `questmaster` — Cat's class book. Read gate, per-item judging, approve/bounce.
+  - `guildmaster` — Pig's (local Claude) class book. Dispatch, monitor, batch-judge, respawn.
+- **Project books (worker class only — added on top of the worker book):** the repo-specific book matching the adventurer's repo (e.g. `cjgeo`, `nexus`, `bosterbio`).
+- **Specialty books (assigned per adventurer in the `skill_books` array):** e.g. a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`, a graphics adventurer carries `graphic`.
+
+The `skill_books` array on `adventurers` lists ALL of the above (globals included) — that's the source of truth the runtime reads. New adventurer rows must include `codex`, `housekeeping`, `dailies`, and one class book at minimum.
 
 Follow the "index first, content on demand" rule above: load toc only at boot; read a specific action's `howTo` only when you're about to execute it.
 

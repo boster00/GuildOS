@@ -38,6 +38,8 @@ Do NOT:
 
 **Path is locked: only via \`cursor.writeAgent\`** — that weapon's GuildOS-credentials setup-block must fire on every spawn so the new agent has working GuildOS access. Do NOT POST directly to the Cursor API; that bypasses the credentials block (the documented 2026-04-26 ptglab failure mode).
 
+**Main repo is locked to GuildOS** (decided 2026-04-27). Every adventurer's cursor session checks out \`github.com/boster00/GuildOS\` at \`main\` into \`/workspace\` so all agents have CLAUDE.md, skill books, weapons, and env templates available without an extra clone. Workers needing their project repo (CJGEO, boster_nexus, bosterbio.com2026) clone it as a sibling during initAgent step 2.
+
 \`\`\`javascript
 import { writeAgent } from "@/libs/weapon/cursor";
 import { database } from "@/libs/council/database";
@@ -49,10 +51,11 @@ const { data: adv } = await db.from("adventurers")
   .single();
 
 // Spawn the replacement. The cursor weapon prepends the GuildOS creds
-// setup block (sources NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SECRETE_KEY
-// from the orchestrator's process.env into the agent's ~/.guildos.env).
+// setup block (sources GUILDOS_NEXT_PUBLIC_SUPABASE_URL +
+// GUILDOS_SUPABASE_SECRETE_KEY — falls back to basic SUPABASE_* — from
+// the orchestrator's process.env into the agent's ~/.guildos.env).
 const fresh = await writeAgent({
-  repository: "github.com/boster00/<repo>",  // GuildOS for Cat, the project repo for workers
+  repository: "github.com/boster00/GuildOS",  // ALWAYS GuildOS — see "Main repo is locked" above
   ref: "main",
   prompt: \`<adventurer-specific system prompt — usually use the row's adventurers.system_prompt verbatim, plus any quest-specific context>\`,
 });
