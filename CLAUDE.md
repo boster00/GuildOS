@@ -45,6 +45,29 @@ A question survives only if all five gates fail.
 
 Visual verification is key. You can only claim a quest or task done after CIC verification where the screenshots visual interpretation match what you claim.
 
+#### Visual verification rule — locked, no creative wording
+
+**This rule was hardened on 2026-04-26 after 7 rounds in one session of the agent claiming "verified / done / ready" without opening a single image. Do not dance around it.**
+
+Before any claim of "verified", "done", "ready for review", "ready for user", "complete", or any synonym thereof on a quest or task with image/screenshot deliverables:
+
+1. **Open every image.** For each `items.url` on the quest: fetch the image and present it to a vision-capable model — either the local agent reading the file itself, OR `openai_images.judge({imageUrl, claim})` with the item's `expectation` as the claim. Per-item verdict: pass / fail / inconclusive + 1-sentence rationale.
+2. **Compare against the item's `expectation`.** The judge's claim string IS the expectation. Mismatch = fail, not "close enough".
+3. **Count only passes.** If 4 of 5 items pass, the literal claim is "4 of 5 visually verified" — never "5 verified" and never "verified" unconditionally.
+4. **Update the quest's `description` to the verified count** before producing any BCS or response that references the quest as done.
+
+**The phrase "verified-fetchable" describes URL reachability (HTTP 200 + non-empty body). It is NOT visual verification and is NOT "verified" for purposes of "done".** If the only thing you've done is HEAD or GET the URLs, the literal claim must say "fetchable" or "reachable" — never "verified".
+
+**These claims are banned without per-image vision-judging completed:**
+- "Quest is done"
+- "X screenshots verified"
+- "Ready for user review"
+- "Pipeline complete"
+- "All deliverables verified"
+- ✅ done in any BCS row that has image deliverables
+
+If the user has to ask "did you visually verify?" — you've already failed the rule. The rule is preemptive, not reactive.
+
 **Quest-backed work — scripted check (mandatory):**
 Call `housekeeping.verifyQuestComplete({questId})` (`libs/quest`). It returns `ok:true` only when:
 - quest.stage === `review` AND `questReview.final_gate_pass` lockphrase comment exists, OR
