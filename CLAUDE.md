@@ -14,10 +14,16 @@ Avoid asking questions that you can do without the user's input. The bypass perm
 
 **Aliases: any 3-letter permutation of B/C/S triggers this protocol** — BCS, CBS, CSB, BSC, SBC, SCB. All point to CJ Briefing Style. The user permutes the letters interchangeably; treat them as one term.
 
-When user says any of those acronyms (any casing), output in table format all action items in this thread only, with (if applicable):
-1. **status** (progression stages defined by the user-defined strategy for the current work),
-2. **delta** (what changed since last mention, or "new" if first appearance),
-3. **note** (recommendations / questions / message about the item).
+When user says any of those acronyms (any casing), output in table format all action items in this thread only.
+
+**Required columns (none of these are optional, even if a row's content is short):**
+1. **`#`** — row number, leading column.
+2. **Item** — what the action item is. For quest-monitoring variant, this is the quest title.
+3. **Status** — progression stage from the user-defined strategy for the current work, or one of the six in-flight labels (✅ Finished / 🔵 Active / 🟡 Idle / 🔴 Blocked / ⚪ Strategic / 🤔 Confused).
+4. **Δ** (delta) — what changed since the last BCS / last mention; "new" if first appearance, "—" if unchanged. **Required column always — never drop it because nothing changed; that itself is the delta signal.**
+5. **Note** — recommendation / question / status detail. Never empty; if there's nothing to say, write "—" explicitly.
+
+**Required closing line:** every BCS response must contain the literal substring `100%` somewhere — same enforcement as WWCD. The user greps for it; a BCS without `100%` is rejected unread. The natural fit is a one-line summary at the bottom (e.g., "100% of N items in flight" / "100% of contracts in good standing" / "Everything 100% on track" / "100% blocked, awaiting user"). Whatever fits the actual state honestly — but the substring must be present.
 
 Named interaction protocols like BCS and WWCD are domain terms with defined contracts. **Before producing one, read this section verbatim — do not free-style.** If unsure of the spec, grep the codebase or ask, never infer.
 
