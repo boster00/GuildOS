@@ -17,6 +17,7 @@ export const toc = {
   syncSessionStatus: "Probe an adventurer's upstream Cursor session status and reconcile the adventurers DB row. Returns { upstream_status, alive, dispatch_safe, was_drift }.",
 };
 import { database } from "@/libs/council/database";
+import { guildosCredentialsSetupBlock } from "./setupBlock.js";
 
 const API_BASE = "https://api.cursor.com/v0/agents";
 const DEFAULT_MODEL = "composer-2.0";
@@ -169,32 +170,7 @@ export async function writeAgent({ repository, ref, prompt, skipCredentialsInjec
         "writeAgent: GuildOS credentials missing from process.env (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SECRETE_KEY). The agent cannot do GuildOS bookkeeping without these. Either run with `--env-file=.env.local` so they're loaded, or pass `skipCredentialsInjection: true` if you genuinely want a creds-less agent (rare — almost always wrong)."
       );
     }
-    const setupBlock = [
-      "═════════════════════════════════════════════════════════════════════",
-      "FIRST ACTION — provision GuildOS credentials (do this BEFORE anything else)",
-      "═════════════════════════════════════════════════════════════════════",
-      "",
-      "Run these shell commands verbatim to set up your GuildOS access:",
-      "",
-      "```bash",
-      "mkdir -p ~/guildos",
-      "cat > ~/.guildos.env <<'EOF'",
-      `export NEXT_PUBLIC_SUPABASE_URL='${guildosUrl}'`,
-      `export SUPABASE_SECRETE_KEY='${guildosKey}'`,
-      "EOF",
-      "echo 'source ~/.guildos.env' >> ~/.bashrc",
-      "source ~/.guildos.env",
-      "test -n \"$SUPABASE_SECRETE_KEY\" && echo 'GuildOS creds loaded' || echo 'FAILED — escalate'",
-      "```",
-      "",
-      "After that, run housekeeping.initAgent (clones GuildOS, loads skill books, finds your quests). The init step will assume the env is already loaded — do NOT skip the block above.",
-      "",
-      "═════════════════════════════════════════════════════════════════════",
-      "TASK PROMPT",
-      "═════════════════════════════════════════════════════════════════════",
-      "",
-    ].join("\n");
-    finalPrompt = setupBlock + finalPrompt;
+    finalPrompt = guildosCredentialsSetupBlock({ supabaseUrl: guildosUrl, supabaseKey: guildosKey }) + finalPrompt;
   }
 
   const res = await fetch(API_BASE, {

@@ -31,6 +31,182 @@ Do NOT:
 - Auto-provision credentials without user awareness. If an agent is missing env vars, it should escalate. The user decides what to share.
 `,
     },
+    respawnAdventurer: {
+      description: "Replace an adventurer's cursor session with a fresh one via the locked cursor.writeAgent path. Archives the prior session_id in the adventurer's backstory.",
+      howTo: `
+**When:** an existing adventurer's cursor session is stale, missing credentials, or its system prompt is out of sync with current contracts. (Use \`setNewAgent\` from housekeeping for cases where YOU are the broken agent and need user intervention.)
+
+**Path is locked: only via \`cursor.writeAgent\`** — that weapon's GuildOS-credentials setup-block must fire on every spawn so the new agent has working GuildOS access. Do NOT POST directly to the Cursor API; that bypasses the credentials block (the documented 2026-04-26 ptglab failure mode).
+
+\`\`\`javascript
+import { writeAgent } from "@/libs/weapon/cursor";
+import { database } from "@/libs/council/database";
+
+const db = await database.init("service");
+const { data: adv } = await db.from("adventurers")
+  .select("id, name, session_id, backstory, system_prompt")
+  .eq("name", "<adventurer-name>")
+  .single();
+
+// Spawn the replacement. The cursor weapon prepends the GuildOS creds
+// setup block (sources NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SECRETE_KEY
+// from the orchestrator's process.env into the agent's ~/.guildos.env).
+const fresh = await writeAgent({
+  repository: "github.com/boster00/<repo>",  // GuildOS for Cat, the project repo for workers
+  ref: "main",
+  prompt: \`<adventurer-specific system prompt — usually use the row's adventurers.system_prompt verbatim, plus any quest-specific context>\`,
+});
+
+// Archive the old session in backstory (audit trail).
+const archiveNote = \`\\n\\n[\${new Date().toISOString().slice(0,10)} archived prior session \${adv.session_id} — <reason>. New session: \${fresh.id}.]\`;
+
+await db.from("adventurers").update({
+  session_id: fresh.id,
+  session_status: "idle",
+  backstory: (adv.backstory || "") + archiveNote,
+}).eq("id", adv.id);
+\`\`\`
+
+After respawn: if there's a quest currently assigned to this adventurer, send a fresh \`dispatchToAdventurer\` followup so the new session knows what to work on. The Cursor session has no memory of prior conversations.
+`,
+    },
+    dispatchToAdventurer: {
+      description: "Send a quest dispatch followup to an adventurer's cursor session — points at an existing quest, doesn't repeat the task spec.",
+      howTo: `
+**Use this AFTER the quest is created** (housekeeping.writeQuest or housekeeping.presentPlan). The followup carries a pointer to the quest, not the task itself. The quest description IS the spec.
+
+\`\`\`javascript
+import { writeFollowup } from "@/libs/weapon/cursor";
+import { database } from "@/libs/council/database";
+
+const db = await database.init("service");
+const { data: adv } = await db.from("adventurers")
+  .select("session_id, name").eq("name", "<adventurer-name>").single();
+
+const message = \`[NEW QUEST] You have a new quest in execute stage:
+
+Title: \${quest.title}
+Quest URL: https://guild-os-ten.vercel.app/quest-board/\${quest.id}
+Quest ID: \${quest.id}
+
+Description (the user's exact wording — read it as-is):
+
+\${quest.description}
+
+Workflow:
+  1. Run housekeeping.initAgent if your environment is stale.
+  2. Walk through the quest's items rows (each has an \`expectation\` you must satisfy).
+  3. Upload artifacts to GuildOS_Bucket (sdrqhejvvmbolqzfujej.supabase.co), UPSERT items rows with url + caption.
+  4. One item_comment per item (your worker rationale).
+  5. When all items have valid url + caption + ≥1 comment, call housekeeping.submitForPurrview.
+
+If genuinely blocked: housekeeping.escalate with detail.reason + detail.unblock_path. Don't fake artifacts.\`;
+
+await writeFollowup({ agentId: adv.session_id, message });
+\`\`\`
+
+**Important: pass the adventurer's \`session_id\` (cursor agent id, format \`bc-...\`), not the adventurer's row id.** Mixing them up returns a 400 from the Cursor API ("Invalid agent ID"). The DB schema differs because adventurers can swap sessions over time.
+`,
+    },
+    monitorQuestProgress: {
+      description: "Per-tick observability on an in-flight quest: pulls stage + items + recent comments + upstream cursor session status; emits a structured tick log + decides whether to nudge.",
+      howTo: `
+**When:** orchestrating a long-running dispatch (overnight, hours-long), need to track progress without blocking on the agent's reply.
+
+**Per tick:** read state, append a structured row to a markdown log, return a summary that can be acted on by the caller.
+
+\`\`\`javascript
+import { readAgent } from "@/libs/weapon/cursor";
+import { database } from "@/libs/council/database";
+
+async function monitorQuestProgress({ questId }) {
+  const db = await database.init("service");
+
+  const { data: quest } = await db.from("quests")
+    .select("id, title, stage, assignee_id, assigned_to, updated_at")
+    .eq("id", questId).single();
+
+  const { data: items } = await db.from("items")
+    .select("item_key, url, caption, self_check, openai_check, purrview_check, claude_check, user_feedback")
+    .eq("quest_id", questId).order("item_key");
+
+  const { data: comments } = await db.from("quest_comments")
+    .select("source, action, summary, created_at")
+    .eq("quest_id", questId)
+    .order("created_at", { ascending: false }).limit(10);
+
+  const { data: adv } = await db.from("adventurers")
+    .select("session_id").eq("id", quest.assignee_id).maybeSingle();
+
+  const upstream = adv?.session_id ? await readAgent({ agentId: adv.session_id }).catch((e) => ({ err: e.message })) : null;
+
+  return {
+    stage: quest.stage,
+    items_with_url: items.filter(i => i.url).length,
+    items_total: items.length,
+    upstream_status: upstream?.status,
+    upstream_branch: upstream?.target?.branchName,
+    last_comment: comments[0],
+    items,  // for caller to inspect tier-column completion
+  };
+}
+\`\`\`
+
+**Stuck-detection contract** (caller's responsibility):
+- 1 hour without a new \`items.url\` filled → send a check-in followup ("are you blocked? if yes, escalate").
+- 2 hours without progress → send an escalation request ("please run housekeeping.escalate now; don't fake artifacts").
+- Quest hits \`purrview\` → ping Cat directly via \`writeFollowup\` to her session_id (cron will also pick it up but a direct nudge is faster in dev).
+- Terminal states (\`review\`, \`complete\`, \`escalated\`): stop the loop.
+
+**Do NOT** direct-rescue: never set \`quest.stage\` or \`items.url\` from the orchestrator. Nudge the agent or let it escalate honestly.
+`,
+    },
+    batchJudgeQuestItems: {
+      description: "Run gpt-4o vision/text judge across all items on a quest and write the verdicts to items.openai_check (T1 review tier).",
+      howTo: `
+**When:** before a manual T3.5 review, run the OpenAI layer first to surface obvious mismatches and flag the items that need closer human attention.
+
+**Required model: gpt-4o (full).** gpt-4o-mini was retired for verification on 2026-04-26 because of a 49% false-alarm rate on dense screenshots; the cost difference is rounding error.
+
+\`\`\`javascript
+import { judge } from "@/libs/weapon/openai_images";
+import { database } from "@/libs/council/database";
+
+async function batchJudgeQuestItems({ questId, model = "gpt-4o" }) {
+  const db = await database.init("service");
+  const { data: items } = await db.from("items")
+    .select("id, item_key, expectation, url")
+    .eq("quest_id", questId).order("item_key");
+
+  const verdicts = [];
+  for (const it of items) {
+    if (!it.url || !it.expectation) {
+      verdicts.push({ item_key: it.item_key, verdict: "skip", reason: !it.url ? "no_url" : "no_expectation" });
+      continue;
+    }
+    try {
+      const v = await judge({ imageUrl: it.url, claim: it.expectation, model });
+      // Write to the T1 column the OpenAI judge owns.
+      await db.from("items").update({
+        openai_check: \`[T1 \${model} \${new Date().toISOString().slice(0,10)}] verdict=\${v.verdict} confidence=\${v.confidence}: \${v.reasoning}\`.slice(0, 4000),
+      }).eq("id", it.id);
+      verdicts.push({ item_key: it.item_key, ...v });
+    } catch (e) {
+      verdicts.push({ item_key: it.item_key, verdict: "error", reason: e.message });
+    }
+  }
+  return verdicts;
+}
+\`\`\`
+
+**Banned shortcuts** (per CLAUDE.md WWCD section):
+- DON'T calibrate \`items.expectation\` to whatever the artifact happens to show just to make the judge match. That laundered Q5+Q6 wrong artifacts on 2026-04-26.
+- DON'T use gpt-4o-mini.
+- DON'T trust the judge's "match" verdict alone for high-stakes work; T3.5 (Claude direct multimodal Read) is still the gate before \`questReview.pass\`.
+
+This is the T1 layer. Cat (T2) and the Guildmaster's direct read (T3.5) follow. Each writes to its own column; never overwrite another tier's verdict.
+`,
+    },
     handleEscalation: {
       description: "Process an escalated quest.",
       howTo: `

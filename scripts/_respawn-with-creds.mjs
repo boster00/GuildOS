@@ -22,36 +22,15 @@ async function patch(p, body) {
   return [r.status, await r.json()];
 }
 
-// Inline the spawn logic since libs/weapon/cursor uses @/libs imports
-// (Next.js path alias) that don't resolve under plain node.
-async function spawnAgent({ repository, ref, prompt }) {
-  const setupBlock = [
-    "═════════════════════════════════════════════════════════════════════",
-    "FIRST ACTION — provision GuildOS credentials (do this BEFORE anything else)",
-    "═════════════════════════════════════════════════════════════════════",
-    "",
-    "Run these shell commands verbatim to set up your GuildOS access:",
-    "",
-    "```bash",
-    "mkdir -p ~/guildos",
-    "cat > ~/.guildos.env <<'EOF'",
-    `export NEXT_PUBLIC_SUPABASE_URL='${SUP}'`,
-    `export SUPABASE_SECRETE_KEY='${KEY}'`,
-    "EOF",
-    "echo 'source ~/.guildos.env' >> ~/.bashrc",
-    "source ~/.guildos.env",
-    "test -n \"$SUPABASE_SECRETE_KEY\" && echo 'GuildOS creds loaded' || echo 'FAILED — escalate'",
-    "```",
-    "",
-    "After that, run housekeeping.initAgent (clones GuildOS, loads skill books, finds your quests). The init step assumes the env is already loaded.",
-    "",
-    "═════════════════════════════════════════════════════════════════════",
-    "TASK PROMPT",
-    "═════════════════════════════════════════════════════════════════════",
-    "",
-  ].join("\n");
+// Re-uses the canonical setup-block module from the cursor weapon. The
+// pure-JS module has no Next path-alias imports so it resolves cleanly
+// under plain `node`. Single source of truth for the credentials block.
+import { guildosCredentialsSetupBlock } from "../libs/weapon/cursor/setupBlock.js";
 
-  const finalPrompt = setupBlock + (prompt || "Wait for initialization instructions.");
+async function spawnAgent({ repository, ref, prompt }) {
+  const finalPrompt =
+    guildosCredentialsSetupBlock({ supabaseUrl: SUP, supabaseKey: KEY }) +
+    (prompt || "Wait for initialization instructions.");
   const auth = `Basic ${Buffer.from(`${CK}:`).toString("base64")}`;
   const r = await fetch("https://api.cursor.com/v0/agents", {
     method: "POST",
