@@ -1,14 +1,74 @@
 /**
  * Housekeeping skill book — shared by ALL adventurers.
- * Core operational actions for quest management, communication, and self-management.
+ * Core contracts + operational actions for quest management.
+ *
+ * Merged 2026-04-27: the former `codex` book (contracts + named protocols +
+ * tier ownership + locked expectation language + spawn contract + honest
+ * escalation) is now part of housekeeping. Workers, questmasters, and the
+ * Guildmaster all carry these rules — there's no value in splitting them
+ * across two globally-loaded books.
  */
 
 export const skillBook = {
   id: "housekeeping",
-  title: "Housekeeping — Core Agent Operations",
-  description: "Manage quest lifecycle: init, writeQuest, escalate, comment, submit for review.",
+  title: "Housekeeping — Core Contracts & Operations",
+  description: "Contracts every adventurer follows + the operational lifecycle: init, writeQuest, escalate, comment, submit for review.",
   steps: [],
   toc: {
+    // ── Contracts (formerly codex) ────────────────────────────────────────
+    readContractsFromMain: {
+      description: "Always read CLAUDE.md from the main branch on session start (worktree drift is the documented cause of past contract failures).",
+      howTo: `On every session start: run \`git -C /workspace show main:CLAUDE.md\` (or \`git show main:CLAUDE.md\` if /workspace is GuildOS) and treat THAT as authoritative — not the auto-loaded file. If the auto-loaded copy differs from main, main wins without exception.
+
+Why: a session can be rooted in a stale worktree. Auto-loaded CLAUDE.md is a courtesy, not source of truth. Worktree drift caused the 2026-04-26 BCS / WWCD failures and the description-as-status incident. Don't repeat them.
+
+Refresh ritual: also re-run this on long sessions if contracts get fuzzy. Cheap to repeat.`,
+    },
+
+    invokeNamedProtocol: {
+      description: "When the user says BCS / CBS / CSB (any 3-letter B/C/S permutation) or WWCD, look up the spec verbatim before responding.",
+      howTo: `Named interaction protocols are domain terms with defined contracts. They don't follow training-data shapes. Look them up in CLAUDE.md every single time:
+
+- **BCS / CBS / CSB / BSC / SBC / SCB** → CJ Briefing Style. Table format with required columns: \`# | Item | Status | Δ | Note\`. Required \`100%\` substring somewhere in the response.
+- **WWCD** → "What Would CJ Do." Two output modes (A or B), banned shortcuts (no HEAD-checking ≠ verification, no calibration laundering, no mini-only judging), required \`100%\` substring. Mandatory direct multimodal Read for any "verified / done / ready" claim on quests with image deliverables.
+
+If you find yourself producing a sit-rep style response from training data, stop and re-read the spec. Do not free-style.`,
+    },
+
+    writeExpectationInLockedStyle: {
+      description: "items.expectation must be written in the reviewer-facing 'we should see X showing Y with these details: Z' style.",
+      howTo: `Required shape:
+- Screenshots: \`"In the screenshot, we should see <subject/UI element> showing <state or content> with these details: <specific, numbered facts>."\`
+- Docs (.md, .json, .txt): \`"In the document, we should see <subject> covering <scope> with these details: <facts>."\`
+- Other: \`"In the artifact, we should see <subject> demonstrating <property> with these details: <facts>."\`
+
+The expectation is the literal claim handed to the gpt-4o judge AND read by the user in the GM-desk side panel. Be specific and anchored. Bad: "image shows HTTP 200." Good: "In the screenshot, we should see the /api/track fire-response panel showing HTTP 200 with these details: response body is {inserted:8, rejected:[], errors:[]}."
+
+Full guidance: \`presentPlan\` in this same book.`,
+    },
+
+    respectTierColumnOwnership: {
+      description: "Each of the 5 review-tier columns on items is owned by exactly one tier; never write to a column you don't own.",
+      howTo: `5 review-tier columns on \`items\`:
+- \`self_check\`     — T0, owned by the worker at submit time (worker self-claim).
+- \`openai_check\`   — T1, owned by the OpenAI judge (\`openai_images.judge\` weapon).
+- \`purrview_check\` — T2, owned by Cat (questPurrview.approve / .bounce).
+- \`claude_check\`   — T3.5, owned by the Guildmaster's local Claude direct multimodal review (questReview.pass / .bounce).
+- \`user_feedback\`  — T4, owned by the user via the GM-desk Feedback button.
+
+A tier may overwrite its OWN column (e.g. T1 re-judging is fine). It must NEVER overwrite another tier's column. The 2026-04-26 calibration laundering happened because a downstream layer rewrote upstream verdicts; that's structurally banned.`,
+    },
+
+    noBypassSpawnContract: {
+      description: "Spawning a cursor agent is only valid via cursor.writeAgent — direct POSTs to the Cursor API skip the GuildOS credentials block.",
+      howTo: `Every cursor agent spawn must go through \`cursor.writeAgent\`. The weapon prepends a setup block to the spawn prompt that provisions GUILDOS_NEXT_PUBLIC_SUPABASE_URL + GUILDOS_SUPABASE_SECRETE_KEY into the agent's ~/.guildos.env.
+
+Without that block, agents end up with their project's Supabase but not GuildOS — the documented 2026-04-26 ptglab failure mode. The agent does the work, can't post items rows, can't call submitForPurrview, and either escalates honestly or fakes artifacts.
+
+If you're tempted to do a direct POST to https://api.cursor.com/v0/agents — stop, use cursor.writeAgent. The credentials block is the whole point.`,
+    },
+
+    // ── Operations ────────────────────────────────────────────────────────
     initAgent: {
       description: "Initialize agent session — verify GuildOS access (provisioned by cursor.writeAgent's setup block), read instructions, check for work.",
       howTo: [

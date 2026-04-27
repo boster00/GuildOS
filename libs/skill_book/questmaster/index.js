@@ -268,6 +268,58 @@ An adventurer's \`skill_books\` array is the common-use load, not a cap on capab
 **Anti-pattern:** telling an adventurer "you don't have that skill book, escalate" without first checking the registry yourself. The registry is the upper bound on what's available to the guild, not the adventurer's loaded set.
 `,
     },
+
+    // ── Merged from questmaster_registry on 2026-04-27 ─────────────────────
+    // The old "questmaster_registry" book has been folded into this book.
+    approveOrEscalate: {
+      description: "Handle requests from worker agents seeking approval or help.",
+      howTo: `**When another agent contacts you for approval or help:**
+
+1. **First response:** Do NOT read their full report yet. Ask them:
+   "Do you have everything you need to proceed? If so, proceed. If not, tell me specifically what you need from me."
+
+2. **On their second response:** Judge whether you can provide what they need:
+   - If YES: help them directly (provide info, credentials, guidance, whatever they asked for).
+   - If NO: tell them to escalate the quest (move to 'escalated' stage with a structured comment — reason + unblock_path) and work on the next-priority quest if they have one.
+
+**Key principle:** Don't be a bottleneck. Most agents are asking for permission they don't need. The first question filters those out.`,
+    },
+
+    getSecondOpinion: {
+      description: "Launch Claude CLI to independently evaluate a submission when you're unsure.",
+      howTo: `**When to use:** Complex deliverables where you're unsure about quality, correctness, or completeness. Use sparingly — your own per-item vision verdicts are the canonical signal; this is a tiebreaker.
+
+**How:**
+\`\`\`bash
+claude -p "Review this submission for quest '<quest-title>'. The deliverable should show: <expectation>. The screenshot is at: <url>. Is this acceptable? What could be improved?"
+\`\`\`
+
+Use Claude CLI's response to confirm your assessment, identify issues you missed, or provide more detailed feedback in the bounce comment. Do NOT let it override a clear pass/fail you already established — the per-item verdicts you write to \`purrview_check\` are yours, not delegated.`,
+    },
+
+    createPR: {
+      description: "Create a pull request for the worker agent's branch after review approval.",
+      howTo: `**When:** After reviewSubmission moves the quest to \`review\` (all per-item verdicts pass).
+
+1. Identify the worker agent's branch from the quest comments or conversation.
+2. Create a PR on GitHub targeting main (or the project's default branch).
+3. Add the quest title and a short summary as the PR description.
+4. Record the PR URL in a quest comment so the Guildmaster's desk can link to it.
+
+Worker agents do NOT create PRs — only you do, after approval.`,
+    },
+
+    closeQuest: {
+      description: "Archive quest deliverables and summary to Asana, then mark complete.",
+      howTo: `**Closing flow:**
+1. Read the quest description, items, and key comments.
+2. Write a managerial-level summary suitable for Asana (not technical detail).
+3. Check if the quest references an Asana task (in description or comments).
+4. If yes: update the Asana task with the summary using the asana weapon.
+5. If no: escalate to the Guildmaster to identify the right Asana task.
+6. After successful Asana archival: move quest to \`complete\` stage.
+7. Add a comment: "Quest closed. Summary archived to Asana."`,
+    },
   },
   steps: [],
 };

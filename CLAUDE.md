@@ -217,15 +217,15 @@ Questmaster: a special agent responsible for helping adventure resolve issues an
 Skill book: a registry of actions to prompts. A skill book has a table of content (key: toc) that summarizes which actions it has and what each achieves; each action's value is a natural-language prompt describing how it should be performed. Skill book actions can refer to weapons for external connections or running scripts. Users will provide fine-tuning adjustments for how to do things, and such insights and strategic fine tuning should be cumulated and cemented in skill books. 
 
 **Skill books are heavy — you only carry what's been assigned.** An adventurer loads:
-- **Globals (everyone carries — the "kit on day one"):** `codex` (contracts + named protocols + tier ownership + locked language style), `housekeeping` (initAgent, writeQuest, presentPlan, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp), `dailies` (insight cementing). `verifyDeliverable` is the recommended pre-flight self-check; `submitForPurrview` calls the `questExecution.submit` gate which enforces the load-bearing subset (count match, per-item comments, non-empty URLs).
+- **Global (everyone carries):** `housekeeping` — both the contracts every adventurer follows (read CLAUDE.md from main, named protocols BCS / WWCD, tier-column ownership, locked `expectation` language, no-bypass spawn contract) AND the operational lifecycle (initAgent, writeQuest, presentPlan, escalate, verifyDeliverable, submitForPurrview, comment, seekHelp, etc.). Merged 2026-04-27 — the former `codex` book lives here. `verifyDeliverable` is the recommended pre-flight self-check; `submitForPurrview` calls the `questExecution.submit` gate which enforces the load-bearing subset (count match, per-item comments, non-empty URLs).
 - **Class books (one of these, depending on adventurer role):**
   - `worker` — for adventurers whose role is shipping quest deliverables (CJGEO Dev, BosterBio Website Dev, Nexus Armor Dev, Researcher, etc.). Covers the claim → execute → ship-per-item → submit → address-feedback loop.
-  - `questmaster` — Cat's class book. Read gate, per-item judging, approve/bounce.
-  - `guildmaster` — Pig's (local Claude) class book. Dispatch, monitor, batch-judge, respawn.
+  - `questmaster` — Cat's class book. Read gate, per-item judging, approve/bounce, approveOrEscalate, getSecondOpinion, createPR, closeQuest. (Merged from the former `questmaster_registry` book on 2026-04-27.)
+  - `guildmaster` — Pig's (local Claude) class book. Dispatch, monitor, batch-judge, respawn. **Local Claude also carries `dailies`** (insight-cementing protocol). `dailies` is local-Claude-only — it does NOT belong on adventurer rows.
 - **Project books (worker class only — added on top of the worker book):** the repo-specific book matching the adventurer's repo (e.g. `cjgeo`, `nexus`, `bosterbio`).
 - **Specialty books (assigned per adventurer in the `skill_books` array):** e.g. a data analyst carries `bigquery`, a forge-capable agent carries `blacksmith`, a graphics adventurer carries `graphic`.
 
-The `skill_books` array on `adventurers` lists ALL of the above (globals included) — that's the source of truth the runtime reads. New adventurer rows must include `codex`, `housekeeping`, `dailies`, and one class book at minimum.
+The `skill_books` array on `adventurers` lists `housekeeping` + one class book + project + specialty books — that's the source of truth the runtime reads. New adventurer rows must include `housekeeping` and one class book at minimum.
 
 Follow the "index first, content on demand" rule above: load toc only at boot; read a specific action's `howTo` only when you're about to execute it.
 

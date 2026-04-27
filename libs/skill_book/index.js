@@ -27,14 +27,12 @@ import { skillBook as asanaSkillBook, readProjectTasks as asanaReadProjectTasks,
 import { skillBook as cursorSkillBook, dispatchTask as cursorDispatchTask, readStatus as cursorReadStatus, readConversation as cursorReadConversation, dispatchPptGeneration as cursorDispatchPptGeneration } from "./cursor/index.js";
 import { skillBook as gmailSkillBook } from "./gmail/index.js";
 import { skillBook as housekeepingSkillBook } from "./housekeeping/index.js";
-import { questmasterRegistry } from "./questmaster/registry.js";
 import { skillBook as cjgeoSkillBook } from "./cjgeo/index.js";
 import { skillBook as nexusSkillBook } from "./nexus/index.js";
 import { skillBook as bosterbioSkillBook } from "./bosterbio/index.js";
 import { skillBook as dailiesSkillBook } from "./dailies/index.js";
 import { skillBook as graphicSkillBook, readPages as figmaReadPages, readPage as figmaReadPage, exportFrames as figmaExportFrames, readComponents as figmaReadComponents } from "./graphic/index.js";
 import { skillBook as rosterSkillBook } from "./roster/index.js";
-import { skillBook as codexSkillBook } from "./codex/index.js";
 import { skillBook as workerSkillBook } from "./worker/index.js";
 import { skillBook as supabaseUiSkillBook, readTable as supabaseUiReadTable, readLogs as supabaseUiReadLogs, readAPISettings as supabaseUiReadAPISettings, readStorageBuckets as supabaseUiReadStorageBuckets } from "./supabase_ui/index.js";
 import { skillBook as cloudflareSkillBook, audit as cloudflareAudit, classifyCloudflareResponse as cloudflareClassify, interpretLegacyAction as cloudflareInterpretLegacy } from "./cloudflare/index.js";
@@ -316,8 +314,6 @@ export const SKILL_BOOKS = {
   cloudflare: cloudflareSkillBook,
   graphic: graphicSkillBook,
   roster: rosterSkillBook,
-  questmaster_registry: questmasterRegistry,
-  codex: codexSkillBook,
   worker: workerSkillBook,
 };
 
@@ -440,7 +436,6 @@ const ADVENTURER_REGISTRY = {
   questmaster: { definition: questmasterDef, adventurerActions: questmasterAdventurerActions },
   guildmaster: { definition: guildmasterSkillBook, adventurerActions: guildmasterAdventurerActions },
   blacksmith: { definition: blacksmithSkillBook, adventurerActions: blacksmithAdventurerActions },
-  codex: { definition: codexSkillBook, adventurerActions: {} },
   worker: { definition: workerSkillBook, adventurerActions: {} },
 
   browsercontrol: { definition: browsercontrolSkillBook, adventurerActions: {} },
