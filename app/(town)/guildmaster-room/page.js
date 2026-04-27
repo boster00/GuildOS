@@ -29,7 +29,7 @@ async function loadReviewQuests(userId) {
       .order("created_at", { ascending: false })
       .limit(500),
     db.from("items")
-      .select("id, quest_id, item_key, url, description, source, created_at, updated_at")
+      .select("id, quest_id, item_key, expectation, url, caption, self_check, openai_check, purrview_check, claude_check, user_feedback, created_at, updated_at")
       .in("quest_id", questIds)
       .order("created_at", { ascending: true }),
   ]);
@@ -47,6 +47,7 @@ async function loadReviewQuests(userId) {
 
   const enriched = quests.map((q) => ({
     ...q,
+    items: itemsByQuest[q.id] || [],
     inventory: inventoryRawToMap(itemsByQuest[q.id] || []),
     _comments: commentsByQuest[q.id] || [],
   }));
