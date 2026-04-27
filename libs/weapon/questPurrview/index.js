@@ -20,15 +20,33 @@
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
 import { SUBMIT_LOCKPHRASE } from "@/libs/weapon/questExecution";
+import { writeReview } from "@/libs/quest/items.js";
 
 export const toc = {
   confirmSubmission:
     "Verify a quest reached purrview through questExecution.submit (lockphrase comment present). Run BEFORE opening any screenshot — no comment, no review.",
   approve:
-    "Move a quest from purrview to review. Hard-gated: requires submit lockphrase + per-item verdicts (all 'pass'). Writes the review-handoff lockphrase.",
+    "Move a quest from purrview to review. Hard-gated: requires submit lockphrase + per-item verdicts (all 'pass') + each verdict carries judge_origin (Cat must invoke openai_images.judge per item — Cat alone has 0/2 catch rate, see CLAUDE.md WWCD layer-attribution). Writes purrview_check (T2) per item via writeReview + the review-handoff lockphrase.",
   bounce:
-    "Move a quest from purrview back to execute. Hard-gated: requires submit lockphrase + per-item verdicts with ≥1 'fail' + a reason. Writes the bounce lockphrase.",
+    "Move a quest from purrview back to execute. Hard-gated: requires submit lockphrase + per-item verdicts with ≥1 'fail' + a reason + each verdict carries judge_origin. Writes purrview_check (T2) per item + the bounce lockphrase.",
 };
+
+/** Vision-judge origins accepted by the approve/bounce gates. Cat MUST run a
+ *  judge before posting verdicts — the layer-attribution finding (5f9b4c0)
+ *  showed Cat's standalone visual judgment has 0/2 catch rate. */
+const VALID_JUDGE_ORIGINS = new Set([
+  "openai_images.judge",
+  "openai_images.judge:gpt-4o",
+  "claude-multimodal-read", // local-Claude direct vision Read (T3.5)
+]);
+
+export function isValidJudgeOrigin(origin) {
+  if (typeof origin !== "string" || !origin.trim()) return false;
+  if (VALID_JUDGE_ORIGINS.has(origin)) return true;
+  // Tolerate openai_images.judge:<model> for any model the caller picks.
+  if (origin.startsWith("openai_images.judge:")) return true;
+  return false;
+}
 
 export const GATE_VERSION = 1;
 
@@ -53,7 +71,9 @@ const APPROVE_CRITERIA_CHECKED = [
   "perItemVerdicts is a non-empty array",
   "perItemVerdicts.length === items.length and every item_key matched",
   "every verdict === 'pass'",
+  "every verdict carries a recognized judge_origin (openai_images.judge[:model] or claude-multimodal-read)",
   "one item_comments row written per verdict (role='questmaster')",
+  "items.purrview_check (T2) written per item via writeReview",
   "stage write to review verified by SELECT-back",
 ];
 
@@ -65,8 +85,10 @@ const BOUNCE_CRITERIA_CHECKED = [
   "perItemVerdicts is a non-empty array",
   "perItemVerdicts.length === items.length and every item_key matched",
   "≥1 verdict === 'fail'",
+  "every verdict carries a recognized judge_origin",
   "reason is a non-empty string",
   "one item_comments row written per verdict (role='questmaster')",
+  "items.purrview_check (T2) written per item via writeReview",
   "stage write back to execute verified by SELECT-back",
 ];
 
@@ -431,15 +453,23 @@ async function preflightStageTransition({ questId, perItemVerdicts, requiredStag
   }
   const itemList = items || [];
 
-  // Normalize verdicts and require 1:1 match against items
+  // Normalize verdicts and require 1:1 match against items.
+  // judge_origin is REQUIRED — Cat (T2 Composer 2.0) alone misses too much,
+  // so every verdict must carry the verdict from a vision judge. judge_rationale
+  // is optional but recommended; it gets written into the per-item comment text
+  // for audit. judge_model is optional metadata.
   const normalizedVerdicts = perItemVerdicts
     .map((v) => {
       if (!v || typeof v !== "object") return null;
       const item_key = typeof v.item_key === "string" ? v.item_key.trim() : "";
       const verdict = v.verdict === "pass" ? "pass" : v.verdict === "fail" ? "fail" : null;
       const text = typeof v.text === "string" ? v.text.trim() : "";
+      const judge_origin = typeof v.judge_origin === "string" ? v.judge_origin.trim() : "";
+      const judge_rationale =
+        typeof v.judge_rationale === "string" ? v.judge_rationale.trim() : "";
+      const judge_model = typeof v.judge_model === "string" ? v.judge_model.trim() : "";
       if (!item_key || !verdict || !text) return null;
-      return { item_key, verdict, text };
+      return { item_key, verdict, text, judge_origin, judge_rationale, judge_model };
     })
     .filter(Boolean);
 
@@ -450,8 +480,25 @@ async function preflightStageTransition({ questId, perItemVerdicts, requiredStag
         ok: false,
         failed: ["verdict_shape"],
         report: {
-          msg: "Each verdict must be { item_key: string, verdict: 'pass'|'fail', text: string-non-empty }.",
+          msg: "Each verdict must be { item_key: string, verdict: 'pass'|'fail', text: string-non-empty, judge_origin: string-non-empty }. Optional: judge_rationale, judge_model.",
           fix: "Fix the malformed entries and retry.",
+        },
+      },
+    };
+  }
+
+  const missingJudge = normalizedVerdicts.filter((v) => !isValidJudgeOrigin(v.judge_origin));
+  if (missingJudge.length > 0) {
+    return {
+      ok: false,
+      failure: {
+        ok: false,
+        failed: ["judge_origin_missing_or_invalid"],
+        report: {
+          msg: `${missingJudge.length} verdict(s) missing or have invalid judge_origin. Cat must invoke openai_images.judge per item BEFORE posting verdicts (or use claude-multimodal-read for the T3.5 final gate). Cat alone has 0/2 catch rate on visual verification — the judge is mandatory, not optional. See CLAUDE.md WWCD layer-attribution bans.`,
+          fix: "For each item, call `judge({ imageUrl: item.url, claim: item.expectation })` from `@/libs/weapon/openai_images`. Map the returned verdict 'match'→'pass', 'mismatch'/'inconclusive'→'fail'. Then pass the result as `{ ..., judge_origin: 'openai_images.judge:gpt-4o', judge_rationale: returned.reasoning, judge_model: returned.model }`.",
+          missing_item_keys: missingJudge.map((v) => v.item_key),
+          accepted_origins: [...VALID_JUDGE_ORIGINS, "openai_images.judge:<any-model>"],
         },
       },
     };
@@ -497,12 +544,18 @@ async function preflightStageTransition({ questId, perItemVerdicts, requiredStag
 
 async function writeVerdictComments(db, items, normalizedVerdicts, action, actorName = QUESTMASTER_ACTOR_DEFAULT) {
   const itemIdByKey = new Map(items.map((i) => [i.item_key, i.id]));
-  const rows = normalizedVerdicts.map((v) => ({
-    item_id: itemIdByKey.get(v.item_key),
-    role: "questmaster",
-    actor_name: actorName,
-    text: `[${action.toUpperCase()}:${v.verdict}] ${v.text}`,
-  }));
+  const rows = normalizedVerdicts.map((v) => {
+    const judgeTag = v.judge_origin
+      ? ` via ${v.judge_origin}${v.judge_model ? `(${v.judge_model})` : ""}`
+      : "";
+    const rationale = v.judge_rationale ? ` | judge: ${v.judge_rationale}` : "";
+    return {
+      item_id: itemIdByKey.get(v.item_key),
+      role: "questmaster",
+      actor_name: actorName,
+      text: `[${action.toUpperCase()}:${v.verdict}${judgeTag}] ${v.text}${rationale}`,
+    };
+  });
   const { error } = await db.from(publicTables.itemComments).insert(rows);
   if (error) {
     return {
@@ -517,6 +570,29 @@ async function writeVerdictComments(db, items, normalizedVerdicts, action, actor
       },
     };
   }
+
+  // Write items.purrview_check (T2 column) per item via the tier-ownership
+  // chokepoint. Aggregates Cat's verdict + judge_origin + judge_rationale into
+  // a single column read by the GM-desk Reviews panel. Failure here doesn't
+  // abort the gate (the item_comments row is already written + the stage
+  // advance is the load-bearing audit) — but log it for follow-up.
+  const purrviewWriteFailures = [];
+  for (const v of normalizedVerdicts) {
+    const itemId = itemIdByKey.get(v.item_key);
+    if (!itemId) continue;
+    const judgeTag = v.judge_origin ? ` (${v.judge_origin})` : "";
+    const rationale = v.judge_rationale ? ` ${v.judge_rationale}` : "";
+    const cell = `[${v.verdict.toUpperCase()}${judgeTag}] ${v.text}${rationale}`.slice(0, 4000);
+    const r = await writeReview({ tier: "cat", itemId, value: cell });
+    if (!r.ok) purrviewWriteFailures.push({ item_key: v.item_key, reason: r.reason, msg: r.msg });
+  }
+  if (purrviewWriteFailures.length > 0) {
+    console.warn(
+      `[questPurrview.${action}] purrview_check write failed for ${purrviewWriteFailures.length} item(s):`,
+      purrviewWriteFailures,
+    );
+  }
+
   return { ok: true };
 }
 

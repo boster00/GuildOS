@@ -165,14 +165,17 @@ async function monitorQuestProgress({ questId }) {
 `,
     },
     batchJudgeQuestItems: {
-      description: "Run gpt-4o vision/text judge across all items on a quest and write the verdicts to items.openai_check (T1 review tier).",
+      description: "Run gpt-4o vision/text judge across all items on a quest and write the verdicts to items.openai_check (T1 review tier) via the writeReview chokepoint.",
       howTo: `
 **When:** before a manual T3.5 review, run the OpenAI layer first to surface obvious mismatches and flag the items that need closer human attention.
 
-**Required model: gpt-4o (full).** gpt-4o-mini was retired for verification on 2026-04-26 because of a 49% false-alarm rate on dense screenshots; the cost difference is rounding error.
+**Required model: gpt-4o (full).** gpt-4o-mini was retired for verification on 2026-04-26 because of a 49% false-alarm rate on dense screenshots; the cost difference is rounding error. \`openai_images.judge\` defaults to \`gpt-4o\` since 2026-04-27.
+
+**Tier ownership chokepoint:** route the write through \`libs/quest/items.writeReview\` rather than a direct DB update — the helper validates the tier name and writes the right column. Bypassing it is how columns get crossed.
 
 \`\`\`javascript
 import { judge } from "@/libs/weapon/openai_images";
+import { writeReview } from "@/libs/quest/items.js";
 import { database } from "@/libs/council/database";
 
 async function batchJudgeQuestItems({ questId, model = "gpt-4o" }) {
@@ -189,10 +192,9 @@ async function batchJudgeQuestItems({ questId, model = "gpt-4o" }) {
     }
     try {
       const v = await judge({ imageUrl: it.url, claim: it.expectation, model });
-      // Write to the T1 column the OpenAI judge owns.
-      await db.from("items").update({
-        openai_check: \`[T1 \${model} \${new Date().toISOString().slice(0,10)}] verdict=\${v.verdict} confidence=\${v.confidence}: \${v.reasoning}\`.slice(0, 4000),
-      }).eq("id", it.id);
+      const cell = \`[T1 \${model} \${new Date().toISOString().slice(0,10)}] verdict=\${v.verdict} confidence=\${v.confidence}: \${v.reasoning}\`.slice(0, 4000);
+      // writeReview enforces tier→column mapping (openai → items.openai_check).
+      await writeReview({ tier: "openai", itemId: it.id, value: cell });
       verdicts.push({ item_key: it.item_key, ...v });
     } catch (e) {
       verdicts.push({ item_key: it.item_key, verdict: "error", reason: e.message });
