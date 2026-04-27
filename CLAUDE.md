@@ -188,6 +188,8 @@ When local Claude is running heavy work — multi-cursor dispatch, vision review
 
 **Plan usage check at start of heavy sessions.** Local Claude is on 20x Max subscription (flat-rate, not metered API), but rate limits still apply. Before running a heavy refactor or multi-cursor dispatch session, check `https://claude.ai/settings/usage` via CIC. Throttle parallel work if session > 70% with > 60 min to reset, OR weekly > 80%.
 
+**Scratch-script janitor.** `scripts/_*.mjs` is gitignored — these are throwaway one-shots that should be either promoted into a skill book / weapon action OR deleted within 24h. Rule of thumb: any pattern that has spawned ≥3 scratch scripts in a week is asking to become a `housekeeping.<verb>` (or other skill-book) action. Recurring `_followup-*`, `_respawn-*`, or `_local-*-smoke` scripts mean the relevant skill book action either doesn't exist yet or isn't being found — fix the discovery, don't keep accreting scripts. The 2026-04-27 cleanup (`bb8da53`) deleted 16 scratch scripts but 14 new ones accreted within hours; the gitignore rule + this janitor discipline are the structural fix.
+
 ## Next-steps discussion mode
 Triggered by the user asking for a "next steps discussion" (often prepping for voice-chat planning, e.g. drive / workout). Output for ChatGPT-voice consumption: conversational, voice-friendly, markdown OK.
 

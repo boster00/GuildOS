@@ -29,3 +29,14 @@ node_modules/
 playwright/.auth/
 auth-states/
 libs/weapon/playwright/user.json
+
+# Scratch scripts — `_*.mjs` is the agreed convention for one-off / experimental
+# scripts that are expected to be either promoted into a skill book / weapon
+# action OR deleted. Keeping them out of source control prevents the
+# accretion problem that bb8da53 cleaned up. If a script is genuinely
+# reusable, drop the `_` prefix and commit it under `scripts/`.
+scripts/_*.mjs
+
+# Local scratch + diagnostic artifacts
+tmp_inspect/
+docs/screenshots/_scratch/
