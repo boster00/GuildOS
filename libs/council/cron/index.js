@@ -249,6 +249,28 @@ async function notifyQuestmaster(db) {
 
   if (!quests?.length) return;
 
+  // Re-read the same rows by id so we never nudge Cat off a stale snapshot
+  // (quest advanced to review/complete between the filtered SELECT and notify).
+  const ids = [...new Set(quests.map((q) => q.id))];
+  const { data: freshRows, error: freshErr } = await db
+    .from(publicTables.quests)
+    .select("id, title, stage, assigned_to")
+    .in("id", ids);
+  if (freshErr) {
+    console.error("[cron] notifyQuestmaster re-verify failed:", freshErr.message);
+    return;
+  }
+  const freshById = new Map((freshRows || []).map((r) => [r.id, r]));
+  const verified = [];
+  for (const q of quests) {
+    const row = freshById.get(q.id);
+    if (row && (row.stage === "purrview" || row.stage === "closing")) verified.push(row);
+  }
+  if (!verified.length) {
+    console.log("[cron] notifyQuestmaster: purrview/closing list empty after re-verify — skipping nudge");
+    return;
+  }
+
   const { data: cat } = await db
     .from(publicTables.adventurers)
     .select("session_id, session_status")
@@ -265,8 +287,8 @@ async function notifyQuestmaster(db) {
   const queuedMsgs = msgs.slice(lastAssistantIdx + 1);
   if (queuedMsgs.some((m) => m.type === "user_message" && m.text?.startsWith("[NUDGE]"))) return;
 
-  const purrviewQuests = quests.filter((q) => q.stage === "purrview");
-  const closingQuests = quests.filter((q) => q.stage === "closing");
+  const purrviewQuests = verified.filter((q) => q.stage === "purrview");
+  const closingQuests = verified.filter((q) => q.stage === "closing");
 
   const lines = [];
   if (purrviewQuests.length) {
