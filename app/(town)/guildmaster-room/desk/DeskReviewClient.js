@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QuestItemsContent } from "../../_components/QuestItemsModal.js";
 
@@ -142,6 +142,14 @@ function ReviewCard({ quest, comments, onUpdate }) {
   // app/(town)/_components/QuestItemsModal.js. Same surface the
   // quest-detail page mounts inside its full-screen modal.
   const items = Array.isArray(quest.items) ? quest.items : null;
+  const feedbackInputRef = useRef(null);
+  useEffect(() => {
+    if (feedbackOpen) {
+      // Auto-focus when the panel opens so the user can start typing immediately.
+      const t = setTimeout(() => feedbackInputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [feedbackOpen]);
 
   const markDone = useCallback(async () => {
     setBusy(true);
@@ -219,15 +227,55 @@ function ReviewCard({ quest, comments, onUpdate }) {
         </div>
       </div>
 
+      {/* Feedback panel \u2014 full-width, right under the header so it's
+          obvious where the textarea appeared after the user clicked the
+          "Feedback" button in the header. On send, the comment is posted
+          with source='user' / action='feedback'; the cron then bounces
+          the quest from review back to execute and pings the assigned
+          agent with the feedback text. */}
+      {feedbackOpen && (
+        <div className="border-b border-base-300/50 bg-warning/5 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-warning">
+            Feedback to the assigned agent
+          </h3>
+          <p className="mb-2 text-xs text-base-content/60">
+            On send, the quest will be bounced back to <code>execute</code> on
+            the next cron tick and the agent will get a followup with your
+            text. Be specific about what to fix or look at.
+          </p>
+          <textarea
+            ref={feedbackInputRef}
+            className="textarea textarea-bordered w-full min-h-[6rem] text-sm"
+            placeholder="What needs changing? Reference specific items by item_key when possible."
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+            disabled={busy}
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="btn btn-warning btn-sm"
+              onClick={sendFeedback}
+              disabled={busy || !feedbackText.trim()}
+            >
+              {busy ? <span className="loading loading-spinner loading-sm" /> : "Send feedback"}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFeedbackOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content row: left 25% = description + activity. Right 75% =
           QuestItemsContent inline (carousel + 5-tier Reviews panel). The
           right panel is the SAME component the quest-detail page mounts
           inside its full-screen modal \u2014 single source of truth at
           app/(town)/_components/QuestItemsModal.js (named export
           `QuestItemsContent`). */}
-      <div className="flex flex-col lg:flex-row" style={{ minHeight: 600 }}>
-        {/* Left panel \u2014 description + activity (~25% on lg+) */}
-        <div className="space-y-4 overflow-y-auto border-b border-base-300/50 p-5 lg:w-1/4 lg:shrink-0 lg:border-b-0 lg:border-r" style={{ maxHeight: 600 }}>
+      <div className="flex flex-col overflow-hidden lg:flex-row" style={{ height: "100vh", maxHeight: "100vh" }}>
+        {/* Left panel \u2014 description + activity (~25% on lg+); independently scrollable */}
+        <div className="space-y-4 overflow-y-auto border-b border-base-300/50 p-5 lg:h-full lg:w-1/4 lg:shrink-0 lg:border-b-0 lg:border-r">
           {quest.description && (
             <div>
               <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/55">
@@ -236,22 +284,6 @@ function ReviewCard({ quest, comments, onUpdate }) {
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-base-content/80">
                 {quest.description}
               </p>
-            </div>
-          )}
-
-          {feedbackOpen && (
-            <div className="rounded-xl border border-base-300 bg-base-200/30 p-3">
-              <textarea
-                className="textarea textarea-bordered w-full min-h-[4rem] text-sm"
-                placeholder="Write feedback or ask for changes..."
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                disabled={busy}
-              />
-              <div className="mt-2 flex gap-2">
-                <button type="button" className="btn btn-primary btn-sm" onClick={sendFeedback} disabled={busy || !feedbackText.trim()}>Send</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFeedbackOpen(false)}>Cancel</button>
-              </div>
             </div>
           )}
 
@@ -282,8 +314,9 @@ function ReviewCard({ quest, comments, onUpdate }) {
           </div>
         </div>
 
-        {/* Right panel — QuestItemsContent inline (~75% on lg+) */}
-        <div className="relative w-full flex-1" style={{ minHeight: 600 }}>
+        {/* Right panel — QuestItemsContent inline (~75% on lg+); the
+            inner side panel + image area scroll independently. */}
+        <div className="relative w-full flex-1 overflow-hidden">
           {Array.isArray(items) && items.length > 0 ? (
             <QuestItemsContent items={items} title={quest.title} showChrome={false} />
           ) : (

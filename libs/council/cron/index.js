@@ -10,7 +10,12 @@ export async function runCron() {
   // ── 1. Roll call: derive adventurer statuses (always runs) ──
   await deriveAdventurerStatuses(db);
 
-  // ── 2-3. Nudge + notify only in production (Vercel owns the nudge loop) ──
+  // ── 2. User-feedback bounce: any review-stage quest with a fresh user
+  //       feedback comment goes back to execute and the assigned agent
+  //       gets a followup. Runs in all envs so dev can validate. ──
+  await bounceReviewOnUserFeedback(db);
+
+  // ── 3-4. Nudge + notify only in production (Vercel owns the nudge loop) ──
   if (IS_PRODUCTION) {
     await nudgeConfused(db);
     await notifyQuestmaster(db);
@@ -133,6 +138,100 @@ async function nudgeConfused(db) {
       console.log(`[cron] nudged confused adventurer: ${adv.name} (${adv.id})`);
     } catch (err) {
       console.error(`[cron] nudge failed for ${adv.name}:`, err.message);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// User-feedback bounce: review → execute when the user leaves feedback
+// ---------------------------------------------------------------------------
+//
+// Trigger: a quest_comments row exists with source='user' + action='feedback'
+// that is newer than the quest's most-recent entry-into-review marker
+// (FINAL_GATE_PASS lockphrase, Cat's approve, or a prior self-bounce of the
+// same kind). When that holds, write a system-bounce comment, flip the
+// quest stage back to execute, and ping the assigned cursor agent with
+// the feedback text so they can address it on resume.
+
+async function bounceReviewOnUserFeedback(db) {
+  const { data: quests } = await db
+    .from(publicTables.quests)
+    .select("id, title, assignee_id")
+    .eq("stage", "review");
+
+  if (!quests?.length) return;
+
+  for (const q of quests) {
+    const { data: comments } = await db
+      .from(publicTables.questComments)
+      .select("id, source, action, summary, created_at")
+      .eq("quest_id", q.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!comments?.length) continue;
+
+    // Most recent user-feedback comment.
+    const lastUserFeedback = comments.find(
+      (c) => c.source === "user" && c.action === "feedback",
+    );
+    if (!lastUserFeedback) continue;
+
+    // Most recent entry-into-review marker. Anything that signals the
+    // quest re-entered review *after* the feedback would mean the user's
+    // feedback has already been addressed (worker resubmitted, Cat
+    // approved, local Claude passed final gate).
+    const lastReviewMarker = comments.find((c) =>
+      c.action === "final_gate_pass" ||
+      c.action === "approve" ||
+      c.action === "review_bounce_user_feedback"
+    );
+
+    if (lastReviewMarker && new Date(lastReviewMarker.created_at) >= new Date(lastUserFeedback.created_at)) {
+      continue; // feedback already addressed
+    }
+
+    const feedbackText = (lastUserFeedback.summary || "").trim();
+    const trimmed = feedbackText.slice(0, 80);
+
+    // Audit comment first, so the stage-log trigger has context if you query it later.
+    await db.from(publicTables.questComments).insert({
+      quest_id: q.id,
+      source: "system",
+      action: "review_bounce_user_feedback",
+      summary: `Bounced from review back to execute: user left feedback ("${trimmed}${feedbackText.length > 80 ? "…" : ""}"). Agent should address before re-submitting.`,
+      detail: {
+        user_feedback_id: lastUserFeedback.id,
+        user_feedback_text: feedbackText,
+      },
+    });
+
+    // Stage flip — the trigger writes quest_stage_log automatically.
+    await db.from(publicTables.quests).update({ stage: "execute" }).eq("id", q.id);
+
+    // Notify the assigned agent so they see the feedback ASAP, not just on
+    // the next nudge sweep.
+    if (q.assignee_id) {
+      const { data: adv } = await db
+        .from(publicTables.adventurers)
+        .select("session_id, name")
+        .eq("id", q.assignee_id)
+        .maybeSingle();
+      if (adv?.session_id) {
+        try {
+          await writeFollowup({
+            agentId: adv.session_id,
+            message: `[USER FEEDBACK] Quest "${q.title}" was in review and the user left this feedback:\n\n"${feedbackText}"\n\nThe quest has been bounced back to execute. Read the user's note carefully, address what they're asking for, then re-submit via housekeeping.submitForPurrview. The user's feedback is the contract — do not re-submit until you've addressed it.`,
+          });
+          console.log(`[cron] feedback-bounced quest "${q.title}" → execute, notified ${adv.name}`);
+        } catch (err) {
+          console.error(`[cron] feedback nudge failed for ${adv.name}:`, err.message);
+        }
+      } else {
+        console.log(`[cron] feedback-bounced quest "${q.title}" → execute (no session_id on assignee, agent not notified)`);
+      }
+    } else {
+      console.log(`[cron] feedback-bounced quest "${q.title}" → execute (no assignee, nobody to notify)`);
     }
   }
 }
