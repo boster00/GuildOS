@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { inventoryRawToMap, inventoryToDisplayRows } from "@/libs/quest/inventoryMap.js";
-import { ItemsListDisplay } from "./questDetailDisplays.js";
+import { inventoryRawToMap } from "@/libs/quest/inventoryMap.js";
 import { ImageCarousel, extractImages } from "../../guildmaster-room/desk/DeskReviewClient";
 import QuestItemsModal from "../../_components/QuestItemsModal.js";
 
@@ -73,21 +72,18 @@ export default function QuestDetailFieldEditClient({
   const [dueIso, setDueIso] = useState(() =>
     initialDueDate != null && initialDueDate !== "" ? String(initialDueDate) : null,
   );
-  const [rawInv, setRawInv] = useState(() => initialInventory);
-  const [invMap, setInvMap] = useState(() => inventoryRawToMap(initialInventory));
+  const invMap = useMemo(() => inventoryRawToMap(initialInventory), [initialInventory]);
 
   const [editTitle, setEditTitle] = useState(false);
   const [editDesc, setEditDesc] = useState(false);
   const [editAssignee, setEditAssignee] = useState(false);
   const [editDue, setEditDue] = useState(false);
-  const [editInv, setEditInv] = useState(false);
   const [viewScreenshotsOpen, setViewScreenshotsOpen] = useState(false);
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDesc, setDraftDesc] = useState("");
   const [draftAssignee, setDraftAssignee] = useState("");
   const [draftDueLocal, setDraftDueLocal] = useState("");
-  const [draftInv, setDraftInv] = useState("");
   const [showAdvPicker, setShowAdvPicker] = useState(true);
   const [advSearch, setAdvSearch] = useState("");
   const [advList, setAdvList] = useState(null);
@@ -131,12 +127,6 @@ export default function QuestDetailFieldEditClient({
     setErr(null);
   }, [description]);
 
-  const beginInv = useCallback(() => {
-    setDraftInv(rawInv == null ? "" : typeof rawInv === "string" ? rawInv : JSON.stringify(rawInv, null, 2));
-    setEditInv(true);
-    setErr(null);
-  }, [rawInv]);
-
   const beginAssignee = useCallback(() => {
     setDraftAssignee(assignedTo.trim());
     setEditAssignee(true);
@@ -161,10 +151,6 @@ export default function QuestDetailFieldEditClient({
     }
     if (row.due_date !== undefined) {
       setDueIso(row.due_date == null || row.due_date === "" ? null : String(row.due_date));
-    }
-    if (row.inventory !== undefined) {
-      setRawInv(row.inventory);
-      setInvMap(inventoryRawToMap(row.inventory));
     }
   }, []);
 
@@ -217,19 +203,6 @@ export default function QuestDetailFieldEditClient({
     if (ok) setEditDue(false);
   }, [draftDueLocal, patchQuest]);
 
-  const saveInv = useCallback(async () => {
-    let parsed;
-    try {
-      parsed = JSON.parse(draftInv || "null");
-    } catch {
-      setErr("Items: invalid JSON.");
-      return;
-    }
-    const ok = await patchQuest({ inventory: parsed });
-    if (ok) setEditInv(false);
-  }, [draftInv, patchQuest]);
-
-  const itemRows = inventoryToDisplayRows(invMap);
   const screenshots = useMemo(() => extractImages(invMap), [invMap]);
   const saving = busy === "save";
 
@@ -470,39 +443,6 @@ export default function QuestDetailFieldEditClient({
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-base-content/55">Items (inventory)</span>
-          {!editInv ? <PencilButton label="Edit items as JSON" pressed={false} onPress={beginInv} /> : null}
-        </div>
-        {editInv ? (
-          <div className="mt-2 flex flex-col gap-2">
-            <textarea
-              className="textarea textarea-bordered min-h-[12rem] w-full font-mono text-xs"
-              spellCheck={false}
-              value={draftInv}
-              onChange={(e) => setDraftInv(e.target.value)}
-              disabled={saving}
-            />
-            <p className="text-xs text-base-content/50">Raw inventory JSON. Save replaces the full inventory column.</p>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={saveInv}>
-                {saving ? "Saving…" : "Save"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={saving}
-                onClick={() => setEditInv(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <ItemsListDisplay items={itemRows} />
-        )}
-      </div>
     </>
   );
 }
