@@ -265,25 +265,11 @@ export default function QuestItemsModal({ items, open, onClose, title }) {
             })}
           </div>
 
-          {Array.isArray(item.comments) && item.comments.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <h3 className="text-sm font-semibold leading-snug">Comments</h3>
-              {item.comments.map((c) => (
-                <div
-                  key={c.id || `${c.role}-${c.created_at || c.text?.slice(0, 24)}`}
-                  className={`rounded-md px-2 py-1 text-xs ${ROLE_STYLES[c.role] || "bg-base-200/60 text-base-content/80"}`}
-                >
-                  <span className="font-semibold">
-                    {c.role === "adventurer" || c.role === "questmaster" || c.role === "guildmaster" || c.role === "user"
-                      ? c.role.charAt(0).toUpperCase() + c.role.slice(1)
-                      : c.role}
-                    {c.actor_name ? `: ${c.actor_name}` : ""}
-                  </span>
-                  <span className="ml-1.5">{c.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Legacy item_comments thread is no longer rendered here — its
+              content is absorbed into the 5-tier Reviews panel above. The
+              `item_comments` table remains as a quiet append-only audit log
+              while weapons are rewritten to write the tier columns directly;
+              once the migration is complete the table can be retired. */}
 
           {pending && <p className="text-xs italic text-warning">No artifact uploaded yet.</p>}
         </aside>
