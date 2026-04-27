@@ -135,11 +135,68 @@ export async function readQueuedMessages({ agentId } = {}, userId) {
  * @param {{ repository: string, ref: string, prompt?: string }} input
  * @param {string} [userId]
  */
-export async function writeAgent({ repository, ref, prompt } = {}, userId) {
+/**
+ * Spawn a new Cursor cloud agent. ALWAYS provisions GuildOS service-role
+ * credentials in the spawn prompt as the first action, so the agent never
+ * hits the documented "missing GuildOS Supabase credentials" blocker that
+ * caused the 2026-04-26 ptglab smoke-test to escalate without bookkeeping.
+ *
+ * Contract: this is the ONLY supported path for creating an agent. Direct
+ * POSTs to the Cursor API that skip the credentials-injection block are a
+ * contract violation — agents spawned that way cannot complete GuildOS-
+ * side bookkeeping (items rows, quest_comments, submitForPurrview).
+ *
+ * Credential source: process.env (the Guildmaster running this weapon must
+ * have GuildOS env loaded — `--env-file=.env.local` or equivalent).
+ *
+ * @param {{ repository: string, ref: string, prompt?: string,
+ *           skipCredentialsInjection?: boolean }} input
+ * @param {string} [userId]
+ */
+export async function writeAgent({ repository, ref, prompt, skipCredentialsInjection = false } = {}, userId) {
   if (!repository) throw new Error("repository is required");
   if (!ref) throw new Error("ref is required");
   const key = await getApiKey(userId);
   if (!key) throw new Error("Missing CURSOR_API_KEY");
+
+  let finalPrompt = prompt || "Wait for initialization instructions.";
+
+  if (!skipCredentialsInjection) {
+    const guildosUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const guildosKey = process.env.SUPABASE_SECRETE_KEY;
+    if (!guildosUrl || !guildosKey) {
+      throw new Error(
+        "writeAgent: GuildOS credentials missing from process.env (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SECRETE_KEY). The agent cannot do GuildOS bookkeeping without these. Either run with `--env-file=.env.local` so they're loaded, or pass `skipCredentialsInjection: true` if you genuinely want a creds-less agent (rare — almost always wrong)."
+      );
+    }
+    const setupBlock = [
+      "═════════════════════════════════════════════════════════════════════",
+      "FIRST ACTION — provision GuildOS credentials (do this BEFORE anything else)",
+      "═════════════════════════════════════════════════════════════════════",
+      "",
+      "Run these shell commands verbatim to set up your GuildOS access:",
+      "",
+      "```bash",
+      "mkdir -p ~/guildos",
+      "cat > ~/.guildos.env <<'EOF'",
+      `export NEXT_PUBLIC_SUPABASE_URL='${guildosUrl}'`,
+      `export SUPABASE_SECRETE_KEY='${guildosKey}'`,
+      "EOF",
+      "echo 'source ~/.guildos.env' >> ~/.bashrc",
+      "source ~/.guildos.env",
+      "test -n \"$SUPABASE_SECRETE_KEY\" && echo 'GuildOS creds loaded' || echo 'FAILED — escalate'",
+      "```",
+      "",
+      "After that, run housekeeping.initAgent (clones GuildOS, loads skill books, finds your quests). The init step will assume the env is already loaded — do NOT skip the block above.",
+      "",
+      "═════════════════════════════════════════════════════════════════════",
+      "TASK PROMPT",
+      "═════════════════════════════════════════════════════════════════════",
+      "",
+    ].join("\n");
+    finalPrompt = setupBlock + finalPrompt;
+  }
+
   const res = await fetch(API_BASE, {
     method: "POST",
     headers: {
@@ -147,7 +204,7 @@ export async function writeAgent({ repository, ref, prompt } = {}, userId) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      prompt: { text: prompt || "Wait for initialization instructions." },
+      prompt: { text: finalPrompt },
       source: { repository, ref },
     }),
   });
