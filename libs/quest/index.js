@@ -585,7 +585,7 @@ export async function searchItems(questId, { client: injected } = {}) {
   const client = await resolveServerClient(injected);
   const { data: items, error } = await client
     .from(publicTables.items)
-    .select("id, item_key, expectation, url, caption, created_at, updated_at")
+    .select("id, item_key, expectation, url, caption, self_check, openai_check, purrview_check, claude_check, user_feedback, created_at, updated_at")
     .eq("quest_id", questId)
     .order("created_at", { ascending: true });
   if (error) {

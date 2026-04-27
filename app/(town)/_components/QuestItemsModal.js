@@ -235,6 +235,36 @@ export default function QuestItemsModal({ items, open, onClose, title }) {
             </div>
           )}
 
+          {/* Reviews — 5 tier slots, each owned by exactly one tier per items.<col>.
+              Tiers are locked in code: only their owning weapon/skill book may
+              write to the column. NULL = tier hasn't reviewed yet. */}
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-sm font-semibold leading-snug">Reviews</h3>
+            {[
+              { key: "self_check",     label: "Worker (self-check)",       icon: "🧑‍💻", style: "bg-info/10 text-info" },
+              { key: "openai_check",   label: "OpenAI judge",              icon: "🤖", style: "bg-base-200 text-base-content/80" },
+              { key: "purrview_check", label: "Cat (purrview)",            icon: "🐱", style: "bg-warning/10 text-warning" },
+              { key: "claude_check",   label: "Guildmaster (Claude read)", icon: "🛡️", style: "bg-accent/10 text-accent" },
+              { key: "user_feedback",  label: "User feedback",             icon: "👤", style: "bg-success/10 text-success" },
+            ].map((row) => {
+              const value = item[row.key];
+              const empty = value == null || value === "";
+              return (
+                <div
+                  key={row.key}
+                  className={`rounded-md px-2 py-1 text-xs leading-relaxed ${empty ? "bg-base-200/40 text-base-content/40" : row.style}`}
+                >
+                  <span className="font-semibold">
+                    {row.icon} {row.label}
+                  </span>
+                  <span className="ml-1.5 whitespace-pre-wrap">
+                    {empty ? "(pending)" : value}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
           {Array.isArray(item.comments) && item.comments.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-sm font-semibold leading-snug">Comments</h3>
