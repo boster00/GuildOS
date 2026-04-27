@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import QuestItemsCarousel from "../../_components/QuestItemsCarousel.js";
+import { QuestItemsContent } from "../../_components/QuestItemsModal.js";
 
 /**
  * Extract image URLs from inventory items.
@@ -137,11 +137,11 @@ function ReviewCard({ quest, comments, onUpdate }) {
   const [feedbackText, setFeedbackText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-
-  // Prefer the items[] array hydrated by the desk page (new schema).
-  // Fall back to extractImages on legacy inventory shape if items aren't present.
+  // The items carousel renders inline as QuestItemsContent — the shared
+  // component exported alongside the modal at
+  // app/(town)/_components/QuestItemsModal.js. Same surface the
+  // quest-detail page mounts inside its full-screen modal.
   const items = Array.isArray(quest.items) ? quest.items : null;
-  const legacyImages = items ? null : extractImages(quest.inventory);
 
   const markDone = useCallback(async () => {
     setBusy(true);
@@ -219,10 +219,15 @@ function ReviewCard({ quest, comments, onUpdate }) {
         </div>
       </div>
 
-      {/* Content row: text left, images right */}
-      <div className="flex flex-col lg:flex-row">
-        {/* Left panel: description + comments */}
-        <div className="space-y-4 overflow-y-auto border-b border-base-300/50 p-5 lg:w-1/3 lg:shrink-0 lg:border-b-0 lg:border-r" style={{ maxHeight: 600 }}>
+      {/* Content row: left 25% = description + activity. Right 75% =
+          QuestItemsContent inline (carousel + 5-tier Reviews panel). The
+          right panel is the SAME component the quest-detail page mounts
+          inside its full-screen modal \u2014 single source of truth at
+          app/(town)/_components/QuestItemsModal.js (named export
+          `QuestItemsContent`). */}
+      <div className="flex flex-col lg:flex-row" style={{ minHeight: 600 }}>
+        {/* Left panel \u2014 description + activity (~25% on lg+) */}
+        <div className="space-y-4 overflow-y-auto border-b border-base-300/50 p-5 lg:w-1/4 lg:shrink-0 lg:border-b-0 lg:border-r" style={{ maxHeight: 600 }}>
           {quest.description && (
             <div>
               <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/55">
@@ -277,125 +282,17 @@ function ReviewCard({ quest, comments, onUpdate }) {
           </div>
         </div>
 
-        {/* Right panel: items carousel — one slide per declared expectation */}
-        <div className="w-full flex-1 p-5" style={{ maxHeight: 600 }}>
-          {items ? (
-            <QuestItemsCarousel items={items} />
+        {/* Right panel — QuestItemsContent inline (~75% on lg+) */}
+        <div className="relative w-full flex-1" style={{ minHeight: 600 }}>
+          {Array.isArray(items) && items.length > 0 ? (
+            <QuestItemsContent items={items} title={quest.title} showChrome={false} />
           ) : (
-            <ImageCarousel images={legacyImages} />
+            <div className="flex h-full items-center justify-center p-8 text-sm text-base-content/50">
+              No items on this quest.
+            </div>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function EscalatedSection({ quests, onUpdate }) {
-  const [triageResults, setTriageResults] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [resolutionTexts, setResolutionTexts] = useState({});
-
-  const runTriage = useCallback(async () => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/quest?action=triage_escalated", { method: "POST" });
-      const json = await res.json();
-      if (json.ok) setTriageResults(json.results);
-    } catch { /* ignore */ }
-    setBusy(false);
-  }, []);
-
-  const resolveEscalation = useCallback(async (questId, resolution) => {
-    setBusy(true);
-    try {
-      await fetch("/api/quest?action=resolve_escalation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questId, resolution }),
-      });
-      setTriageResults(null);
-      if (onUpdate) onUpdate();
-    } catch { /* ignore */ }
-    setBusy(false);
-  }, [onUpdate]);
-
-  const triageMap = {};
-  if (triageResults) {
-    for (const r of triageResults) triageMap[r.questId] = r;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Escalated ({quests.length})</h2>
-        <button
-          type="button"
-          className="btn btn-warning btn-sm"
-          onClick={runTriage}
-          disabled={busy}
-        >
-          {busy ? <span className="loading loading-spinner loading-sm" /> : "Triage All"}
-        </button>
-      </div>
-
-      {quests.map((q) => {
-        const triage = triageMap[q.id];
-        return (
-          <div key={q.id} className="rounded-2xl border border-warning/30 bg-warning/5 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <a href={`/quest-board/${q.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{q.title || "Untitled"}</a>
-                {q.assigned_to && (
-                  <p className="text-xs text-base-content/50">Adventurer: {q.assigned_to}</p>
-                )}
-              </div>
-              {triage && (
-                <span className={`badge badge-sm ${triage.canAutoResolve ? "badge-success" : "badge-warning"}`}>
-                  {triage.canAutoResolve ? "Can resolve" : "Needs you"}
-                </span>
-              )}
-            </div>
-
-            {triage ? (
-              <div className="mt-3 space-y-3">
-                <div className="rounded-lg border border-base-300/50 bg-base-200/30 p-3 text-sm space-y-2">
-                  <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Issue</span>
-                    <p className="text-base-content/80">{triage.issue}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Proposed Solution</span>
-                    <p className="text-base-content/80">{triage.proposedSolution}</p>
-                  </div>
-                  {triage.recentComments && (
-                    <div>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/45">Recent Comments</span>
-                      <pre className="mt-1 whitespace-pre-wrap text-xs text-base-content/60">{triage.recentComments}</pre>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  className="textarea textarea-bordered textarea-sm w-full"
-                  placeholder="Your feedback / resolution for the agent..."
-                  value={resolutionTexts[q.id] || ""}
-                  onChange={(e) => setResolutionTexts((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  rows={3}
-                />
-                <button
-                  type="button"
-                  className="btn btn-success btn-sm"
-                  onClick={() => resolveEscalation(q.id, resolutionTexts[q.id]?.trim())}
-                  disabled={busy || !resolutionTexts[q.id]?.trim()}
-                >
-                  Resolve & Return to Execute
-                </button>
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-base-content/70 line-clamp-3">{q.description}</p>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -409,19 +306,28 @@ export default function DeskReviewClient({ quests }) {
   const escalatedQuests = quests.filter((q) => q.stage === "escalated");
 
   return (
-    <div className="mt-6 space-y-8">
+    <div className="mt-6 space-y-12">
       {escalatedQuests.length > 0 && (
-        <EscalatedSection
-          quests={escalatedQuests}
-          onUpdate={() => router.refresh()}
-        />
+        <section className="space-y-5">
+          <h2 className="text-4xl font-extrabold tracking-tight text-warning">
+            Escalated ({escalatedQuests.length})
+          </h2>
+          {escalatedQuests.map((q) => (
+            <ReviewCard
+              key={q.id}
+              quest={q}
+              comments={q._comments || []}
+              onUpdate={() => router.refresh()}
+            />
+          ))}
+        </section>
       )}
 
       {reviewQuests.length > 0 && (
-        <>
-          <p className="text-sm text-base-content/65">
-            {reviewQuests.length} matter{reviewQuests.length === 1 ? "" : "s"} awaiting your review.
-          </p>
+        <section className="space-y-5">
+          <h2 className="text-4xl font-extrabold tracking-tight">
+            Review ({reviewQuests.length})
+          </h2>
           {reviewQuests.map((q) => (
             <ReviewCard
               key={q.id}
@@ -430,7 +336,7 @@ export default function DeskReviewClient({ quests }) {
               onUpdate={() => router.refresh()}
             />
           ))}
-        </>
+        </section>
       )}
     </div>
   );
