@@ -73,13 +73,24 @@ All Gmail access is via the \`gmail\` MCP server. Do NOT import from \`@/libs/we
    \`mcp__gmail__search_emails { query: "-label:important in:unread in:inbox -asana", maxResults: 100 }\`
 
 2. For each message, apply scoring rules:
-   - Skip shared mailboxes, automated reports, marketing, utility notices.
-   - Score signals: wire transfers / invoices / POs (+10), Calendly events (+9), customer replies to quotes (+9), SalesIQ / live chat (+8), etc.
+   - **Hard skip rules** (do not star, regardless of any positive score signals):
+     - Shared mailboxes, automated reports, marketing, utility notices.
+     - TO/CC includes a \`*@bosterbio.com\` address OTHER than \`boster@bosterbio.com\`, AND CJ / Sijie are not in the direct TO line. Reasoning: another bosterbio employee is the named owner; the email reached this inbox because of forwarding/cc, not because action is needed from CJ. (\`boster@bosterbio.com\` is the shared mailbox and does NOT count as another employee owning it — keep scoring as normal when only \`boster@\` is the bosterbio address.)
+     - **Banned sales-pitch topics** — judge by what the email is *trying to sell*, not by keyword string match. Senders dress these up as opportunities, intros, or "exclusive" pitches; the ban applies regardless of framing. Current list (the user extends this iteratively — treat it as a living block list):
+       1. Capital raises (anyone offering to help raise capital, broker investors, or pitch a capital service)
+       2. Funding offers (loans, lines of credit, grant facilitation, "we fund companies like yours")
+       3. Contact list / lead list sales (selling B2B contact data, prospect lists, ICP databases, "verified emails")
+   - **Score signals (apply only after hard-skip rules pass):** wire transfers / invoices / POs (+10), Calendly events (+9), customer replies to quotes (+9), SalesIQ / live chat (+8), etc.
 
-3. Star the top ~2% by score (be selective — only "definitely worth a look" this pass):
-   \`mcp__gmail__batch_modify_emails { messageIds: [...topScoringIds], addLabelIds: ["STARRED"] }\`
+3. **Before starring, verify each top candidate.** \`search_emails\` returns Subject/From only — TO/CC headers and body content require \`mcp__gmail__read_email\`. For every candidate that survived scoring, read it to confirm:
+   - It does NOT trip the bosterbio recipient rule (TO/CC includes another \`*@bosterbio.com\` while CJ/Sijie are not direct recipients).
+   - The body is not actually one of the banned sales-pitch topics dressed in friendly subject lines (e.g. "quick intro" that's really a capital-raise pitch).
+   Drop any that fail. This verification is cheap when only ~5 candidates remain.
 
-4. Report: how many scanned, how many starred, 1-line reason per star. Then stop.
+4. Star the survivors (top ~2% by score, be selective — only "definitely worth a look"):
+   \`mcp__gmail__batch_modify_emails { messageIds: [...verifiedIds], addLabelIds: ["STARRED"] }\`
+
+5. Report: how many scanned, how many starred, 1-line reason per star. Then stop.
 
 **Success criterion:** user's starred view shows a short, high-signal must-read list.
 `.trim(),
