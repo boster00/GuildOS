@@ -29,7 +29,7 @@ export const toc = {
   edit:
     "Restyle or composite existing images using gpt-image-2 edits endpoint. Accepts image Buffers + prompt. Returns array of b64_json strings.",
   judge:
-    "Contextless vision check: ask gpt-4o-mini whether a given image matches a written claim. Returns { verdict: 'match' | 'mismatch' | 'inconclusive', confidence, reasoning }. Used as a second pair of eyes — no chat history, no narrative drift, no overanchoring.",
+    "Contextless vision check: ask gpt-4o (full) whether a given image matches a written claim. Returns { verdict: 'match' | 'mismatch' | 'inconclusive', confidence, reasoning, model }. Used as a second pair of eyes — no chat history, no narrative drift, no overanchoring. gpt-4o-mini was retired 2026-04-26 (49% false-alarm rate, see CLAUDE.md WWCD bans).",
 };
 
 const BASE = "https://api.openai.com/v1";
@@ -122,20 +122,24 @@ export async function edit(
 
 /**
  * Contextless image-vs-claim judge. Each call is its own zero-history request to
- * gpt-4o-mini's chat-completions endpoint with a vision message. Used as a "second
- * pair of eyes" gate — the judging model has no narrative about the work, no
- * pressure to defend prior output, no risk of overanchoring on the agent's own
- * description. Strict JSON output for downstream gating.
+ * the chat-completions endpoint with a vision message. Used as a "second pair of
+ * eyes" gate — the judging model has no narrative about the work, no pressure to
+ * defend prior output, no risk of overanchoring on the agent's own description.
+ * Strict JSON output for downstream gating.
  *
  * @param {{ imageUrl: string, claim: string, model?: string }} input
  *   imageUrl — public URL the OpenAI server can fetch (e.g. Supabase Storage).
- *   claim    — what the image is supposed to show (typically the deliverable's
- *              accept_criteria or the worker's item rationale).
- *   model    — defaults to "gpt-4o-mini". Override to "gpt-4o" for harder calls.
+ *   claim    — what the image is supposed to show (typically the item's
+ *              `expectation` field, verbatim).
+ *   model    — defaults to "gpt-4o" (full). gpt-4o-mini is BANNED for verification
+ *              (CLAUDE.md WWCD layer-attribution bans, 5f9b4c0): 49% false-alarm
+ *              rate on dense screenshots. The cost difference vs. gpt-4o is
+ *              rounding error per 50 calls. Override only when the caller
+ *              accepts the false-alarm risk explicitly.
  * @param {string} [userId]
  * @returns {Promise<{ verdict: 'match'|'mismatch'|'inconclusive', confidence: number, reasoning: string, model: string }>}
  */
-export async function judge({ imageUrl, claim, model = "gpt-4o-mini" } = {}, userId) {
+export async function judge({ imageUrl, claim, model = "gpt-4o" } = {}, userId) {
   if (typeof imageUrl !== "string" || !imageUrl.trim()) {
     throw new Error("judge: imageUrl is required");
   }
