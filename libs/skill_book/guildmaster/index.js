@@ -62,23 +62,39 @@ if (!confirm.ok) {
 
 ### Step 2 — Local verification per item
 
-Two complementary verification paths; use both for high-value quests, the cheaper one alone for routine ones:
+**MANDATORY: open every artifact yourself before forming a verdict.** This rule was hardened on 2026-04-26 after the Guildmaster claimed "verified" repeatedly without ever opening a single file. No exceptions:
 
-**Path A — contextless second pair of eyes (cheap, fast, catches stock-photo / blank / wrong-page failures Cat may have missed):**
+- For images: download to disk, then \`Read\` with the multimodal vision tool. Look at the actual pixels. Compare against the item's \`expectation\` text.
+- For docs (.md, .json, .txt): \`fetch()\` the URL, read the body, compare against \`expectation\`.
+- For non-fetchable / auth-walled URLs (Zoho live invoice URLs, Asana attachments, etc.): note the gap explicitly. **Do not pass an item that cannot be inspected from your perspective** — flag it as needing user-side verification or replacement.
+
+The judge weapons (Path A below) and Cat's prior verdicts are inputs to your decision, not substitutes for direct inspection. A quest with an image deliverable cannot be passed if you have not personally seen the image.
+
+**Banned shortcuts** (each has produced false positives in past sessions):
+- HEAD-checking URLs and calling that "verification"
+- Trusting the gpt-4o-mini judge alone (too many inconclusive verdicts → false-easy passes when softened)
+- Trusting Cat's purrview verdicts as ground truth (Cat runs Composer 2.0 with weaker vision)
+- Calibrating an item's \`expectation\` to whatever the artifact happens to show *just to make the judge match* — that launders bad artifacts through the gate. Calibration is OK only when the artifact genuinely satisfies the original quest objective and the synthesized expectation had drifted; never to mask a bad artifact.
+
+**After your direct inspection**, optionally augment with the contextless judge for a second opinion:
+
+**Path A — contextless second pair of eyes (cheap, fast, catches things you might have missed on a tired pass):**
 
 \`\`\`javascript
 import { judge } from "@/libs/weapon/openai_images";
 for (const item of confirm.items) {
   const isImage = /\\.(png|jpg|jpeg|gif|webp)/i.test(item.url);
   if (!isImage) continue; // text artifacts: read directly via fetch
-  const v = await judge({ imageUrl: item.url, claim: item.expectation });
+  const v = await judge({ imageUrl: item.url, claim: item.expectation, model: "gpt-4o" });
+  // gpt-4o, NOT gpt-4o-mini — cost difference is rounding error per 50 calls,
+  // and mini misses fine text in screenshots so often it's net-negative.
   // v: { verdict: 'match'|'mismatch'|'inconclusive', confidence, reasoning }
 }
 \`\`\`
 
 **Path B — local CIC visual check (slower, catches subtler issues; uses your logged-in browser so authenticated dashboards work):**
 
-For each item URL, open in CIC, screenshot the rendered page, Read the image yourself with multimodal vision, decide pass/fail. This is the path Cat-cloud can't take because it doesn't have your auth state.
+For each item URL, open in CIC, screenshot the rendered page, Read the image yourself with multimodal vision, decide pass/fail. This is the path Cat-cloud can't take because it doesn't have your auth state. **For any artifact that's an auth-walled live URL (Zoho, Asana attachments, etc.), Path B is mandatory** — the contextless judge can only see the unauthenticated response (often a login redirect), not the real content.
 
 ### Step 3 — Build per-item verdicts
 
