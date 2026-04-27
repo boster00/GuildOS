@@ -153,7 +153,7 @@ async function nudgeConfused(db) {
 // quest stage back to execute, and ping the assigned cursor agent with
 // the feedback text so they can address it on resume.
 
-async function bounceReviewOnUserFeedback(db) {
+export async function bounceReviewOnUserFeedback(db) {
   const { data: quests } = await db
     .from(publicTables.quests)
     .select("id, title, assignee_id")
