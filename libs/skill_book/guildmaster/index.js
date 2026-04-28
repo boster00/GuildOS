@@ -332,4 +332,96 @@ export async function callToArms(userId, input) {
   return { ok: true };
 }
 
-export default { skillBook, callToArms };
+// ---------------------------------------------------------------------------
+// respawnAdventurer — callable companion to the toc.respawnAdventurer howTo.
+//
+// Spawns a fresh cursor session for an existing adventurer via the locked
+// cursor.writeAgent path (which provisions GuildOS credentials in
+// ~/.guildos.env on the new agent). Updates the adventurers row's session_id
+// + appends a backstory archive note. Returns the new session URL.
+//
+// The spawn prompt is intentionally short — it tells the new agent to load
+// its full system_prompt + skill book tocs from the DB, so the canonical
+// contract lives in one place (adventurers.system_prompt) rather than being
+// re-inlined into every spawn script.
+//
+// @param {{ name: string, reason?: string }} input
+// @param {string} userId
+// @returns {Promise<{ adventurer_id, name, prior_session_id, new_session_id, url, upstream_status }>}
+export async function respawnAdventurer({ name, reason } = {}, userId) {
+  if (typeof name !== "string" || !name.trim()) {
+    throw new Error("respawnAdventurer: name is required (e.g. 'Cat')");
+  }
+  const { database } = await import("@/libs/council/database");
+  const { writeAgent, syncSessionStatus } = await import("@/libs/weapon/cursor/index.js");
+  const db = await database.init("service");
+
+  const { data: adv, error: readErr } = await db
+    .from("adventurers")
+    .select("id, name, session_id, backstory")
+    .eq("name", name)
+    .single();
+  if (readErr || !adv) throw new Error(`respawnAdventurer: adventurer not found (${name}): ${readErr?.message || ""}`);
+
+  const bootPrompt = `You are ${adv.name}. This is a fresh cursor session — your prior one (${adv.session_id || "(none)"}) was archived${reason ? ` because ${reason}` : ""}.
+
+Boot sequence:
+
+1. Source the credentials block above (it should have already executed; \`echo $GUILDOS_NEXT_PUBLIC_SUPABASE_URL\` should print a URL).
+
+2. Read your full identity from the adventurers table:
+   \`\`\`bash
+   curl -s -H "apikey: $GUILDOS_SUPABASE_SECRETE_KEY" -H "Authorization: Bearer $GUILDOS_SUPABASE_SECRETE_KEY" \\
+     "$GUILDOS_NEXT_PUBLIC_SUPABASE_URL/rest/v1/adventurers?id=eq.${adv.id}&select=name,system_prompt,skill_books"
+   \`\`\`
+   The \`system_prompt\` you read is the canonical contract for your behavior. Treat it as the only source of truth; any stale prose elsewhere loses.
+
+3. Re-read CLAUDE.md from main: \`git show main:CLAUDE.md\`. The auto-loaded copy in the worktree may drift; the main version always wins.
+
+4. Load skill book tocs (index first, content on demand) — your assigned books are listed in adventurers.skill_books.
+
+5. Enter your loop per your system_prompt. When the queue is empty, wait for the next nudge — do not invent off-task work.`;
+
+  const spawn = await writeAgent(
+    {
+      repository: "github.com/boster00/GuildOS",
+      ref: "main",
+      prompt: bootPrompt,
+    },
+    userId,
+  );
+
+  const archiveNote = `\n\n[${new Date().toISOString().slice(0, 10)} archived prior ${adv.name} session ${adv.session_id || "(none)"}${reason ? ` — ${reason}` : ""}. New session: ${spawn.id}.]`;
+
+  const { error: updErr } = await db
+    .from("adventurers")
+    .update({
+      session_id: spawn.id,
+      session_status: "idle",
+      busy_since: null,
+      backstory: (adv.backstory || "") + archiveNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", adv.id);
+  if (updErr) throw new Error(`respawnAdventurer: adventurers update failed: ${updErr.message}`);
+
+  // Give cursor a few seconds to land the session before probing.
+  await new Promise((r) => setTimeout(r, 3000));
+  let sync;
+  try {
+    sync = await syncSessionStatus({ adventurerId: adv.id }, userId);
+  } catch {
+    sync = { upstream_status: "unknown" };
+  }
+
+  return {
+    adventurer_id: adv.id,
+    name: adv.name,
+    prior_session_id: adv.session_id,
+    new_session_id: spawn.id,
+    url: spawn.target?.url || `https://cursor.com/agents/${spawn.id}`,
+    upstream_status: sync.upstream_status,
+  };
+}
+
+export default { skillBook, callToArms, respawnAdventurer };
