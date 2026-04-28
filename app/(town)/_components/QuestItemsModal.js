@@ -82,10 +82,21 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
   // Keyboard navigation when chrome is shown (= modal mode).
   useEffect(() => {
     if (!showChrome) return;
+    const len = items?.length || 1;
     const onKey = (e) => {
-      if (e.key === "Escape") onClose?.();
-      else if (e.key === "ArrowLeft") setCurrent((c) => (c - 1 + (items?.length || 1)) % (items?.length || 1));
-      else if (e.key === "ArrowRight") setCurrent((c) => (c + 1) % (items?.length || 1));
+      // Don't hijack arrows when the user is typing in an input/textarea/contenteditable.
+      const tgt = e.target;
+      const editing =
+        tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable);
+      if (e.key === "Escape") {
+        onClose?.();
+      } else if (e.key === "ArrowLeft" && !editing) {
+        e.preventDefault();
+        setCurrent((c) => (c - 1 + len) % len);
+      } else if (e.key === "ArrowRight" && !editing) {
+        e.preventDefault();
+        setCurrent((c) => (c + 1) % len);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -131,58 +142,67 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
 
       {/* Left column: image area + thumbnail strip. */}
       <div className={`flex flex-1 flex-col ${showChrome ? "pt-12" : ""}`}>
-        <div
-          className={`relative flex flex-1 ${
-            enlarged && itemImage ? "items-start justify-center overflow-y-auto" : "items-center justify-center"
-          }`}
-        >
-          {empty ? (
-            <p className="text-base-content/60">No items on this quest.</p>
-          ) : pending ? (
-            <div className="flex flex-col items-center gap-2 text-base-content/70">
-              <span className="rounded-full border border-base-300 bg-base-100 px-3 py-1 text-xs">pending</span>
-              <p className="text-sm">No artifact uploaded yet.</p>
-            </div>
-          ) : itemImage ? (
-            <img
-              src={item.url}
-              alt={item.expectation || item.item_key}
-              onClick={() => setEnlarged((v) => !v)}
-              title={enlarged ? "Click to shrink" : "Click to enlarge"}
-              className={
-                enlarged
-                  ? "h-auto max-w-full cursor-zoom-out"
-                  : "max-h-[88vh] max-w-full cursor-zoom-in object-contain"
-              }
-            />
-          ) : (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col items-center gap-3 rounded-xl border border-base-300 bg-base-100 px-8 py-6 hover:bg-base-200/60"
-            >
-              <span className="rounded border border-base-300 bg-base-200 px-3 py-1 font-mono text-xs uppercase">
-                {fileExtension(item.url)}
-              </span>
-              <span className="text-sm underline">Open file in new tab</span>
-            </a>
-          )}
+        {/* Outer container is the STABLE anchor for prev/next buttons. The inner
+            wrapper is absolute-inset-0 so its height is bounded by the outer
+            (which is bounded by the column flex layout). That keeps the buttons'
+            top:50% anchored to the visible viewport center, not to the scroll
+            content's full height. */}
+        <div className="relative flex-1">
+          <div
+            className={`absolute inset-0 flex ${
+              enlarged && itemImage
+                ? "items-start justify-center overflow-y-auto"
+                : "items-center justify-center"
+            }`}
+          >
+            {empty ? (
+              <p className="text-base-content/60">No items on this quest.</p>
+            ) : pending ? (
+              <div className="flex flex-col items-center gap-2 text-base-content/70">
+                <span className="rounded-full border border-base-300 bg-base-100 px-3 py-1 text-xs">pending</span>
+                <p className="text-sm">No artifact uploaded yet.</p>
+              </div>
+            ) : itemImage ? (
+              <img
+                src={item.url}
+                alt={item.expectation || item.item_key}
+                onClick={() => setEnlarged((v) => !v)}
+                title={enlarged ? "Click to shrink" : "Click to enlarge"}
+                className={
+                  enlarged
+                    ? "h-auto max-w-full cursor-zoom-out"
+                    : "max-h-[88vh] max-w-full cursor-zoom-in object-contain"
+                }
+              />
+            ) : (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-3 rounded-xl border border-base-300 bg-base-100 px-8 py-6 hover:bg-base-200/60"
+              >
+                <span className="rounded border border-base-300 bg-base-200 px-3 py-1 font-mono text-xs uppercase">
+                  {fileExtension(item.url)}
+                </span>
+                <span className="text-sm underline">Open file in new tab</span>
+              </a>
+            )}
+          </div>
 
           {!empty && list.length > 1 && (
             <>
               <button
                 type="button"
-                className="btn btn-circle absolute left-4 top-1/2 -translate-y-1/2 bg-base-100/80 shadow"
-                onClick={() => setCurrent((c) => (c - 1 + list.length) % list.length)}
+                className="btn btn-circle absolute left-4 top-1/2 z-20 -translate-y-1/2 bg-base-100/80 shadow"
+                onClick={(e) => { e.stopPropagation(); setCurrent((c) => (c - 1 + list.length) % list.length); }}
                 aria-label="Previous item"
               >
                 ‹
               </button>
               <button
                 type="button"
-                className="btn btn-circle absolute right-4 top-1/2 -translate-y-1/2 bg-base-100/80 shadow"
-                onClick={() => setCurrent((c) => (c + 1) % list.length)}
+                className="btn btn-circle absolute right-4 top-1/2 z-20 -translate-y-1/2 bg-base-100/80 shadow"
+                onClick={(e) => { e.stopPropagation(); setCurrent((c) => (c + 1) % list.length); }}
                 aria-label="Next item"
               >
                 ›
