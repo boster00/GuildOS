@@ -332,7 +332,7 @@ async function notifyQuestmaster(db) {
     .from(publicTables.quests)
     .select("id, title, stage, assigned_to")
     .in("stage", ["purrview", "closing"])
-    .limit(20);
+    .limit(40);
 
   if (!quests?.length) return;
 
@@ -344,31 +344,53 @@ async function notifyQuestmaster(db) {
 
   if (!cat?.session_id || cat.session_status === "inactive") return;
 
+  // Filter purrview quests to only those that legitimately reached purrview
+  // through the questExecution.submit gate (the SUBMIT lockphrase comment is
+  // present). Legacy or backfilled quests without the lockphrase would force
+  // Cat to bounce/escalate them — wastes a turn and clutters the inbox.
+  const purrviewCandidates = quests.filter((q) => q.stage === "purrview");
+  const closingQuests = quests.filter((q) => q.stage === "closing");
+  let purrviewQuests = [];
+  if (purrviewCandidates.length > 0) {
+    const { data: gateRows } = await db
+      .from(publicTables.questComments)
+      .select("quest_id")
+      .in("quest_id", purrviewCandidates.map((q) => q.id))
+      .eq("source", "questExecution")
+      .eq("action", "submit_for_purrview");
+    const gated = new Set((gateRows || []).map((r) => r.quest_id));
+    purrviewQuests = purrviewCandidates.filter((q) => gated.has(q.id));
+    const stranded = purrviewCandidates.length - purrviewQuests.length;
+    if (stranded > 0) {
+      console.log(
+        `[cron] notifyQuestmaster: skipping ${stranded} purrview quest(s) without questExecution.submit lockphrase (legacy/stranded; need worker resubmit)`,
+      );
+    }
+  }
+
+  if (!purrviewQuests.length && !closingQuests.length) return;
+
   // Check for queued nudge to Cat
   const conv = await readConversation({ agentId: cat.session_id });
   const msgs = conv?.messages || [];
-  const lastMsg = msgs[msgs.length - 1];
   const lastAssistantIdx = msgs.findLastIndex((m) => m.type === "assistant_message");
   const queuedMsgs = msgs.slice(lastAssistantIdx + 1);
   if (queuedMsgs.some((m) => m.type === "user_message" && m.text?.startsWith("[NUDGE]"))) return;
 
-  const purrviewQuests = quests.filter((q) => q.stage === "purrview");
-  const closingQuests = quests.filter((q) => q.stage === "closing");
-
   const lines = [];
   if (purrviewQuests.length) {
-    lines.push(`**Purrview (${purrviewQuests.length})** — review deliverables, approve or send feedback:`);
+    lines.push(`**Purrview (${purrviewQuests.length})** — script-locked review (mandatory \`judge_origin\` per item):`);
     for (const q of purrviewQuests) lines.push(`- "${q.title}" by ${q.assigned_to || "unassigned"} (id: ${q.id})`);
   }
   if (closingQuests.length) {
-    lines.push(`**Closing (${closingQuests.length})** — archive to Asana:`);
+    lines.push(`\n**Closing (${closingQuests.length})** — archive to Asana, then advance to complete:`);
     for (const q of closingQuests) lines.push(`- "${q.title}" (id: ${q.id})`);
   }
 
   try {
     await writeFollowup({
       agentId: cat.session_id,
-      message: `[NUDGE] [${new Date().toISOString()}] You have quests needing attention:\n\n${lines.join("\n")}\n\nFor purrview: read quest description + inventory, evaluate deliverables. If 90%+ satisfied, move to review. If not, add feedback comment and move back to execute.\nFor closing: archive summary to Asana, then move to complete.`,
+      message: `[NUDGE] [${new Date().toISOString()}] You have quests needing attention:\n\n${lines.join("\n")}\n\nFor each purrview quest: prefer \`questmaster.runReviewLoop({questId})\` for image-only quests — one call runs confirmSubmission → openai_images.judge per item → approve/bounce. Result tells you what happened (action: 'approved' | 'bounced' | 'manual_required'). Fall back to the manual reviewSubmission howTo only when items are non-image or you need a tiebreaker.\n\nFor closing: archive summary to Asana via questmaster.closeQuest, then questmaster moves stage to complete.`,
     });
     console.log(`[cron] notified Cat: ${purrviewQuests.length} purrview, ${closingQuests.length} closing`);
   } catch (err) {
