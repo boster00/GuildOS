@@ -283,6 +283,7 @@ async function nudgeConfused(db) {
     .from(publicTables.adventurers)
     .select("id, name, session_id, session_status")
     .eq("session_status", "confused")
+    .not("name", "in", "(\"Cat\")") // Cat is nudged via notifyQuestmaster (her queue is purrview, not execute); the generic worker nudge would mis-direct her.
     .not("session_id", "is", null);
 
   if (!adventurers?.length) return;
