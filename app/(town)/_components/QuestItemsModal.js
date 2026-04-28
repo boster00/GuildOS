@@ -17,7 +17,7 @@
  * persists via the `qim-side-panel` cookie.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg|bmp|avif)(\?.*)?$/i;
@@ -66,10 +66,15 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
   const [current, setCurrent] = useState(0);
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const [enlarged, setEnlarged] = useState(false);
+  // Ref to the image's scrollable wrapper — used for ArrowUp/ArrowDown scrolling
+  // in enlarged mode and for resetting scroll position on item change.
+  const scrollRef = useRef(null);
 
   useEffect(() => { setSidePanelOpen(readSidePanelCookie()); }, []);
-  // Reset zoom when navigating between items.
-  useEffect(() => { setEnlarged(false); }, [current]);
+  // Enlarged state persists across items (so navigating with arrows / next-prev
+  // keeps zoom). Reset scroll position to top on each item change so the new
+  // image starts from the beginning rather than mid-scroll.
+  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); }, [current]);
 
   const togglePanel = () => {
     setSidePanelOpen((prev) => {
@@ -96,6 +101,16 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
       } else if (e.key === "ArrowRight" && !editing) {
         e.preventDefault();
         setCurrent((c) => (c + 1) % len);
+      } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !editing) {
+        // Scroll the screenshot vertically when it overflows (enlarged tall images).
+        // Use "auto" not "smooth" — smooth is silently ignored under
+        // prefers-reduced-motion, which leaves the keypress feeling broken.
+        const el = scrollRef.current;
+        if (el && el.scrollHeight > el.clientHeight) {
+          e.preventDefault();
+          const step = Math.max(120, Math.round(el.clientHeight * 0.4));
+          el.scrollBy({ top: e.key === "ArrowUp" ? -step : step, behavior: "auto" });
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -149,6 +164,7 @@ export function QuestItemsContent({ items, title, onClose, showChrome = true }) 
             content's full height. */}
         <div className="relative flex-1">
           <div
+            ref={scrollRef}
             className={`absolute inset-0 flex ${
               enlarged && itemImage
                 ? "items-start justify-center overflow-y-auto"
