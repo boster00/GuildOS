@@ -76,13 +76,19 @@ export async function reconcileSessionLifecycle(db) {
       );
     }
 
-    // Non-dispatchable AND has active quests = needs_respawn
+    // Non-dispatchable AND has agent-actionable quests = needs_respawn.
+    //
+    // Only `execute` and `escalated` stages require the assigned agent to
+    // act next. `purrview` is Cat's read; `review` is Guildmaster's
+    // final-gate; `closing` is the questmaster's archive step. So an
+    // EXPIRED agent whose quests are all in review/closing is fine — the
+    // work has moved on, we just haven't recommissioned the agent yet.
     if (!sync.dispatch_safe) {
       const { data: quests } = await db
         .from(publicTables.quests)
         .select("id, title, stage")
         .eq("assignee_id", adv.id)
-        .in("stage", ["execute", "purrview", "review", "escalated", "closing"]);
+        .in("stage", ["execute", "escalated"]);
       if (quests?.length) {
         needsRespawn.push({
           adventurer: adv.name,

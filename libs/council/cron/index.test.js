@@ -216,7 +216,13 @@ function buildLifecycleMockDb({ adventurers, questsByAssigneeId }) {
       then(resolve) {
         if (table === "adventurers") return resolve({ data: adventurers });
         if (table === "quests" && ctx.filters.assignee_id) {
-          return resolve({ data: questsByAssigneeId[ctx.filters.assignee_id] || [] });
+          let data = questsByAssigneeId[ctx.filters.assignee_id] || [];
+          // Honor .in() stage filter so tests can express "agent has only
+          // post-agent quests (review/closing)" cleanly.
+          if (ctx.in.stage) {
+            data = data.filter((q) => ctx.in.stage.includes(q.stage));
+          }
+          return resolve({ data });
         }
         return resolve({ data: [] });
       },
@@ -264,6 +270,32 @@ describe("reconcileSessionLifecycle", () => {
     expect(r.needsRespawn[0].adventurer).toBe("Zombie");
     expect(r.needsRespawn[0].upstream_status).toBe("EXPIRED");
     expect(r.needsRespawn[0].quest_count).toBe(1);
+  });
+
+  it("does NOT flag dead sessions when their only active quests are post-agent (review/closing)", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockResolvedValue({
+      upstream_status: "EXPIRED",
+      alive: true,
+      dispatch_safe: false,
+      was_drift: true,
+      adventurer: { session_status: "expired" },
+    });
+
+    const { db } = buildLifecycleMockDb({
+      adventurers: [{ id: "post-agent-1", name: "DoneZombie", session_id: "bc-d", session_status: "idle" }],
+      // 5 quests all in review (Guildmaster's job, not the agent's). Should NOT trigger respawn.
+      questsByAssigneeId: {
+        "post-agent-1": [
+          { id: "q1", title: "Slice 1 (review)", stage: "review" },
+          { id: "q2", title: "Slice 2 (review)", stage: "review" },
+        ],
+      },
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(r.reconciled).toBe(1);
+    expect(r.needsRespawn).toHaveLength(0);
   });
 
   it("does NOT flag dead sessions when they have no active quests", async () => {
