@@ -1,8 +1,20 @@
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
 import { readAgent, writeFollowup, readConversation, syncSessionStatus } from "@/libs/weapon/cursor/index.js";
+import { respawnAdventurer } from "@/libs/skill_book/guildmaster/index.js";
 
 const IS_PRODUCTION = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+
+/** Adventurers eligible for auto-respawn when EXPIRED. Conservative whitelist:
+ *  high-value automation targets only. Workers stay manual-respawn so a human
+ *  decides whether the spawn prompt should change first. */
+const AUTO_RESPAWN_NAMES = new Set(["Cat"]);
+
+/** Min interval between auto-respawns of the same adventurer — circuit
+ *  breaker against an infinite respawn loop if something deeper is wrong.
+ *  Set to 24h because the backstory marker only carries date resolution
+ *  (YYYY-MM-DD); a same-day prior auto-respawn blocks a new one this tick. */
+const AUTO_RESPAWN_COOLDOWN_MS = 24 * 60 * 60_000; // 24 hours
 
 export async function runCron() {
   const db = await database.init("service");
@@ -83,21 +95,75 @@ export async function reconcileSessionLifecycle(db) {
     // final-gate; `closing` is the questmaster's archive step. So an
     // EXPIRED agent whose quests are all in review/closing is fine — the
     // work has moved on, we just haven't recommissioned the agent yet.
+    //
+    // Special case: Cat (the Questmaster) is dispatched by purrview-stage
+    // quests, not execute. She's also on the AUTO_RESPAWN_NAMES whitelist
+    // and gets respawned automatically when EXPIRED. Other agents are
+    // manual-respawn only — a human should decide whether the spawn prompt
+    // should change first.
+    const queueStages =
+      adv.name === "Cat" ? ["purrview"] : ["execute", "escalated"];
     if (!sync.dispatch_safe) {
       const { data: quests } = await db
         .from(publicTables.quests)
         .select("id, title, stage")
         .eq("assignee_id", adv.id)
-        .in("stage", ["execute", "escalated"]);
-      if (quests?.length) {
+        .in("stage", queueStages);
+      const hasWork = quests?.length > 0;
+
+      // For Cat, also count purrview quests not yet assigned to anyone (the
+      // assignee_id filter above misses them; cron's notifyQuestmaster picks
+      // them up regardless of assignee).
+      let unassignedPurrview = 0;
+      if (adv.name === "Cat") {
+        const { data: floats } = await db
+          .from(publicTables.quests)
+          .select("id")
+          .eq("stage", "purrview")
+          .is("assignee_id", null);
+        unassignedPurrview = floats?.length || 0;
+      }
+
+      const totalWaiting = (quests?.length || 0) + unassignedPurrview;
+      if (totalWaiting > 0) {
         needsRespawn.push({
           adventurer: adv.name,
           adventurer_id: adv.id,
           session_id: adv.session_id,
           upstream_status: sync.upstream_status,
-          quest_count: quests.length,
-          quest_titles: quests.map((q) => `${q.title} (${q.stage})`).slice(0, 5),
+          quest_count: totalWaiting,
+          quest_titles: (quests || []).map((q) => `${q.title} (${q.stage})`).slice(0, 5),
         });
+
+        // Auto-respawn EXPIRED sessions for whitelisted high-value adventurers.
+        // Circuit breaker: skip if we respawned this adventurer within the
+        // cooldown window — prevents infinite respawn loops if something
+        // deeper is broken (e.g. spawn prompt itself causes the session to
+        // crash).
+        if (
+          AUTO_RESPAWN_NAMES.has(adv.name) &&
+          sync.upstream_status === "EXPIRED"
+        ) {
+          const lastRespawn = await getLastAutoRespawnAt(db, adv.id);
+          if (lastRespawn && Date.now() - lastRespawn < AUTO_RESPAWN_COOLDOWN_MS) {
+            console.warn(
+              `[cron] auto-respawn SKIPPED for ${adv.name}: cooldown (last respawn ${new Date(lastRespawn).toISOString()})`,
+            );
+          } else {
+            try {
+              const r = await respawnAdventurer(
+                { name: adv.name, reason: `auto-respawn: upstream session EXPIRED with ${totalWaiting} pending purrview quest(s)` },
+                null,
+              );
+              console.log(
+                `[cron] auto-respawned ${adv.name}: ${r.prior_session_id} → ${r.new_session_id} (upstream=${r.upstream_status})`,
+              );
+              await markAutoRespawn(db, adv.id, r.new_session_id);
+            } catch (err) {
+              console.error(`[cron] auto-respawn FAILED for ${adv.name}: ${err.message}`);
+            }
+          }
+        }
       }
     }
   }
@@ -110,6 +176,39 @@ export async function reconcileSessionLifecycle(db) {
   }
 
   return { reconciled, needsRespawn };
+}
+
+/** Read the timestamp of the most recent cron auto-respawn for this
+ *  adventurer by parsing the backstory archive notes. Returns null if none.
+ *
+ *  The backstory note format (set by guildmaster.respawnAdventurer) is:
+ *    [YYYY-MM-DD archived prior <Name> session bc-... — <reason>. New session: bc-....]
+ *
+ *  Notes containing "auto-respawn" in the reason are cron-triggered. */
+async function getLastAutoRespawnAt(db, adventurerId) {
+  const { data } = await db
+    .from(publicTables.adventurers)
+    .select("backstory")
+    .eq("id", adventurerId)
+    .single();
+  const text = data?.backstory || "";
+  // Find the most recent auto-respawn line (the format puts the date first,
+  // and we appended in order so the LAST occurrence wins).
+  const re = /\[(\d{4}-\d{2}-\d{2})[^\]]*auto-respawn[^\]]*\]/g;
+  let lastMatch = null;
+  for (const m of text.matchAll(re)) lastMatch = m;
+  if (!lastMatch) return null;
+  // The date in the marker is just YYYY-MM-DD; treat as midnight UTC. The
+  // cooldown window (1h) has a much smaller resolution than the date, so this
+  // is conservative: any same-day auto-respawn blocks a new one.
+  return new Date(`${lastMatch[1]}T00:00:00Z`).getTime();
+}
+
+/** No-op kept for symmetry — the backstory already gets the audit note via
+ *  guildmaster.respawnAdventurer's archive line, so we don't need a second
+ *  audit row. Function exists so the call site reads naturally. */
+async function markAutoRespawn(_db, _adventurerId, _newSessionId) {
+  // intentionally empty
 }
 
 // ---------------------------------------------------------------------------

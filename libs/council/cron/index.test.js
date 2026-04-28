@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { writeFollowupMock, syncSessionStatusMock } = vi.hoisted(() => ({
+const { writeFollowupMock, syncSessionStatusMock, respawnAdventurerMock } = vi.hoisted(() => ({
   writeFollowupMock: vi.fn(),
   syncSessionStatusMock: vi.fn(),
+  respawnAdventurerMock: vi.fn(),
 }));
 
 vi.mock("@/libs/weapon/cursor/index.js", () => ({
@@ -10,6 +11,10 @@ vi.mock("@/libs/weapon/cursor/index.js", () => ({
   writeFollowup: writeFollowupMock,
   readConversation: vi.fn().mockResolvedValue({ messages: [] }),
   syncSessionStatus: syncSessionStatusMock,
+}));
+
+vi.mock("@/libs/skill_book/guildmaster/index.js", () => ({
+  respawnAdventurer: respawnAdventurerMock,
 }));
 
 vi.mock("@/libs/council/publicTables", () => ({
@@ -203,24 +208,35 @@ describe("bounceReviewOnUserFeedback", () => {
 // adventurer still has assigned active quests.
 // ---------------------------------------------------------------------------
 
-function buildLifecycleMockDb({ adventurers, questsByAssigneeId }) {
+function buildLifecycleMockDb({ adventurers, questsByAssigneeId, backstoryById = {}, unassignedPurrviewCount = 0 }) {
   const builder = (table) => {
-    const ctx = { table, filters: {}, in: {} };
+    const ctx = { table, filters: {}, in: {}, isNullCols: new Set() };
     const obj = {
       select: () => obj,
       eq(col, val) { ctx.filters[col] = val; return obj; },
       in(col, vals) { ctx.in[col] = vals; return obj; },
+      is(col, val) { if (val === null) ctx.isNullCols.add(col); return obj; },
       not() { return obj; },
       order: () => obj,
       limit: () => obj,
+      single() {
+        // adventurers.single() — used by getLastAutoRespawnAt to read backstory
+        if (table === "adventurers" && ctx.filters.id) {
+          return Promise.resolve({ data: { backstory: backstoryById[ctx.filters.id] || "" } });
+        }
+        return Promise.resolve({ data: null });
+      },
       then(resolve) {
         if (table === "adventurers") return resolve({ data: adventurers });
-        if (table === "quests" && ctx.filters.assignee_id) {
-          let data = questsByAssigneeId[ctx.filters.assignee_id] || [];
-          // Honor .in() stage filter so tests can express "agent has only
-          // post-agent quests (review/closing)" cleanly.
-          if (ctx.in.stage) {
-            data = data.filter((q) => ctx.in.stage.includes(q.stage));
+        if (table === "quests") {
+          let data = [];
+          if (ctx.filters.assignee_id) {
+            data = questsByAssigneeId[ctx.filters.assignee_id] || [];
+            if (ctx.in.stage) data = data.filter((q) => ctx.in.stage.includes(q.stage));
+          } else if (ctx.filters.stage === "purrview" && ctx.isNullCols.has("assignee_id")) {
+            // unassigned-purrview probe path used by reconcileSessionLifecycle
+            // when adv.name === 'Cat'.
+            data = Array.from({ length: unassignedPurrviewCount }, (_, i) => ({ id: `up-${i}` }));
           }
           return resolve({ data });
         }
@@ -342,5 +358,85 @@ describe("reconcileSessionLifecycle", () => {
     const r = await reconcileSessionLifecycle(db);
     expect(r.reconciled).toBe(0);
     expect(r.needsRespawn).toEqual([]);
+  });
+
+  it("auto-respawns Cat when EXPIRED with pending purrview quests", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockResolvedValue({
+      upstream_status: "EXPIRED",
+      alive: true,
+      dispatch_safe: false,
+      was_drift: true,
+      adventurer: { session_status: "expired" },
+    });
+    respawnAdventurerMock.mockReset();
+    respawnAdventurerMock.mockResolvedValue({
+      adventurer_id: "cat-id",
+      name: "Cat",
+      prior_session_id: "bc-old",
+      new_session_id: "bc-new",
+      url: "https://cursor.com/agents/bc-new",
+      upstream_status: "CREATING",
+    });
+
+    const { db } = buildLifecycleMockDb({
+      adventurers: [{ id: "cat-id", name: "Cat", session_id: "bc-old", session_status: "idle" }],
+      // Cat-specific path: quests assigned to Cat in purrview stage (or unassigned-purrview).
+      questsByAssigneeId: { "cat-id": [{ id: "q1", title: "to-review", stage: "purrview" }] },
+      backstoryById: { "cat-id": "" }, // no prior auto-respawn — cooldown empty
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(respawnAdventurerMock).toHaveBeenCalledTimes(1);
+    expect(respawnAdventurerMock.mock.calls[0][0].name).toBe("Cat");
+    expect(r.needsRespawn).toHaveLength(1);
+    expect(r.needsRespawn[0].adventurer).toBe("Cat");
+  });
+
+  it("does NOT auto-respawn Cat if cooldown is active", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockResolvedValue({
+      upstream_status: "EXPIRED",
+      alive: true,
+      dispatch_safe: false,
+      was_drift: true,
+      adventurer: { session_status: "expired" },
+    });
+    respawnAdventurerMock.mockReset();
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const { db } = buildLifecycleMockDb({
+      adventurers: [{ id: "cat-id", name: "Cat", session_id: "bc-old", session_status: "idle" }],
+      questsByAssigneeId: { "cat-id": [{ id: "q1", title: "to-review", stage: "purrview" }] },
+      // Recent auto-respawn note → cooldown blocks a second respawn this tick.
+      backstoryById: {
+        "cat-id": `Sharp-eyed and decisive.\n\n[${todayISO} archived prior Cat session bc-old — auto-respawn: upstream session EXPIRED. New session: bc-mid.]`,
+      },
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(respawnAdventurerMock).not.toHaveBeenCalled();
+    expect(r.needsRespawn).toHaveLength(1);
+  });
+
+  it("does NOT auto-respawn non-whitelisted adventurers (e.g. workers)", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockResolvedValue({
+      upstream_status: "EXPIRED",
+      alive: true,
+      dispatch_safe: false,
+      was_drift: true,
+      adventurer: { session_status: "expired" },
+    });
+    respawnAdventurerMock.mockReset();
+    const { db } = buildLifecycleMockDb({
+      adventurers: [{ id: "worker-1", name: "CJGEO Dev", session_id: "bc-old", session_status: "idle" }],
+      questsByAssigneeId: { "worker-1": [{ id: "q1", title: "task", stage: "execute" }] },
+      backstoryById: { "worker-1": "" },
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(respawnAdventurerMock).not.toHaveBeenCalled();
+    expect(r.needsRespawn).toHaveLength(1);
+    expect(r.needsRespawn[0].adventurer).toBe("CJGEO Dev");
   });
 });
