@@ -19,6 +19,7 @@ import {
   interpretIdea,
   selectAdventurer as runSelectAdventurer,
   assign as runAssign,
+  runReviewLoop as runQuestmasterReviewLoop,
 } from "./questmaster/index.js";
 import { skillBook as guildmasterSkillBook, callToArms } from "./guildmaster/index.js";
 import { skillBook as blacksmithSkillBook } from "./blacksmith/index.js";
@@ -422,6 +423,16 @@ const questmasterAdventurerActions = {
     const guildos = inObj.guildos && typeof inObj.guildos === "object" ? inObj.guildos : null;
     const questId = String(inObj.questId || guildos?.quest?.id || "").trim();
     return runAssign(userId, { questId, guildos, client });
+  },
+  /** Cat / cron: image-only purrview loop (service DB + OpenAI judge). No adventurer DB client required. */
+  runReviewLoop: async (userId, input) => {
+    const inObj = /** @type {Record<string, unknown>} */ (input || {});
+    return runQuestmasterReviewLoop(userId, {
+      questId: String(inObj.questId ?? "").trim(),
+      summary: typeof inObj.summary === "string" ? inObj.summary : undefined,
+      actor_name: typeof inObj.actor_name === "string" ? inObj.actor_name : undefined,
+      judgeUserId: typeof inObj.judgeUserId === "string" ? inObj.judgeUserId : undefined,
+    });
   },
 };
 

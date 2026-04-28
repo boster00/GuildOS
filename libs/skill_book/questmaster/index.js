@@ -3,6 +3,8 @@
  * Includes JSON extraction helpers shared with plan/find flows.
  */
 import { runDungeonMasterChat } from "@/libs/council/ai/chatCompletion.js";
+import { confirmSubmission, approve, bounce } from "@/libs/weapon/questPurrview";
+import { judge } from "@/libs/weapon/openai_images";
 
 /** Server logs for tracing planRequestToQuest (grep: GuildOS:planRequestToQuest). */
 const LOG = "[GuildOS:planRequestToQuest]";
@@ -123,6 +125,32 @@ export const definition = {
         deliverables: "string",
         due_date: "string, ISO 8601 or null",
       },
+    },
+    runReviewLoop: {
+      description:
+        "For purrview quests whose items are all image URLs: one call runs confirmSubmission → openai_images.judge per item → approve or bounce. Returns { action: 'approved'|'bounced'|'manual_required', ... }. Use manual path when any item is non-image or confirmSubmission fails.",
+      input: {
+        questId: "string — UUID of the purrview quest",
+        summary: "string (optional) — Cat note passed to approve()",
+        actor_name: "string (optional) — defaults to Cat",
+        judgeUserId:
+          "string (optional) — profiles.id used to resolve OPENAI_API_KEY from env_vars; falls back to first arg userId then process.env",
+      },
+      output: {
+        action: "'approved' | 'bounced' | 'manual_required'",
+        questId: "string",
+        stage: "string | null — quest stage after the loop when approve/bounce succeeded",
+        verdicts: "array | undefined — per-item judge summary when image path ran",
+        confirm: "object | undefined — confirmSubmission payload when manual_required",
+        approveResult: "object | undefined",
+        bounceResult: "object | undefined",
+        note: "string | undefined — why manual_required",
+      },
+      howTo: `Prefer this over hand-rolling reviewSubmission when every items.url ends in .png/.jpg/.jpeg/.webp/.gif (querystrings OK via URL pathname).
+
+On success: action is approved (stage review) or bounced (stage execute). On confirm failure, empty url, non-image URL, or judge throw: action manual_required — follow reviewSubmission howTo or escalate.
+
+Each image item: judge({ imageUrl, claim: item.expectation }, judgeUserId ?? userId); map match→pass, mismatch/inconclusive→fail; set judge_origin to openai_images.judge: plus the model string returned by judge().`,
     },
     reviewSubmission: {
       description: "Review a quest in purrview. Script-locked end-to-end via questPurrview weapon: confirmSubmission → per-item vision evaluation → approve OR bounce.",
@@ -955,6 +983,187 @@ export async function assign(userId, { questId, guildos, client }) {
   };
 }
 
+const IMAGE_URL_RE = /\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i;
+
+/**
+ * @param {string} userId
+ * @param {{ questId?: string, summary?: string, actor_name?: string, judgeUserId?: string }} [opts]
+ * @returns {Promise<{ data: Record<string, unknown> | null, error: Error | null }>}
+ */
+export async function runReviewLoop(userId, opts = {}) {
+  const o = /** @type {Record<string, unknown>} */ (opts && typeof opts === "object" ? opts : {});
+  const questId = String(o.questId ?? "").trim();
+  if (!questId) {
+    return { data: null, error: new Error("runReviewLoop: questId is required") };
+  }
+
+  const confirm = await confirmSubmission({ questId });
+  if (!confirm.ok) {
+    return {
+      data: {
+        action: "manual_required",
+        questId,
+        stage: null,
+        confirm,
+        note: "confirmSubmission failed — do not judge; follow reviewSubmission howTo or fix the submit gate.",
+      },
+      error: null,
+    };
+  }
+
+  const items = Array.isArray(confirm.items) ? confirm.items : [];
+  if (items.length === 0) {
+    return {
+      data: {
+        action: "manual_required",
+        questId,
+        confirm,
+        note: "Quest has zero items — nothing to auto-judge.",
+      },
+      error: null,
+    };
+  }
+
+  /** @param {unknown} url */
+  function pathnameLooksLikeImage(url) {
+    if (typeof url !== "string" || !url.trim()) return false;
+    try {
+      const pathname = new URL(url).pathname;
+      return IMAGE_URL_RE.test(pathname);
+    } catch {
+      return IMAGE_URL_RE.test(String(url));
+    }
+  }
+
+  for (const item of items) {
+    if (!pathnameLooksLikeImage(item.url)) {
+      return {
+        data: {
+          action: "manual_required",
+          questId,
+          confirm,
+          note: `Item ${item.item_key} has non-image or empty url — use reviewSubmission (e.g. fetch + claude-multimodal-read).`,
+        },
+        error: null,
+      };
+    }
+  }
+
+  const judgeUid =
+    typeof o.judgeUserId === "string" && o.judgeUserId.trim()
+      ? o.judgeUserId.trim()
+      : typeof userId === "string" && userId.trim()
+        ? userId.trim()
+        : undefined;
+
+  /** @type {Array<{ item_key: string, verdict: 'pass' | 'fail', text: string, judge_origin: string, judge_rationale: string, judge_model: string }>} */
+  const perItemVerdicts = [];
+
+  try {
+    for (const item of items) {
+      const j = await judge(
+        { imageUrl: String(item.url), claim: String(item.expectation ?? "") },
+        judgeUid,
+      );
+      const verdict = j.verdict === "match" ? "pass" : "fail";
+      perItemVerdicts.push({
+        item_key: String(item.item_key),
+        verdict,
+        text:
+          verdict === "pass"
+            ? `Judge confirmed: ${j.reasoning}`
+            : `Judge flagged ${j.verdict} (confidence ${j.confidence}): ${j.reasoning}`,
+        judge_origin: `openai_images.judge:${j.model}`,
+        judge_rationale: j.reasoning,
+        judge_model: j.model,
+      });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      data: {
+        action: "manual_required",
+        questId,
+        confirm,
+        verdicts: perItemVerdicts,
+        note: `openai_images.judge failed: ${msg}`,
+      },
+      error: null,
+    };
+  }
+
+  const summary = typeof o.summary === "string" ? o.summary : "";
+  const actor_name = typeof o.actor_name === "string" && o.actor_name.trim() ? o.actor_name.trim() : "Cat";
+
+  const allPass = perItemVerdicts.every((v) => v.verdict === "pass");
+  if (allPass) {
+    const approveResult = await approve({
+      questId,
+      perItemVerdicts,
+      summary: summary || undefined,
+      actor_name,
+    });
+    if (!approveResult.ok) {
+      return {
+        data: {
+          action: "manual_required",
+          questId,
+          verdicts: perItemVerdicts,
+          approveResult,
+          note: "All judges passed but approve() failed — inspect approveResult.report.",
+        },
+        error: null,
+      };
+    }
+    return {
+      data: {
+        action: "approved",
+        questId,
+        stage: approveResult.stage,
+        verdicts: perItemVerdicts,
+        approveResult,
+      },
+      error: null,
+    };
+  }
+
+  const reason = perItemVerdicts
+    .filter((v) => v.verdict === "fail")
+    .map((v) => `${v.item_key}: ${v.judge_rationale}`)
+    .join(" ");
+
+  const bounceResult = await bounce({
+    questId,
+    perItemVerdicts,
+    reason: reason || "One or more items failed the vision judge.",
+    actor_name,
+  });
+
+  if (!bounceResult.ok) {
+    return {
+      data: {
+        action: "manual_required",
+        questId,
+        verdicts: perItemVerdicts,
+        bounceResult,
+        note: "Judges reported failures but bounce() failed — inspect bounceResult.report.",
+      },
+      error: null,
+    };
+  }
+
+  return {
+    data: {
+      action: "bounced",
+      questId,
+      stage: bounceResult.stage ?? "execute",
+      verdicts: perItemVerdicts,
+      bounceResult,
+    },
+    error: null,
+  };
+}
+
 const questmaster = {
   definition,
   planRequestToQuest,
@@ -962,6 +1171,7 @@ const questmaster = {
   selectAdventurer,
   interpretIdea,
   assign,
+  runReviewLoop,
 };
 
 export default questmaster;
