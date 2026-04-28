@@ -1,11 +1,19 @@
 import { database } from "@/libs/council/database";
 import { publicTables } from "@/libs/council/publicTables";
-import { readAgent, writeFollowup, readConversation } from "@/libs/weapon/cursor/index.js";
+import { readAgent, writeFollowup, readConversation, syncSessionStatus } from "@/libs/weapon/cursor/index.js";
 
 const IS_PRODUCTION = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
 
 export async function runCron() {
   const db = await database.init("service");
+
+  // ── 0. Reconcile upstream cursor session lifecycle ──
+  //    syncSessionStatus per adventurer so DB session_status reflects what
+  //    cursor.com actually thinks. Catches FINISHED/EXPIRED/deleted sessions
+  //    before downstream nudge logic tries to followup against a corpse.
+  //    Also surfaces a "needs respawn" log line when a non-dispatchable
+  //    adventurer has assigned active quests.
+  await reconcileSessionLifecycle(db);
 
   // ── 1. Roll call: derive adventurer statuses (always runs) ──
   await deriveAdventurerStatuses(db);
@@ -23,6 +31,79 @@ export async function runCron() {
   }
 
   return { ok: true, production: IS_PRODUCTION };
+}
+
+// ---------------------------------------------------------------------------
+// Reconcile upstream cursor session lifecycle into DB session_status.
+// ---------------------------------------------------------------------------
+//
+// Why this exists: cursor.com keeps its own session lifecycle (RUNNING →
+// FINISHED → EXPIRED). The adventurers table doesn't auto-reflect upstream
+// state, so for a long time a Cat session that had FINISHED upstream still
+// looked "idle" in the DB and the nudge loop kept trying to followup against
+// a dead session. Now we run syncSessionStatus on every cron tick so the
+// DB is the truth. The extra cost is N HTTP GETs (~N adventurers, currently 5).
+//
+// When an adventurer is non-dispatchable (EXPIRED / deleted) AND has active
+// assigned quests, we log a needs_respawn warning so the Guildmaster sees it.
+// We don't auto-respawn (that's a manual decision — sometimes the user wants
+// a fresh prompt, sometimes the same prompt; cursor.writeAgent must be
+// called explicitly via the locked path).
+
+export async function reconcileSessionLifecycle(db) {
+  const { data: adventurers } = await db
+    .from(publicTables.adventurers)
+    .select("id, name, session_id, session_status")
+    .not("session_id", "is", null);
+
+  if (!adventurers?.length) return { reconciled: 0, needsRespawn: [] };
+
+  let reconciled = 0;
+  const needsRespawn = [];
+
+  for (const adv of adventurers) {
+    let sync;
+    try {
+      sync = await syncSessionStatus({ adventurerId: adv.id });
+    } catch (err) {
+      console.error(`[cron] syncSessionStatus failed for ${adv.name}:`, err.message);
+      continue;
+    }
+    if (sync.was_drift) {
+      reconciled += 1;
+      console.log(
+        `[cron] reconciled ${adv.name}: db said ${adv.session_status}, upstream=${sync.upstream_status} → set to ${sync.adventurer.session_status}`,
+      );
+    }
+
+    // Non-dispatchable AND has active quests = needs_respawn
+    if (!sync.dispatch_safe) {
+      const { data: quests } = await db
+        .from(publicTables.quests)
+        .select("id, title, stage")
+        .eq("assignee_id", adv.id)
+        .in("stage", ["execute", "purrview", "review", "escalated", "closing"]);
+      if (quests?.length) {
+        needsRespawn.push({
+          adventurer: adv.name,
+          adventurer_id: adv.id,
+          session_id: adv.session_id,
+          upstream_status: sync.upstream_status,
+          quest_count: quests.length,
+          quest_titles: quests.map((q) => `${q.title} (${q.stage})`).slice(0, 5),
+        });
+      }
+    }
+  }
+
+  if (needsRespawn.length > 0) {
+    console.warn(
+      `[cron] needs_respawn — ${needsRespawn.length} adventurer(s) non-dispatchable with active quests:`,
+      JSON.stringify(needsRespawn, null, 2),
+    );
+  }
+
+  return { reconciled, needsRespawn };
 }
 
 // ---------------------------------------------------------------------------

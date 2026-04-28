@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { writeFollowupMock } = vi.hoisted(() => ({
+const { writeFollowupMock, syncSessionStatusMock } = vi.hoisted(() => ({
   writeFollowupMock: vi.fn(),
+  syncSessionStatusMock: vi.fn(),
 }));
 
 vi.mock("@/libs/weapon/cursor/index.js", () => ({
   readAgent: vi.fn(),
   writeFollowup: writeFollowupMock,
   readConversation: vi.fn().mockResolvedValue({ messages: [] }),
+  syncSessionStatus: syncSessionStatusMock,
 }));
 
 vi.mock("@/libs/council/publicTables", () => ({
@@ -22,7 +24,19 @@ vi.mock("@/libs/council/database", () => ({
   database: { init: vi.fn() },
 }));
 
-import { bounceReviewOnUserFeedback } from "./index.js";
+import { bounceReviewOnUserFeedback, reconcileSessionLifecycle } from "./index.js";
+
+beforeEach(() => {
+  // Default: every adventurer is dispatch_safe (RUNNING). Tests override per case.
+  syncSessionStatusMock.mockReset();
+  syncSessionStatusMock.mockResolvedValue({
+    upstream_status: "RUNNING",
+    alive: true,
+    dispatch_safe: true,
+    was_drift: false,
+    adventurer: { session_status: "idle" },
+  });
+});
 
 /**
  * Minimal supabase-js shape for the bounce path. The function needs:
@@ -180,5 +194,121 @@ describe("bounceReviewOnUserFeedback", () => {
     await bounceReviewOnUserFeedback(db);
     expect(calls.updated.find((u) => u.table === "quests" && u.row.stage === "execute")).toBeTruthy();
     expect(writeFollowupMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reconcileSessionLifecycle — surfaces dead cursor sessions before the nudge
+// loop tries to followup against them, and warns when a non-dispatchable
+// adventurer still has assigned active quests.
+// ---------------------------------------------------------------------------
+
+function buildLifecycleMockDb({ adventurers, questsByAssigneeId }) {
+  const builder = (table) => {
+    const ctx = { table, filters: {}, in: {} };
+    const obj = {
+      select: () => obj,
+      eq(col, val) { ctx.filters[col] = val; return obj; },
+      in(col, vals) { ctx.in[col] = vals; return obj; },
+      not() { return obj; },
+      order: () => obj,
+      limit: () => obj,
+      then(resolve) {
+        if (table === "adventurers") return resolve({ data: adventurers });
+        if (table === "quests" && ctx.filters.assignee_id) {
+          return resolve({ data: questsByAssigneeId[ctx.filters.assignee_id] || [] });
+        }
+        return resolve({ data: [] });
+      },
+    };
+    return obj;
+  };
+  return { db: { from: builder } };
+}
+
+describe("reconcileSessionLifecycle", () => {
+  it("warns about dead sessions with active quests", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockImplementation(({ adventurerId }) => {
+      if (adventurerId === "alive-1") {
+        return Promise.resolve({
+          upstream_status: "RUNNING",
+          alive: true,
+          dispatch_safe: true,
+          was_drift: false,
+          adventurer: { session_status: "idle" },
+        });
+      }
+      return Promise.resolve({
+        upstream_status: "EXPIRED",
+        alive: true,
+        dispatch_safe: false,
+        was_drift: true,
+        adventurer: { session_status: "expired" },
+      });
+    });
+
+    const { db } = buildLifecycleMockDb({
+      adventurers: [
+        { id: "alive-1", name: "Alive", session_id: "bc-a", session_status: "idle" },
+        { id: "dead-1", name: "Zombie", session_id: "bc-z", session_status: "idle" },
+      ],
+      questsByAssigneeId: {
+        "dead-1": [{ id: "q1", title: "stranded quest", stage: "execute" }],
+      },
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(r.reconciled).toBe(1);
+    expect(r.needsRespawn).toHaveLength(1);
+    expect(r.needsRespawn[0].adventurer).toBe("Zombie");
+    expect(r.needsRespawn[0].upstream_status).toBe("EXPIRED");
+    expect(r.needsRespawn[0].quest_count).toBe(1);
+  });
+
+  it("does NOT flag dead sessions when they have no active quests", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockResolvedValue({
+      upstream_status: "EXPIRED",
+      alive: true,
+      dispatch_safe: false,
+      was_drift: true,
+      adventurer: { session_status: "expired" },
+    });
+
+    const { db } = buildLifecycleMockDb({
+      adventurers: [{ id: "dead-2", name: "QuietZombie", session_id: "bc-q", session_status: "idle" }],
+      questsByAssigneeId: {}, // no quests
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(r.reconciled).toBe(1);
+    expect(r.needsRespawn).toHaveLength(0);
+  });
+
+  it("does NOT flag dispatchable sessions even with active quests", async () => {
+    syncSessionStatusMock.mockReset();
+    syncSessionStatusMock.mockResolvedValue({
+      upstream_status: "FINISHED",
+      alive: true,
+      dispatch_safe: true, // FINISHED is still dispatch_safe per cursor's model
+      was_drift: false,
+      adventurer: { session_status: "idle" },
+    });
+
+    const { db } = buildLifecycleMockDb({
+      adventurers: [{ id: "fine-1", name: "Worker", session_id: "bc-w", session_status: "idle" }],
+      questsByAssigneeId: { "fine-1": [{ id: "q1", title: "in-flight", stage: "execute" }] },
+    });
+
+    const r = await reconcileSessionLifecycle(db);
+    expect(r.needsRespawn).toHaveLength(0);
+  });
+
+  it("returns zeros when no adventurers have session_id", async () => {
+    const { db } = buildLifecycleMockDb({ adventurers: [], questsByAssigneeId: {} });
+    const r = await reconcileSessionLifecycle(db);
+    expect(r.reconciled).toBe(0);
+    expect(r.needsRespawn).toEqual([]);
   });
 });

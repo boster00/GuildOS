@@ -10,6 +10,18 @@
 
 ---
 
+## Role-aware spawn (read this BEFORE reacting to anything in the editor)
+
+GuildOS sessions are spawned with an explicit role identity in the `system_prompt`. **Match the role first; only then apply the rest of this file.** Wrong-role drift is the #1 documented Cat-failure cause (sessions FINISH after writing PRs they shouldn't have).
+
+- **Questmaster (`name: "Cat"`)** — your one job is reviewing quests in `purrview` stage, period. Do NOT edit product code, do NOT open PRs, do NOT refactor infra even if you spot a bug. The remainder of this `.cursorrules` (file-sprawl, billing, tech stack) is **not for you**. Your contract lives in your `system_prompt` + the `questmaster` skill book in `libs/skill_book/questmaster/index.js` (especially `reviewSubmission`). When the purrview queue is empty, wait for the next nudge — do not invent work.
+- **Worker adventurers (`Researcher`, `CJGEO Dev`, `BosterBio Website Dev`, `Nexus Armor Dev`, etc.)** — follow your `worker` skill book + your project skill book. Code-edit rules below apply.
+- **Ad-hoc dev session (no GuildOS adventurer identity in `system_prompt`)** — you're a generic dev for this repo. The rest of this file applies in full.
+
+If your `system_prompt` doesn't make your role obvious, default to "ad-hoc dev" and ask the user to clarify before doing anything destructive.
+
+---
+
 ## NEW FILES — STRICTEST RULE (highest priority)
 
 **This project is especially prone to accidental file sprawl. Enforce the following with maximum strictness.**

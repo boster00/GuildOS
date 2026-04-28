@@ -124,9 +124,35 @@ export const definition = {
         due_date: "string, ISO 8601 or null",
       },
     },
-    reviewSubmission: {
-      description: "Review a quest in purrview. Script-locked end-to-end via questPurrview weapon: confirmSubmission → per-item vision evaluation → approve OR bounce.",
+    runReviewLoop: {
+      description: "One-call locked review: confirmSubmission → openai_images.judge per item → approve OR bounce. Use this for any quest whose items are all images. Falls back to manual_required for non-image items.",
       howTo: `
+**Use this whenever every items.url is an image** (.png/.jpg/.jpeg/.webp/.gif). One call replaces the entire reviewSubmission workflow — Cat does not write its own loop, choose its own judge, or assemble its own perItemVerdicts.
+
+\`\`\`javascript
+import { runReviewLoop } from "@/libs/skill_book/questmaster";
+const result = await runReviewLoop({ questId });
+\`\`\`
+
+**Result shape:**
+- \`{ ok: true, action: 'approved', stage: 'review', items_count, perItemVerdicts }\` — every item passed gpt-4o judge; quest advanced.
+- \`{ ok: true, action: 'bounced', stage: 'execute', failing_item_keys, perItemVerdicts }\` — at least one item failed; quest sent back; bounce reason auto-built from judge rationales.
+- \`{ ok: false, action: 'manual_required', verdicts }\` — at least one items.url is non-image; defer to the reviewSubmission howTo and judge those manually (text/JSON/doc judging is not yet automated in this loop).
+- \`{ ok: false, action: 'confirm_failed' | 'approve_failed' | 'bounce_failed', failed_at, reason }\` — a gate weapon refused; the report tells you exactly what's wrong.
+
+**Why this exists:** Cat's prior sessions (pre-2026-04-28) kept inventing their own loops, posting verdicts without invoking the vision judge (judge_origin null), and drifting into infra PR work when the queue went quiet. Removing the choice is the highest-leverage fix.
+
+**Banned**: do NOT call confirmSubmission/approve/bounce/judge directly when runReviewLoop covers your case. Save those for the manual reviewSubmission flow when items are non-image or you need a tiebreaker.
+`,
+    },
+    reviewSubmission: {
+      description: "Manual purrview review for non-image artifacts (text, JSON, doc). For image-only quests, use runReviewLoop instead. Script-locked end-to-end via questPurrview weapon: confirmSubmission → per-item evaluation → approve OR bounce.",
+      howTo: `
+**Prefer \`runReviewLoop\` when every items.url is an image** — it removes the workflow choice. Use this manual flow only when:
+  - At least one items.url is non-image (text/JSON/doc/HTML), OR
+  - You need a tiebreaker via \`getSecondOpinion\` before deciding, OR
+  - runReviewLoop returned a gate failure you want to debug step-by-step.
+
 This is the canonical purrview review flow. Both ends of every handoff are script-locked — never write \`stage\` directly, never open a screenshot before \`confirmSubmission\` passes.
 
 ### Step 1 — Verify the worker handoff (no shortcuts)
@@ -955,6 +981,162 @@ export async function assign(userId, { questId, guildos, client }) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// runReviewLoop — script-locked end-to-end purrview review for one quest.
+// ---------------------------------------------------------------------------
+//
+// Why this exists: Cat's prior sessions kept inventing their own review
+// loops, posting verdicts without invoking the vision judge (judge_origin
+// null), and drifting into infra PRs when the queue was empty. The fix
+// is to remove the choice — Cat calls this one function, which orchestrates
+// the entire workflow against the script-locked gate weapons.
+//
+// One call per quest:
+//   1. questPurrview.confirmSubmission → verify worker handoff lockphrase.
+//   2. For each item: route to a vision judge based on URL extension:
+//      - image (png/jpg/webp/gif) → openai_images.judge (gpt-4o, mandatory).
+//      - non-image (text/json/doc) → returned as 'manual_required' verdict;
+//        the loop exits without writing a stage transition so Cat (or a
+//        human) handles the non-image case via the existing reviewSubmission
+//        howTo. Future work: add Claude-side text/JSON judging for full
+//        automation here.
+//   3. If every judge returns 'match' → questPurrview.approve.
+//   4. If any judge returns 'mismatch' or 'inconclusive' → questPurrview.bounce
+//      with a structured reason listing each failing item_key + judge
+//      rationale.
+//
+// Returns one of:
+//   { ok: true, action: 'approved' | 'bounced', stage, items_count, perItemVerdicts }
+//   { ok: false, action: 'manual_required', failed_at, ... }
+//
+// @param {{ questId: string }} input
+// @param {string} [userId] — owner id for credential-scoped weapon calls
+async function runReviewLoop({ questId } = {}, userId) {
+  if (typeof questId !== "string" || !questId.trim()) {
+    return { ok: false, action: "input_invalid", reason: "questId required (non-empty string)" };
+  }
+
+  // Lazy-import the gate weapons + judge so the questmaster module doesn't
+  // pull them in for non-review code paths (planRequestToQuest etc.).
+  // These modules have NO default export — destructure the namespace directly.
+  const { confirmSubmission, approve, bounce } = await import("@/libs/weapon/questPurrview/index.js");
+  const { judge } = await import("@/libs/weapon/openai_images/index.js");
+
+  // Step 1 — confirm worker handoff
+  const confirm = await confirmSubmission({ questId });
+  if (!confirm.ok) {
+    return {
+      ok: false,
+      action: "confirm_failed",
+      failed_at: "confirmSubmission",
+      reason: confirm.reason,
+      msg: confirm.msg,
+    };
+  }
+  const items = confirm.items || [];
+  if (items.length === 0) {
+    return {
+      ok: false,
+      action: "no_items",
+      failed_at: "confirmSubmission",
+      reason: "Quest has no items rows after confirmSubmission. Cannot review an empty handoff.",
+    };
+  }
+
+  // Step 2 — judge per item
+  const IMAGE_EXT = /\.(png|jpe?g|gif|webp)(\?|#|$)/i;
+  const verdicts = [];
+  let manualRequired = false;
+  for (const item of items) {
+    const url = item.url || "";
+    const expectation = item.expectation || "";
+    if (!IMAGE_EXT.test(url)) {
+      // Non-image: bail out to manual review (text/json/doc judging not yet
+      // automated in this loop). Cat or a human handles via reviewSubmission
+      // howTo.
+      manualRequired = true;
+      verdicts.push({
+        item_key: item.item_key,
+        verdict: "manual",
+        text: `Non-image artifact at ${url}; runReviewLoop only auto-judges images. Defer to manual reviewSubmission flow.`,
+        judge_origin: null,
+      });
+      continue;
+    }
+    let judgeRes;
+    try {
+      judgeRes = await judge({ imageUrl: url, claim: expectation }, userId);
+    } catch (err) {
+      verdicts.push({
+        item_key: item.item_key,
+        verdict: "fail",
+        text: `Judge call failed: ${err.message}`,
+        judge_origin: "openai_images.judge",
+        judge_rationale: `Error: ${err.message}`,
+      });
+      continue;
+    }
+    const passOrFail = judgeRes.verdict === "match" ? "pass" : "fail";
+    verdicts.push({
+      item_key: item.item_key,
+      verdict: passOrFail,
+      text:
+        passOrFail === "pass"
+          ? `Judge confirmed match (confidence ${judgeRes.confidence}): ${judgeRes.reasoning}`
+          : `Judge flagged ${judgeRes.verdict} (confidence ${judgeRes.confidence}): ${judgeRes.reasoning}`,
+      judge_origin: `openai_images.judge:${judgeRes.model}`,
+      judge_model: judgeRes.model,
+      judge_rationale: judgeRes.reasoning,
+    });
+  }
+
+  if (manualRequired) {
+    return {
+      ok: false,
+      action: "manual_required",
+      failed_at: "judge",
+      reason: "One or more items are non-image artifacts; runReviewLoop only auto-judges images. Use the reviewSubmission howTo for text/JSON/doc items.",
+      verdicts,
+    };
+  }
+
+  // Step 3 — decide approve vs bounce
+  const fails = verdicts.filter((v) => v.verdict === "fail");
+  if (fails.length === 0) {
+    const result = await approve({
+      questId,
+      perItemVerdicts: verdicts,
+      summary: `runReviewLoop auto-approved: ${verdicts.length}/${verdicts.length} items judged 'match' by gpt-4o.`,
+    });
+    if (!result.ok) {
+      return { ok: false, action: "approve_failed", failed_at: "approve", reason: result.failed?.[0], report: result.report, verdicts };
+    }
+    return {
+      ok: true,
+      action: "approved",
+      stage: result.stage,
+      items_count: result.items_count,
+      perItemVerdicts: verdicts,
+    };
+  }
+
+  // Bounce path
+  const failingKeys = fails.map((v) => `${v.item_key}: ${v.judge_rationale || v.text}`).join("; ");
+  const reason = `runReviewLoop auto-bounced: ${fails.length}/${verdicts.length} items failed gpt-4o judge. Failing items — ${failingKeys}. Worker should re-capture these artifacts so they actually demonstrate the expectation, then resubmit with the same item_keys (UPSERT replaces in place).`;
+  const result = await bounce({ questId, perItemVerdicts: verdicts, reason });
+  if (!result.ok) {
+    return { ok: false, action: "bounce_failed", failed_at: "bounce", reason: result.failed?.[0], report: result.report, verdicts };
+  }
+  return {
+    ok: true,
+    action: "bounced",
+    stage: result.stage,
+    items_count: result.items_count,
+    failing_item_keys: fails.map((v) => v.item_key),
+    perItemVerdicts: verdicts,
+  };
+}
+
 const questmaster = {
   definition,
   planRequestToQuest,
@@ -962,6 +1144,8 @@ const questmaster = {
   selectAdventurer,
   interpretIdea,
   assign,
+  runReviewLoop,
 };
 
+export { runReviewLoop };
 export default questmaster;
